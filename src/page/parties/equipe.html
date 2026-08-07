@@ -1,0 +1,40 @@
+<!--# ---------------------------------------------------------------------------
+   L'ÉQUIPE.
+
+   Une ligne pleine largeur par personne : portrait carré à gauche, nom, rôle et
+   prestations à droite, filet entre chaque. Pas de grille de cartes, pas de
+   portraits ronds — le rond est la forme de l'avatar, et l'avatar est ce que
+   fait tout le monde.
+
+   ⚠️ LA SECTION SE MASQUE SEULE quand le commerce compte moins de deux
+      personnes actives : le site d'un barbier qui travaille seul ne doit pas
+      afficher une section « Équipe » avec un unique portrait, ce qui souligne
+      précisément ce qu'on ne veut pas souligner. C'est le JavaScript qui décide
+      (voir js/04-contenu-statique.js) ; la section part donc masquée.
+
+   Le contenu est peint par la page depuis /api/config : les portraits sont des
+   images écrites en base et voyagent déjà dans cette réponse, les écrire aussi
+   dans le HTML les enverrait deux fois (voir src/lib/catalogue.js).
+   --------------------------------------------------------------------------- #-->
+<!--# Sur aplat encre : les sections alternent craie / encre / bleu d'un bout à
+     l'autre de la page, et c'est cette alternance qui la découpe — pas des
+     cartes, pas des ombres, pas des traits décoratifs. #-->
+<section class="bloc sombre" id="equipe" hidden>
+  <div class="bloc-corps">
+
+    <div class="rail">
+      <p class="etiquette"><span class="rail-numero">03</span> Équipe</p>
+    </div>
+
+    <div class="contenu">
+      <h2>Qui vous reçoit</h2>
+      <p class="intro">
+        Chacun a ses horaires. Vous choisissez au moment de réserver, ou vous
+        laissez « peu importe » et on vous cale au plus tôt.
+      </p>
+
+      <ul class="equipe-liste" id="equipeListe"></ul>
+    </div>
+
+  </div>
+</section>

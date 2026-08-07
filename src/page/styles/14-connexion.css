@@ -1,0 +1,141 @@
+/* ---------------------------------------------------------------------------
+   LA SURIMPRESSION ET LA CONNEXION
+   --------------------------------------------------------------------------- */
+
+/* --- LA SURIMPRESSION ------------------------------------------------------
+
+   Sert aux mentions légales et aux deux formulaires de l'agenda.
+
+   Le voile est un aplat encre à 88 % — pas un flou d'arrière-plan. Le flou
+   (`backdrop-filter`) est le tic visuel qui date le plus vite, il coûte cher à
+   dessiner sur un téléphone d'entrée de gamme, et il rend le texte du dessous
+   plus difficile à ignorer, pas moins.
+*/
+.surimpression {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+
+  background: rgba(22, 25, 27, 0.88);
+}
+
+.surimpression-boite {
+  width: 100%;
+  max-width: 40rem;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--craie);
+  color: var(--encre);
+  /* Aucune ombre, aucun arrondi : la boîte se détache du voile par son aplat
+     clair, ce qui suffit largement. */
+}
+
+.surimpression-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e2);
+  padding: var(--e3) var(--e3) var(--e2);
+  border-bottom: 1px solid var(--filet);
+}
+
+.surimpression-titre {
+  font-size: var(--t-sous);
+  letter-spacing: 0;
+}
+
+.surimpression-fermer {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--filet);
+  background: none;
+  color: var(--encre);
+  font-family: var(--f-donnee);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color var(--transition), background-color var(--transition);
+}
+
+.surimpression-fermer:hover { border-color: var(--encre); }
+
+.surimpression-corps {
+  padding: var(--e3);
+  overflow-y: auto;
+}
+
+.surimpression-corps h3 {
+  margin: var(--e3) 0 var(--e1);
+  font-size: var(--t-petit);
+  letter-spacing: var(--ls-etiq);
+  color: var(--acier);
+}
+
+.surimpression-corps h3:first-child { margin-top: 0; }
+
+@media (min-width: 560px) {
+  /* Centrée verticalement à partir des écrans où il y a la place. Collée en bas
+     sur téléphone : c'est là que le pouce atteint le bouton de fermeture. */
+  .surimpression { align-items: center; padding: var(--e3); }
+}
+
+/* --- L'ESPACE COMMERÇANT, VUE ENTIÈRE -------------------------------------- */
+
+.espace {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  overflow-y: auto;
+  background: var(--craie);
+}
+
+/* --- LA CONNEXION ---------------------------------------------------------- */
+
+.connexion {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--e4) var(--marge);
+}
+
+.connexion-boite { width: 100%; max-width: 26rem; }
+
+.connexion-sur-titre { margin-bottom: var(--e1); }
+
+.connexion-titre {
+  margin-bottom: var(--e4);
+  font-size: var(--t-section);
+  letter-spacing: var(--ls-section);
+}
+
+/* Les identifiants de démonstration. Sur aplat encre : c'est un bloc qui
+   n'appartient pas au formulaire, et l'aplat le dit mieux qu'un cadre. */
+.connexion-demo {
+  margin-bottom: var(--e4);
+  padding: var(--e3);
+  background: var(--encre);
+  color: var(--craie);
+  --acier: var(--acier-clair);
+  --filet: var(--filet-sombre);
+}
+
+.connexion-demo > .etiquette { margin-bottom: var(--e2); }
+.connexion-demo .fiche { margin-bottom: var(--e2); }
+.connexion-demo dd { color: var(--craie); }
+
+.connexion-retour {
+  margin-top: var(--e3);
+  font-family: var(--f-texte);
+  font-size: var(--t-petit);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--bleu-travail);
+}

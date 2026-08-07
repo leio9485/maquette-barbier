@@ -1,0 +1,16 @@
+# Ce qui n'a rien a faire dans l'image.
+# Sans ce fichier, `docker build` recopie tout le dossier — y compris
+# node_modules (reinstalle proprement dans l'image), la base locale et le .env
+# qui contient les reglages de cette machine.
+
+node_modules
+src/generated
+data
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+tests
+CLAUDE.md
+Site vitrine

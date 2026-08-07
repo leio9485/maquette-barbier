@@ -1,0 +1,27 @@
+<!--# ---------------------------------------------------------------------------
+   LES AVIS.
+
+   ⚠️ LA SECTION ENTIÈRE est remplacée par le serveur (src/lib/temoignages.js),
+      `<section>` et attribut `hidden` compris : c'est ce qui lui permet de
+      disparaître quand le commerce n'a saisi aucun témoignage, sans qu'aucun
+      attribut n'ait à être touché hors de la zone.
+
+      Ce qui est écrit ici est donc du contenu de secours, affiché seulement si
+      la base est injoignable — auquel cas la section reste masquée : mieux vaut
+      pas de section du tout que trois cases vides.
+
+      Ne pas retirer les deux marqueurs.
+   --------------------------------------------------------------------------- #-->
+<!--@temoignages-->
+<section class="bloc sombre" id="avis" hidden>
+  <div class="bloc-corps">
+    <div class="rail">
+      <p class="etiquette"><span class="rail-numero">05</span> Avis</p>
+    </div>
+    <div class="contenu">
+      <h2>Ce qu'en disent<br>les clients</h2>
+      <ul class="avis-liste" id="avisListe" data-nombre="0"></ul>
+    </div>
+  </div>
+</section>
+<!--/@temoignages-->

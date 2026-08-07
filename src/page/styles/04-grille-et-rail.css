@@ -1,0 +1,110 @@
+/* ---------------------------------------------------------------------------
+   LA GRILLE ET LE RAIL
+
+   Toute la page tient sur une seule structure, repetee de section en section :
+
+       <section class="bloc">
+         <div class="bloc-corps">
+           <div class="rail"><p class="etiquette">02 · Prestations</p></div>
+           <div class="contenu"> ... </div>
+         </div>
+       </section>
+
+   LE RAIL est la colonne etroite de gauche. Il ne porte que des reperes : le
+   numero et le nom de la section, parfois une precision courte. Il ne porte
+   jamais de contenu dont la lecture soit necessaire — sur un telephone, il
+   devient une simple ligne au-dessus du titre, et ce qui s'y trouve doit
+   survivre a ce changement de place.
+
+   LE CONTENU est aligne a gauche et borne a `--mesure`. JAMAIS CENTRE : le
+   centrage est ce qui fait qu'un site de commercant ressemble a tous les autres,
+   et il rend la lecture plus lente des que le texte depasse trois lignes.
+
+   Pas d'ombre portee, pas de carte flottante, aucun rayon. La hierarchie se fait
+   par des APLATS PLEINS qui vont d'un bord a l'autre, et par le vide entre eux.
+   --------------------------------------------------------------------------- */
+
+.bloc {
+  /* Les aplats vont d'un bord de l'ecran a l'autre : c'est le fond qui decoupe
+     la page, pas des cartes posees dessus. */
+  width: 100%;
+}
+
+.bloc-corps {
+  max-width: var(--largeur-max);
+  margin: 0 auto;
+  padding: var(--e5) var(--marge);
+}
+
+/* Deux sections de meme fond qui se suivent ne doivent pas payer deux fois le
+   meme espace : la seconde perd son padding haut, et le bord franc entre elles
+   disparait — ce qui est exact, c'est le meme aplat. */
+.bloc + .bloc:not(.sombre):not(.bleu) .bloc-corps { padding-top: 0; }
+.sombre + .sombre .bloc-corps,
+.bleu + .bleu .bloc-corps { padding-top: 0; }
+
+/* --- LE RAIL, EN LIGNE (TELEPHONE) ---------------------------------------
+
+   Sous 768 px, le rail n'est plus une colonne : c'est une ligne d'annonce
+   posee au-dessus du titre, soulignee d'un filet. Elle occupe une ligne de
+   13 px la ou une colonne aurait mange un tiers de la largeur.
+*/
+.rail {
+  margin-bottom: var(--e3);
+  padding-bottom: var(--e1);
+  border-bottom: 1px solid var(--filet);
+}
+
+.rail p { margin: 0; max-width: none; }
+
+/* Le numero de section, plus sombre que son intitule : on lit "02" puis
+   "PRESTATIONS", dans cet ordre. */
+.rail-numero { color: var(--encre); }
+.sombre .rail-numero, .bleu .rail-numero { color: var(--craie); }
+
+/* --- LE RAIL, EN COLONNE (A PARTIR DE 768 px) ----------------------------- */
+
+@media (min-width: 768px) {
+  .bloc-corps {
+    display: grid;
+    grid-template-columns: minmax(96px, var(--largeur-rail)) minmax(0, 1fr);
+    gap: var(--e4);
+    align-items: start;
+  }
+
+  .rail {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: 0;
+    /* Le filet passe a droite : il devient la ligne qui separe le rail du
+       contenu, exactement le meme role tourne d'un quart de tour. */
+    border-right: 1px solid var(--filet);
+    padding-right: var(--e2);
+    /* Cale sur la premiere ligne du titre plutot que sur le haut du bloc : sans
+       cela, l'etiquette flotte au-dessus du texte qu'elle annonce. */
+    padding-top: 0.35em;
+  }
+
+  /* Le contenu ne s'etale pas jusqu'au bord sur grand ecran : une ligne de
+     1000 px se relit deux fois. La mesure est portee par les paragraphes
+     eux-memes (voir 03-fondations.css) ; ici on borne les blocs entiers. */
+  .contenu { min-width: 0; }
+}
+
+@media (min-width: 1120px) {
+  .bloc-corps {
+    padding-top: var(--e6);
+    padding-bottom: var(--e6);
+  }
+}
+
+/* --- LE FILET ------------------------------------------------------------
+
+   La seule separation du site. Un trait de 1 px, jamais deux epaisseurs
+   differentes, jamais une ombre a la place.
+*/
+.filet {
+  border: 0;
+  border-top: 1px solid var(--filet);
+  margin: var(--e3) 0;
+}

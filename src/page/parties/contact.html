@@ -1,0 +1,84 @@
+<!--# ---------------------------------------------------------------------------
+   CONTACT — les horaires, l'adresse, le plan.
+
+   LE PLAN EST DESSINÉ PAR LE SERVEUR (src/lib/plan.js) et servi en SVG depuis
+   ce site. Pas de carte Google intégrée : un iframe Maps est un traceur tiers,
+   déposé chez chaque visiteur avant même qu'il ait fait défiler la page, et la
+   page de confidentialité de ce site promet qu'il n'y en a aucun. Le lien
+   « ouvrir dans Maps » reste, lui — il ne se déclenche qu'au clic, et c'est
+   toute la différence.
+
+   Le tableau des horaires est une fiche de travail : jour à gauche, heures en
+   chasse fixe à droite. Sept lignes qui s'alignent, sans une seule bordure de
+   tableau.
+   --------------------------------------------------------------------------- #-->
+<section class="bloc bleu" id="contact">
+  <div class="bloc-corps">
+
+    <div class="rail">
+      <p class="etiquette"><span class="rail-numero">07</span> Contact</p>
+    </div>
+
+    <div class="contenu">
+      <h2>Horaires<br>et adresse</h2>
+
+      <div class="contact-grille">
+
+        <div>
+          <h3 class="etiquette contact-titre">Ouverture</h3>
+          <!--# Peint par la page depuis les réglages. Le contenu écrit ici est
+               celui de secours : il dit vrai tant que le commerce n'a pas
+               changé ses horaires, et il ne dit jamais « chargement ». #-->
+          <dl class="fiche contact-horaires" id="contactHoraires">
+            <div><dt>Lundi</dt><dd>Fermé</dd></div>
+            <div><dt>Mardi</dt><dd>09:00 – 12:00 · 14:00 – 19:00</dd></div>
+            <div><dt>Mercredi</dt><dd>09:00 – 12:00 · 14:00 – 19:00</dd></div>
+            <div><dt>Jeudi</dt><dd>09:00 – 12:00 · 14:00 – 19:00</dd></div>
+            <div><dt>Vendredi</dt><dd>09:00 – 12:00 · 14:00 – 21:00</dd></div>
+            <div><dt>Samedi</dt><dd>08:30 – 17:00</dd></div>
+            <div><dt>Dimanche</dt><dd>Fermé</dd></div>
+          </dl>
+        </div>
+
+        <div>
+          <h3 class="etiquette contact-titre">Venir</h3>
+
+          <address class="contact-adresse">
+            <span data-champ="rue">12 rue de Valenciennes</span><br>
+            <span class="donnee" data-champ="code-postal">59570</span> <span data-champ="ville">Bavay</span>
+          </address>
+
+          <!--# Le plan du quartier, dessiné par le serveur depuis l'adresse.
+               Masqué tant qu'il n'existe pas : un commerce dont l'adresse n'a
+               pas pu être placée n'affiche pas de cadre vide. #-->
+          <a class="contact-plan" id="contactPlan" href="#" target="_blank" rel="noopener" hidden>
+            <img src="" alt="Plan du quartier" width="640" height="400" loading="lazy">
+            <span class="etiquette contact-plan-legende">Ouvrir dans Maps</span>
+          </a>
+
+          <dl class="fiche contact-joindre">
+            <div>
+              <dt>Téléphone</dt>
+              <dd><a href="tel:+33327399840" data-champ="telephone-lien"><span data-champ="telephone">03 27 39 98 40</span></a></dd>
+            </div>
+            <div>
+              <dt>Courriel</dt>
+              <dd><a href="mailto:contact@letabli-bavay.fr" data-champ="email-lien"><span data-champ="email">contact@letabli-bavay.fr</span></a></dd>
+            </div>
+          </dl>
+
+          <!--# Les adresses du commerce ailleurs sur le web. Chaque lien se
+               masque seul quand le commerce n'a rien saisi : jamais d'icône
+               morte vers un Instagram qui n'existe pas. #-->
+          <ul class="contact-liens etiquette" id="contactLiens">
+            <li hidden><a href="#" data-lien="google" target="_blank" rel="noopener">Fiche Google</a></li>
+            <li hidden><a href="#" data-lien="instagram" target="_blank" rel="noopener">Instagram</a></li>
+            <li hidden><a href="#" data-lien="facebook" target="_blank" rel="noopener">Facebook</a></li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</section>

@@ -1,0 +1,259 @@
+/* ---------------------------------------------------------------------------
+   LE TUNNEL DE RÉSERVATION
+   --------------------------------------------------------------------------- */
+
+.tunnel { max-width: 42rem; }
+
+.tunnel h2 { margin-bottom: var(--e3); }
+
+/* Le compteur d'étape. Dans le rail sur grand écran, en ligne d'en-tête sur
+   téléphone — comme tout ce que porte le rail. */
+.tunnel-compteur { margin-top: var(--e2); }
+
+.tunnel-rappel { margin-bottom: var(--e4); }
+
+.tunnel-rappel dd {
+  display: flex;
+  align-items: baseline;
+  gap: var(--e2);
+}
+
+.tunnel-changer {
+  font-family: var(--f-texte);
+  font-size: var(--t-petit);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--bleu-travail);
+}
+
+/* --- AVEC QUI ? ------------------------------------------------------------ */
+
+.tunnel-qui {
+  margin: 0 0 var(--e4);
+  padding: 0;
+  border: 0;
+}
+
+.tunnel-qui legend {
+  padding: 0;
+  margin-bottom: var(--e2);
+}
+
+.tunnel-qui .aide { margin-top: var(--e1); }
+
+/* --- LE CALENDRIER ---------------------------------------------------------
+
+   Sept colonnes, aucune bordure, les chiffres en chasse fixe : c'est
+   l'alignement des colonnes qui fait le calendrier, pas un quadrillage.
+*/
+.tunnel-calendrier { margin-bottom: var(--e4); }
+
+.calendrier-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e2);
+  padding-bottom: var(--e1);
+  border-bottom: 1px solid var(--filet);
+}
+
+.calendrier-mois {
+  margin: 0;
+  color: var(--encre);
+  text-align: center;
+  flex: 1;
+}
+
+.calendrier-fleche {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--filet);
+  background: none;
+  color: var(--encre);
+  font-family: var(--f-donnee);
+  font-size: var(--t-intro);
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color var(--transition), background-color var(--transition);
+}
+
+.calendrier-fleche:hover { border-color: var(--encre); }
+
+.calendrier-fleche[disabled] {
+  color: var(--acier);
+  border-color: var(--filet);
+  cursor: not-allowed;
+}
+
+.calendrier-jours,
+.calendrier-grille {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.calendrier-jours {
+  padding: var(--e1) 0;
+  text-align: center;
+}
+
+.calendrier-grille { gap: 2px; }
+
+/* Une case. 44 px de haut : la cible tactile minimale, sur une grille de sept
+   colonnes qui doit tenir dans 342 px de large sur un iPhone SE. */
+.calendrier-jour {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--encre);
+  font-family: var(--f-donnee);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-texte);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition),
+              border-color var(--transition);
+}
+
+.calendrier-jour:hover { border-color: var(--encre); }
+
+/* Fermé ou complet. Le jour reste LISIBLE (l'acier tient 4,55:1) et reste
+   annoncé aux lecteurs d'écran comme indisponible : on ne cache pas
+   l'information, on dit qu'elle ne mène nulle part. */
+.calendrier-jour[disabled] {
+  color: var(--acier);
+  cursor: not-allowed;
+  border-color: transparent;
+}
+
+.calendrier-jour[disabled]:hover { border-color: transparent; }
+
+/* Le jour choisi : aplat plein. Aucune pastille ronde, aucun contour de
+   couleur — un aplat carré, comme partout ailleurs sur ce site. */
+.calendrier-jour[aria-pressed="true"] {
+  background: var(--bleu-travail);
+  border-color: var(--bleu-travail);
+  color: var(--craie);
+}
+
+/* Aujourd'hui, quand ce n'est pas le jour choisi : un filet sous le chiffre.
+   Discret, mais suffisant pour se repérer dans le mois. */
+.calendrier-jour[data-aujourdhui]:not([aria-pressed="true"]) {
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+/* --- LES CRÉNEAUX ---------------------------------------------------------- */
+
+.tunnel-creneaux { margin-bottom: var(--e3); }
+
+.tunnel-creneaux h3 {
+  margin-bottom: var(--e2);
+  padding-bottom: var(--e1);
+  border-bottom: 1px solid var(--filet);
+  color: var(--encre);
+}
+
+.creneaux-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: var(--e1);
+}
+
+.creneau {
+  min-height: var(--hauteur-controle);
+  padding: 0 var(--e1);
+  border: 1px solid var(--acier);
+  background: none;
+  color: var(--encre);
+  font-family: var(--f-donnee);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-texte);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition),
+              border-color var(--transition);
+}
+
+.creneau:hover { border-color: var(--encre); }
+
+.creneau[aria-pressed="true"] {
+  background: var(--bleu-travail);
+  border-color: var(--bleu-travail);
+  color: var(--craie);
+}
+
+/* Un créneau déjà pris : barré, gris, non cliquable — et toujours affiché.
+
+   L'AFFICHER PLUTÔT QUE LE RETIRER RENSEIGNE MIEUX : une liste qui saute de
+   14h00 à 16h30 laisse croire à une erreur ; la même avec 14h45 et 15h30 barrés
+   dit « c'est un jour chargé », ce qui est l'information vraie. */
+.creneau[disabled] {
+  color: var(--acier);
+  border-color: var(--filet);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+/* --- LES MESSAGES ----------------------------------------------------------
+
+   Dans le flux, sur aplat plein, pleine largeur. Jamais une bulle flottante :
+   une bulle a besoin d'une ombre pour se détacher, elle disparaît souvent avant
+   d'être lue, et sur téléphone elle recouvre ce qu'on vient de saisir.
+
+   Aucune couleur d'alarme — la charte n'a pas de rouge, et un site de barbier
+   n'a rien à faire sonner. C'est la place du message et son aplat qui le
+   distinguent, et son texte qui dit quoi faire.
+*/
+.tunnel-message {
+  margin: var(--e3) 0;
+  padding: var(--e2);
+  max-width: none;
+  background: var(--encre);
+  color: var(--craie);
+  font-size: var(--t-petit);
+  line-height: 1.5;
+  border-left: 3px solid var(--craie);
+}
+
+/* Le message qui annonce une bonne nouvelle prend le vert, du côté du filet
+   seulement : le fond reste encre, donc le contraste du texte ne change pas. */
+.tunnel-message[data-ton="bon"] { border-left-color: var(--vert-clair); }
+
+/* --- LA FICHE ET LA CONFIRMATION ------------------------------------------- */
+
+.tunnel-fiche-titre {
+  margin: var(--e4) 0 var(--e2);
+  padding-bottom: var(--e1);
+  border-bottom: 1px solid var(--filet);
+  color: var(--encre);
+}
+
+.tunnel-fiche { margin-bottom: var(--e4); }
+
+.tunnel-mention { margin-top: var(--e2); }
+
+/* Le titre de la confirmation prend le vert : c'est un état positif, le seul
+   endroit du site où cette couleur a le droit d'exister à cette taille. */
+.tunnel-confirme { color: var(--vert-signal); }
+
+.tunnel-actions-fin {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e2) var(--e3);
+}
+
+.tunnel-actions-fin .lien-nu {
+  font-family: var(--f-texte);
+  font-size: var(--t-petit);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--bleu-travail);
+}

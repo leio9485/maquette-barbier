@@ -1,0 +1,79 @@
+/* ---------------------------------------------------------------------------
+   LES POLICES
+
+   Servies par ce site (public/fonts/), jamais par Google : ni preconnect, ni
+   feuille de style exterieure qui bloque le rendu, ni requete partie chez un
+   tiers a chaque visite — ce dernier point est une obligation, pas un gout
+   (voir la page de confidentialite : aucun traceur tiers).
+
+   QUATRE FICHIERS, 57 KO AU TOTAL. Chacun coute une requete et un temps
+   d'attente sur le premier ecran, et ce site s'ouvre sur un telephone en 4G.
+
+     archivo-700.woff2      les titres, et rien d'autre
+     sourcesans-400.woff2   le texte courant
+     sourcesans-500.woff2   l'appui : citations, valeurs saisies
+     sourcecode-400.woff2   TOUTE donnee : tarifs, durees, heures, dates
+
+   POURQUOI CELLES-CI, ET PAS LES GROTESQUES DU MOMENT
+
+   Le choix compte autant que la palette, parce que c'est ce qui date une page
+   le plus surement. Inter, Space Grotesk, Manrope, IBM Plex — surtout Plex Mono
+   — sont devenues la signature typographique des produits techniques des annees
+   2020. Elles seront lisibles dans cinq ans ; elles diront aussi « fait en
+   2026 », ce qui est exactement ce qu'on ne veut pas d'un site que le barbier
+   ne refera pas.
+
+   Les trois retenues sont anterieures a cette vague et n'appartiennent a aucun
+   univers de marque :
+
+     Archivo          grotesque de presse, dessinee pour les titres de journaux.
+                      Serree, robuste, faite pour etre lue en grand.
+     Source Sans 3    humaniste. Le contraste avec Archivo est reel — l'une est
+     Source Code Pro  neo-grotesque, l'autre humaniste — et les deux Source sont
+                      une superfamille dessinee ensemble : leurs chiffres, leur
+                      hauteur d'x et leurs proportions s'accordent d'origine.
+                      Aucun reglage a faire pour qu'une duree en chasse fixe
+                      s'aligne sur le texte a cote.
+
+   Aucune italique nulle part : ni fichier, ni synthese.
+
+   `font-display: swap` : le texte s'affiche immediatement dans la police de
+   repli, puis bascule. Rien n'attend jamais apres une police.
+
+   ⚠️ RENOMMER UN FICHIER POUR EN CHANGER LE CONTENU. Ces fichiers sont servis
+      avec un cache d'un an et sans numero de version (voir src/server.js) :
+      remplacer une police sans renommer la laisserait dans le navigateur des
+      visiteurs pendant des mois.
+   --------------------------------------------------------------------------- */
+
+@font-face {
+  font-family: 'Archivo';
+  src: url('/fonts/archivo-700.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Source Sans 3';
+  src: url('/fonts/sourcesans-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Source Sans 3';
+  src: url('/fonts/sourcesans-500.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Source Code Pro';
+  src: url('/fonts/sourcecode-400.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}

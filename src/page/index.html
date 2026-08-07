@@ -1,0 +1,155 @@
+<!--# --------------------------------------------------------------------------
+   LE SQUELETTE DE LA PAGE — l'ordre des morceaux, et rien d'autre.
+
+   Ce fichier ne contient volontairement AUCUN style, AUCUN script, et presque
+   aucun balisage : il dit dans quel ordre les morceaux de src/page/ se
+   recollent. C'est la table des matières du site — on l'ouvre pour savoir où
+   aller, pas pour modifier.
+
+   Un morceau s'appelle par `@inclure`, dans la forme du langage qui l'entoure :
+
+       <!--@inclure parties/galerie.html-->     dans le HTML
+       /*@inclure styles/08-accueil.css*/       dans le <style>
+       /*@inclure js/07-tunnel.js*/             dans le <script>
+
+   Le recollage se fait à chaque envoi de la page, côté serveur
+   (src/lib/assemblage.js). AUCUNE ÉTAPE DE CONSTRUCTION : on modifie un
+   morceau, on recharge la page. Le navigateur reçoit une seule page, un seul
+   style, un seul script.
+
+   ⚠️ L'ORDRE DES `@inclure` COMPTE. Pour le CSS, c'est l'ordre de la cascade :
+      deux règles de même spécificité sont départagées par la dernière écrite.
+      Pour le JavaScript, la politique Trusted Types (00) doit rester la toute
+      première instruction, et le démarrage (11) la dernière.
+
+   ⚠️ Les commentaires de cette forme — `<!--#` — sont RETIRÉS de la page
+      envoyée. Les commentaires HTML ordinaires, eux, partent chez le visiteur :
+      deux d'entre eux marquent les zones que le serveur remplace.
+   -------------------------------------------------------------------------- #-->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!--# La couleur de la barre du navigateur sur téléphone : celle du bandeau
+     d'état, qui est collé juste en dessous. Toute autre valeur ferait une
+     couture visible en haut de l'écran. #-->
+<meta name="theme-color" content="#16191B">
+<!--# L'icône d'onglet : le rail et trois lignes de contenu — la structure même
+     de la page, réduite à 16 pixels. Aucune lettre : un monogramme dans un
+     médaillon est le premier réflexe de tous les sites de barbier, et il ne se
+     lit de toute façon pas à cette taille. #-->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%2316191B'/%3E%3Crect x='10' y='14' width='6' height='36' fill='%2324405C'/%3E%3Crect x='26' y='14' width='28' height='6' fill='%23EFEEEA'/%3E%3Crect x='26' y='29' width='28' height='6' fill='%23EFEEEA'/%3E%3Crect x='26' y='44' width='20' height='6' fill='%23EFEEEA'/%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta name="twitter:card" content="summary">
+
+<!-- Tout ce qui suit, jusqu'au marqueur de fermeture, est REMPLACÉ par le
+     serveur à chaque envoi de la page, avec les réglages réels du commerce
+     (src/lib/page.js). Les valeurs ci-dessous ne servent que de contenu de
+     secours : c'est ce qu'affiche le fichier ouvert sans serveur.
+     Ne pas retirer les deux marqueurs — sans eux, l'en-tête cesse de suivre les
+     réglages, sans que rien ne le signale. -->
+<!--@reglages-->
+<title>L'Établi — Barbier à Bavay</title>
+<meta name="description" content="L'Établi, barbier à Bavay : coupe, barbe, rasage au coupe-chou. Réservez votre créneau en ligne, à toute heure.">
+<meta property="og:title" content="L'Établi — Barbier à Bavay">
+<meta property="og:description" content="Coupe, barbe, rasage au coupe-chou. Réservez votre créneau en ligne, à toute heure.">
+<!--/@reglages-->
+<!--# Les polices sont servies par ce site (public/fonts/), jamais par Google :
+     ni preconnect, ni feuille de style extérieure bloquant le rendu, et aucune
+     requête partie chez un tiers — c'est une obligation RGPD autant qu'une
+     question de vitesse.
+     Seules les deux polices du premier écran sont préchargées : le titre
+     d'accueil et le texte courant. Les deux autres se chargent quand le CSS les
+     réclame, et `font-display:swap` fait que rien n'attend après elles. #-->
+<link rel="preload" href="/fonts/archivo-700.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/sourcesans-400.woff2" as="font" type="font/woff2" crossorigin>
+<!--# LE STYLE. Un fichier par bloc, dans l'ordre de la cascade.
+     Pour changer une couleur, une taille ou un espacement : styles/02-jetons.css,
+     et lui seul. Une valeur écrite en dur ailleurs est un bogue. #-->
+<style>
+/*@inclure styles/01-polices.css*/
+/*@inclure styles/02-jetons.css*/
+/*@inclure styles/03-fondations.css*/
+/*@inclure styles/04-grille-et-rail.css*/
+/*@inclure styles/05-controles.css*/
+/*@inclure styles/06-bandeau-etat.css*/
+/*@inclure styles/07-entete.css*/
+/*@inclure styles/08-accueil.css*/
+/*@inclure styles/09-prestations.css*/
+/*@inclure styles/10-equipe-et-avis.css*/
+/*@inclure styles/11-galerie.css*/
+/*@inclure styles/12-contact-et-pied.css*/
+/*@inclure styles/13-tunnel.css*/
+/*@inclure styles/14-connexion.css*/
+/*@inclure styles/15-agenda.css*/
+/*@inclure styles/16-reglages.css*/
+/*@inclure styles/17-petits-ecrans.css*/
+</style>
+</head>
+<body>
+
+<a class="saut" href="#contenu">Aller au contenu</a>
+
+<!--# LA VITRINE. Les deux vues du site — la vitrine et l'espace commerçant — ne
+     coexistent jamais à l'écran : afficher l'une masque l'autre. #-->
+<div id="vueSite">
+
+<!--# LE BANDEAU D'ÉTAT — l'élément signature du site.
+     Il est le premier morceau de la page, collé en haut, et il dit la vérité du
+     moment : ouvert ou fermé, heure de fermeture, prochain créneau réellement
+     libre. La donnée vient du même calcul de disponibilité que le tunnel.
+     Ne pas le déplacer plus bas : sa raison d'être est de répondre avant que le
+     visiteur n'ait fait défiler quoi que ce soit. #-->
+<!--@inclure parties/bandeau-etat.html-->
+<!--@inclure parties/entete.html-->
+
+<main id="contenu">
+<!--# ⚠️ L'ORDRE DES SECTIONS EST CELUI DE LA PAGE, et le menu le suit
+     (parties/entete.html). Les numéros du rail aussi : 01 pour l'accueil,
+     07 pour le contact. En insérer une au milieu demande de renuméroter. #-->
+<!--@inclure parties/accueil.html-->
+<!--@inclure parties/prestations.html-->
+<!--@inclure parties/equipe.html-->
+<!--@inclure parties/galerie.html-->
+<!--@inclure parties/avis.html-->
+<!--@inclure parties/tunnel.html-->
+<!--@inclure parties/contact.html-->
+</main>
+
+<!--@inclure parties/pied-de-page.html-->
+</div>
+
+<!--# Hors de la vitrine : les mentions légales en surimpression (un visiteur au
+     milieu de sa réservation peut aller les lire sans perdre sa saisie) et
+     l'espace commerçant, qui est une vue entière avec son propre <main>. #-->
+<!--@inclure parties/mentions-legales.html-->
+<!--@inclure parties/espace-commercant.html-->
+<!--# LE JAVASCRIPT — une seule fonction anonyme, ouverte ici et refermée plus
+     bas. Toutes les sections partagent donc la même portée : c'est ce qui leur
+     permet de s'appeler entre elles sans rien exporter, et c'est pourquoi elles
+     sont recollées plutôt que servies en fichiers séparés.
+     ⚠️ Ces trois lignes et le `})();` de fermeture encadrent TOUT le code du
+        site : ne rien intercaler entre elles et le premier `@inclure`. #-->
+<script>
+(function(){
+'use strict';
+
+/*@inclure js/00-trusted-types.js*/
+/*@inclure js/01-configuration.js*/
+/*@inclure js/02-utilitaires.js*/
+/*@inclure js/03-donnees.js*/
+/*@inclure js/04-contenu-statique.js*/
+/*@inclure js/05-navigation.js*/
+/*@inclure js/06-bandeau-etat.js*/
+/*@inclure js/07-tunnel.js*/
+/*@inclure js/08-reglages.js*/
+/*@inclure js/09-agenda.js*/
+/*@inclure js/10-mon-compte.js*/
+/*@inclure js/11-demarrage.js*/
+})();
+</script>
+
+</body>
+</html>

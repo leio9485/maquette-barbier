@@ -1,0 +1,310 @@
+<!--# ---------------------------------------------------------------------------
+   L'ESPACE COMMERÇANT — une vue entière, qui remplace la vitrine à l'écran.
+
+   Deux volets : l'AGENDA (ce qu'on ouvre vingt fois par jour) et les RÉGLAGES
+   (ce qu'on ouvre trois fois par an). L'agenda est donc le volet par défaut.
+
+   Tout ce qui est ici est derrière un identifiant et un mot de passe vérifiés
+   par le serveur. Ce balisage part quand même dans la page envoyée à tout le
+   monde : ce n'est pas une fuite — il ne contient aucune donnée, seulement des
+   conteneurs vides. Les rendez-vous, eux, ne sont servis que par
+   /api/admin/bookings, qui exige une session valide.
+   --------------------------------------------------------------------------- #-->
+<div class="espace" id="vueEspace" hidden>
+
+  <!-- LA CONNEXION ---------------------------------------------------------- -->
+  <div class="connexion" id="ecranConnexion">
+    <div class="connexion-boite">
+
+      <p class="etiquette connexion-sur-titre">Espace commerçant</p>
+      <h1 class="connexion-titre"><span data-champ="nom">L'Établi</span></h1>
+
+      <!--# Le compte de démonstration, affiché en clair sur l'écran de
+           connexion — et seulement quand DEMO_MODE=true. Sans lui, un prospect
+           voit la vitrine, réserve, et ne découvre jamais l'agenda ni les
+           réglages, c'est-à-dire exactement ce qu'on lui vend. #-->
+      <div class="connexion-demo" id="connexionDemo" hidden>
+        <p class="etiquette">Démonstration</p>
+        <dl class="fiche">
+          <div><dt>Identifiant</dt><dd id="demoIdentifiant">—</dd></div>
+          <div><dt>Mot de passe</dt><dd id="demoMotDePasse">—</dd></div>
+        </dl>
+        <p class="petit secondaire">
+          Tout est remis à zéro chaque nuit. Vous pouvez tout essayer, rien n'est
+          définitif.
+        </p>
+      </div>
+
+      <form id="formulaireConnexion" novalidate>
+        <div class="champ">
+          <label for="connexionIdentifiant">Identifiant</label>
+          <input type="text" id="connexionIdentifiant" autocomplete="username" required>
+        </div>
+        <div class="champ">
+          <label for="connexionMotDePasse">Mot de passe</label>
+          <input type="password" id="connexionMotDePasse" autocomplete="current-password" required>
+        </div>
+
+        <p class="tunnel-message" id="messageConnexion" hidden></p>
+
+        <button type="submit" class="action action-pleine">Se connecter</button>
+      </form>
+
+      <button type="button" class="lien-nu connexion-retour" id="retourVitrine">Retour au site</button>
+
+    </div>
+  </div>
+
+  <!-- L'ESPACE, UNE FOIS CONNECTÉ ------------------------------------------- -->
+  <div id="ecranEspace" hidden>
+
+    <div class="espace-barre">
+      <div class="espace-barre-corps">
+        <p class="espace-marque">
+          <span class="etiquette">Espace commerçant</span>
+          <span class="espace-nom" data-champ="nom">L'Établi</span>
+        </p>
+
+        <nav class="espace-onglets etiquette" aria-label="Volets de l'espace">
+          <button type="button" class="espace-onglet" data-volet="agenda" aria-current="true">Agenda</button>
+          <button type="button" class="espace-onglet" data-volet="reglages">Réglages</button>
+        </nav>
+
+        <div class="espace-barre-actions">
+          <button type="button" class="lien-nu" id="voirLeSite">Voir le site</button>
+          <button type="button" class="lien-nu" id="seDeconnecter">Se déconnecter</button>
+        </div>
+      </div>
+    </div>
+
+    <main class="espace-corps">
+
+      <!-- VOLET AGENDA ------------------------------------------------------ -->
+      <section data-volet="agenda">
+
+        <div class="agenda-tete">
+          <div class="agenda-navigation">
+            <button type="button" class="calendrier-fleche" id="agendaPrecedent" aria-label="Période précédente">‹</button>
+            <p class="etiquette agenda-periode" id="agendaPeriode" aria-live="polite">—</p>
+            <button type="button" class="calendrier-fleche" id="agendaSuivant" aria-label="Période suivante">›</button>
+            <button type="button" class="lien-nu" id="agendaAujourdhui">Aujourd'hui</button>
+          </div>
+
+          <div class="choix agenda-vue">
+            <input type="radio" name="agendaVue" id="agendaVueJour" value="jour" checked>
+            <label for="agendaVueJour">Jour</label>
+            <input type="radio" name="agendaVue" id="agendaVueSemaine" value="semaine">
+            <label for="agendaVueSemaine">Semaine</label>
+          </div>
+        </div>
+
+        <div class="agenda-actions">
+          <button type="button" class="action" id="ouvrirAjoutRdv">Noter un rendez-vous</button>
+          <button type="button" class="action-douce" id="ouvrirBlocage">Bloquer une période</button>
+        </div>
+
+        <p class="tunnel-message" id="messageAgenda" hidden></p>
+
+        <div class="agenda" id="agenda"></div>
+      </section>
+
+      <!-- VOLET RÉGLAGES ---------------------------------------------------- -->
+      <section data-volet="reglages" hidden>
+
+        <!--# LE BROUILLON. Tant qu'il y a des changements non enregistrés, cette
+             barre reste visible en bas de l'écran et suit le défilement. Elle
+             dit ce qui n'est pas encore enregistré, et elle offre les deux
+             sorties : enregistrer, ou tout annuler. #-->
+        <div class="brouillon" id="brouillon" hidden>
+          <p class="etiquette" id="brouillonTexte">Modifications non enregistrées</p>
+          <div class="brouillon-actions">
+            <button type="button" class="lien-nu" id="annulerBrouillon">Annuler</button>
+            <button type="button" class="action" id="enregistrerReglages">Enregistrer</button>
+          </div>
+        </div>
+
+        <p class="tunnel-message" id="messageReglages" hidden></p>
+
+        <nav class="reglages-sommaire etiquette" aria-label="Sections des réglages">
+          <a href="#reglagesCoordonnees">Coordonnées</a>
+          <a href="#reglagesHoraires">Horaires</a>
+          <a href="#reglagesPrestations">Prestations</a>
+          <a href="#reglagesEquipe">Équipe</a>
+          <a href="#reglagesAvis">Avis</a>
+          <a href="#reglagesPhotos">Photos</a>
+        </nav>
+
+        <section class="reglages-bloc" id="reglagesCoordonnees">
+          <h2>Coordonnées</h2>
+          <div class="reglages-grille" id="champsCoordonnees"></div>
+        </section>
+
+        <section class="reglages-bloc" id="reglagesHoraires">
+          <h2>Horaires</h2>
+          <p class="secondaire petit">
+            Une ligne par jour. Décochez pour fermer, laissez la pause vide pour
+            une journée continue.
+          </p>
+          <div id="champsHoraires"></div>
+
+          <div class="reglages-grille reglages-creneaux">
+            <div class="champ">
+              <label for="reglagePas">Un créneau toutes les</label>
+              <select id="reglagePas">
+                <option value="10">10 minutes</option>
+                <option value="15">15 minutes</option>
+                <option value="20">20 minutes</option>
+                <option value="30">30 minutes</option>
+                <option value="60">60 minutes</option>
+              </select>
+            </div>
+            <div class="champ">
+              <label for="reglageDelai">Délai minimum avant un rendez-vous en ligne</label>
+              <select id="reglageDelai">
+                <option value="0">Aucun</option>
+                <option value="30">30 minutes</option>
+                <option value="60">1 heure</option>
+                <option value="120">2 heures</option>
+                <option value="1440">1 jour</option>
+              </select>
+            </div>
+          </div>
+        </section>
+
+        <section class="reglages-bloc" id="reglagesPrestations">
+          <h2>Prestations</h2>
+          <div id="champsCategories"></div>
+          <button type="button" class="action-douce" id="ajouterCategorie">Ajouter un rayon</button>
+
+          <div id="champsPrestations"></div>
+          <button type="button" class="action-douce" id="ajouterPrestation">Ajouter une prestation</button>
+        </section>
+
+        <section class="reglages-bloc" id="reglagesEquipe">
+          <h2>Équipe</h2>
+          <p class="secondaire petit">
+            Une prestation que personne ne coche est assurée par tout le monde.
+            Dès qu'une seule personne la coche, elle n'est plus qu'à elle.
+          </p>
+          <div id="champsEquipe"></div>
+          <button type="button" class="action-douce" id="ajouterPersonne">Ajouter une personne</button>
+        </section>
+
+        <section class="reglages-bloc" id="reglagesAvis">
+          <h2>Avis</h2>
+          <p class="secondaire petit">
+            Vide, la section disparaît du site. Le plus simple : recopier de
+            vrais avis de votre fiche Google.
+          </p>
+          <div id="champsAvis"></div>
+          <button type="button" class="action-douce" id="ajouterAvis">Ajouter un avis</button>
+        </section>
+
+        <section class="reglages-bloc" id="reglagesPhotos">
+          <h2>Photos</h2>
+          <p class="secondaire petit">
+            Les photos sont réduites par votre navigateur avant d'être envoyées.
+            Le site les passe en noir et blanc : inutile de le faire avant.
+          </p>
+          <div class="reglages-photos" id="champsPhotos"></div>
+        </section>
+
+        <section class="reglages-bloc">
+          <h2>Remise à zéro</h2>
+          <p class="secondaire petit">
+            Ramène tous les réglages aux valeurs d'origine. Les rendez-vous ne
+            sont pas touchés.
+          </p>
+          <button type="button" class="action-douce" id="reinitialiserReglages">
+            Revenir aux valeurs d'origine
+          </button>
+        </section>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- LES DEUX FORMULAIRES EN SURIMPRESSION --------------------------------- -->
+
+  <div class="surimpression" id="surimpressionRdv" hidden>
+    <div class="surimpression-boite" role="dialog" aria-modal="true" aria-labelledby="titreRdv">
+      <div class="surimpression-tete">
+        <h2 class="surimpression-titre" id="titreRdv">Noter un rendez-vous</h2>
+        <button type="button" class="surimpression-fermer" data-fermer="surimpressionRdv" aria-label="Fermer">×</button>
+      </div>
+      <div class="surimpression-corps">
+        <form id="formulaireRdv" novalidate>
+          <div class="champ">
+            <label for="rdvPrestation">Prestation</label>
+            <select id="rdvPrestation" required></select>
+          </div>
+          <div class="champ" id="champRdvQui" hidden>
+            <label for="rdvQui">Avec qui</label>
+            <select id="rdvQui"></select>
+          </div>
+          <div class="champ">
+            <label for="rdvDate">Date</label>
+            <input type="date" id="rdvDate" required>
+          </div>
+          <div class="champ">
+            <label for="rdvHeure">Heure</label>
+            <select id="rdvHeure" required></select>
+          </div>
+          <div class="champ">
+            <label for="rdvNom">Nom</label>
+            <input type="text" id="rdvNom" required maxlength="80">
+          </div>
+          <div class="champ">
+            <label for="rdvTel">Téléphone</label>
+            <input type="tel" id="rdvTel" maxlength="20">
+          </div>
+
+          <p class="tunnel-message" id="messageRdv" hidden></p>
+          <button type="submit" class="action action-pleine">Noter ce rendez-vous</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="surimpression" id="surimpressionBlocage" hidden>
+    <div class="surimpression-boite" role="dialog" aria-modal="true" aria-labelledby="titreBlocage">
+      <div class="surimpression-tete">
+        <h2 class="surimpression-titre" id="titreBlocage">Bloquer une période</h2>
+        <button type="button" class="surimpression-fermer" data-fermer="surimpressionBlocage" aria-label="Fermer">×</button>
+      </div>
+      <div class="surimpression-corps">
+        <form id="formulaireBlocage" novalidate>
+          <p class="secondaire petit">
+            Une journée fermée, des congés, ou l'absence d'une seule personne :
+            c'est le même formulaire. Les créneaux concernés disparaissent
+            aussitôt du site.
+          </p>
+
+          <div class="champ" id="champBlocageQui" hidden>
+            <label for="blocageQui">Qui</label>
+            <select id="blocageQui">
+              <option value="">Tout le commerce</option>
+            </select>
+          </div>
+          <div class="champ">
+            <label for="blocageDu">Du</label>
+            <input type="date" id="blocageDu" required>
+          </div>
+          <div class="champ">
+            <label for="blocageAu">Au</label>
+            <input type="date" id="blocageAu" required>
+          </div>
+          <div class="champ">
+            <label for="blocageMotif">Motif <span class="secondaire">(facultatif)</span></label>
+            <input type="text" id="blocageMotif" maxlength="80" placeholder="Congés">
+          </div>
+
+          <p class="tunnel-message" id="messageBlocage" hidden></p>
+          <button type="submit" class="action action-pleine">Bloquer</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>

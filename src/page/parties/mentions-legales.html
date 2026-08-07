@@ -1,0 +1,100 @@
+<!--# ---------------------------------------------------------------------------
+   MENTIONS LÉGALES ET CONFIDENTIALITÉ — en surimpression, pas sur une autre page.
+
+   Pourquoi par-dessus plutôt qu'ailleurs : quelqu'un au milieu de sa
+   réservation doit pouvoir aller lire ce qu'on fait de son numéro de téléphone
+   et revenir sans avoir rien perdu. Une seconde page effacerait sa saisie.
+
+   Le contenu est écrit ici, en clair, et pas peint par le JavaScript : ce sont
+   des obligations légales, elles doivent exister dans le fichier envoyé même si
+   rien ne s'exécute.
+   --------------------------------------------------------------------------- #-->
+<div class="surimpression" id="surimpressionLegal" hidden>
+  <div class="surimpression-boite" role="dialog" aria-modal="true" aria-labelledby="titreLegal">
+
+    <div class="surimpression-tete">
+      <h2 class="surimpression-titre" id="titreLegal">Mentions légales</h2>
+      <button type="button" class="surimpression-fermer" id="fermerLegal" aria-label="Fermer">×</button>
+    </div>
+
+    <div class="surimpression-corps">
+
+      <!-- MENTIONS LÉGALES -->
+      <div data-legal-vue="mentions">
+        <p class="petit secondaire">
+          Ce site est une démonstration. Le commerce décrit n'existe pas : le
+          nom, l'adresse, le téléphone, les avis et les informations ci-dessous
+          sont fictifs.
+        </p>
+
+        <h3>Éditeur</h3>
+        <p>
+          <span data-champ="nom">L'Établi</span><br>
+          <span data-champ="rue">12 rue de Valenciennes</span>,
+          <span class="donnee" data-champ="code-postal">59570</span>
+          <span data-champ="ville">Bavay</span><br>
+          <span class="donnee" data-champ="telephone">03 27 39 98 40</span><br>
+          <span class="donnee" data-champ="email">contact@letabli-bavay.fr</span>
+        </p>
+
+        <h3>Hébergement</h3>
+        <p>
+          Le site est hébergé en Allemagne (Francfort), au sein de l'Union
+          européenne. Aucune donnée n'est transférée hors de l'Union.
+        </p>
+
+        <h3>Propriété</h3>
+        <p>
+          Les textes et les photographies de ce site ne peuvent être repris sans
+          accord. Les polices de caractères employées (Archivo, IBM Plex Sans,
+          IBM Plex Mono) sont distribuées sous licence SIL Open Font.
+        </p>
+      </div>
+
+      <!-- CONFIDENTIALITÉ -->
+      <div data-legal-vue="confidentialite" hidden>
+        <h3>Ce qu'on garde</h3>
+        <p>
+          Quand vous réservez, on enregistre votre nom, votre téléphone, et votre
+          courriel si vous l'avez donné. Rien d'autre. Ces informations servent à
+          tenir l'agenda et à vous prévenir en cas de changement.
+        </p>
+
+        <h3>Combien de temps</h3>
+        <p>
+          Un rendez-vous est effacé automatiquement douze mois après sa date.
+          Vous pouvez demander sa suppression avant ce délai en appelant le
+          commerce.
+        </p>
+
+        <h3>Qui y a accès</h3>
+        <p>
+          Le commerce, et personne d'autre. Vos coordonnées ne sont ni vendues,
+          ni transmises, ni utilisées pour vous envoyer de la publicité.
+        </p>
+
+        <h3>Traceurs</h3>
+        <p>
+          Ce site ne dépose aucun cookie publicitaire et n'utilise aucun outil de
+          mesure d'audience. Il n'y a pas de bandeau à accepter parce qu'il n'y a
+          rien à accepter. Les polices et le plan du quartier sont servis par ce
+          site : aucune requête ne part chez un tiers pendant votre visite.
+        </p>
+        <p>
+          Un seul cookie existe, et seulement si vous vous connectez à l'espace
+          commerçant : il maintient la session ouverte et disparaît à la
+          déconnexion.
+        </p>
+
+        <h3>Vos droits</h3>
+        <p>
+          Vous pouvez demander à consulter, corriger ou supprimer ce qui vous
+          concerne, en appelant le
+          <span class="donnee" data-champ="telephone">03 27 39 98 40</span> ou en
+          écrivant à <span class="donnee" data-champ="email">contact@letabli-bavay.fr</span>.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</div>

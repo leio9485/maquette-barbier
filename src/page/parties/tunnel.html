@@ -1,0 +1,161 @@
+<!--# ---------------------------------------------------------------------------
+   LE TUNNEL DE RÉSERVATION — quatre étapes, une seule page.
+
+       01 PRESTATION → 02 DATE ET HEURE → 03 COORDONNÉES → 04 C'EST RÉSERVÉ
+
+   « AVEC QUI ? » EST DANS L'ÉTAPE DATE, jamais dans une étape à part, et
+   « peu importe » est présélectionné. Une étape supplémentaire pour une
+   question dont la réponse est « ça m'est égal » dans la grande majorité des
+   cas, c'est un abandon de plus à chaque réservation.
+
+   PAS DE BARRE DE PROGRESSION, pas de ronds numérotés reliés par un trait : un
+   compteur « 02 / 04 » en chasse fixe dit exactement la même chose, sans un
+   pixel de décor et sans rien à redessiner quand une étape change.
+
+   LES CRÉNEAUX VIENNENT DU SERVEUR, toujours. Le navigateur n'en calcule aucun :
+   il demande, il affiche. C'est ce qui fait qu'un créneau proposé est un créneau
+   réellement libre — et que personne ne peut s'en fabriquer un.
+   --------------------------------------------------------------------------- #-->
+<section class="bloc" id="reserver">
+  <div class="bloc-corps">
+
+    <div class="rail">
+      <p class="etiquette"><span class="rail-numero">06</span> Réserver</p>
+      <!--# Le compteur d'étape vit dans le rail sur grand écran, et remonte en
+           ligne d'en-tête sur téléphone — comme tout ce que porte le rail. #-->
+      <p class="etiquette tunnel-compteur" id="tunnelCompteur" aria-live="polite">
+        <span class="rail-numero" id="tunnelNumero">01</span> / 04 <span aria-hidden="true">·</span>
+        <span id="tunnelNomEtape">Prestation</span>
+      </p>
+    </div>
+
+    <div class="contenu tunnel">
+
+      <!-- ÉTAPE 1 — la prestation ------------------------------------------- -->
+      <div class="etape" data-etape="1">
+        <h2>Que voulez-vous<br>faire faire ?</h2>
+        <p class="intro">Durées et tarifs annoncés. Le règlement se fait sur place.</p>
+
+        <div class="tarifs" id="tunnelPrestations">
+          <p class="secondaire">Chargement des prestations…</p>
+        </div>
+      </div>
+
+      <!-- ÉTAPE 2 — la date, l'heure, et avec qui ---------------------------- -->
+      <div class="etape" data-etape="2" hidden>
+        <h2>Quand<br>passez-vous ?</h2>
+
+        <!--# Le choix fait à l'étape précédente, rappelé en fiche de travail.
+             Une ligne, pas un encadré : le visiteur doit pouvoir vérifier sans
+             remonter, et revenir en arrière sans chercher le bouton. #-->
+        <dl class="fiche tunnel-rappel">
+          <div>
+            <dt>Prestation</dt>
+            <dd>
+              <span id="rappelPrestation">—</span>
+              <button type="button" class="lien-nu tunnel-changer" data-retour="1">Changer</button>
+            </dd>
+          </div>
+        </dl>
+
+        <!--# « AVEC QUI ? » — masqué quand le commerce travaille seul. Le site
+             d'un barbier seul ne pose jamais cette question. #-->
+        <fieldset class="tunnel-qui" id="tunnelQui" hidden>
+          <legend class="etiquette">Avec qui ?</legend>
+          <div class="choix" id="tunnelQuiChoix">
+            <input type="radio" name="staff" id="staff-peu-importe" value="" checked>
+            <label for="staff-peu-importe">Peu importe</label>
+          </div>
+          <p class="aide petit secondaire">« Peu importe » donne le plus de créneaux.</p>
+        </fieldset>
+
+        <!-- Le calendrier -->
+        <div class="tunnel-calendrier">
+          <div class="calendrier-tete">
+            <button type="button" class="calendrier-fleche" id="moisPrecedent" aria-label="Mois précédent">‹</button>
+            <p class="etiquette calendrier-mois" id="calendrierMois" aria-live="polite">—</p>
+            <button type="button" class="calendrier-fleche" id="moisSuivant" aria-label="Mois suivant">›</button>
+          </div>
+
+          <div class="calendrier-jours etiquette" aria-hidden="true">
+            <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
+          </div>
+
+          <div class="calendrier-grille donnee" id="calendrierGrille"></div>
+        </div>
+
+        <!-- Les créneaux du jour choisi -->
+        <div class="tunnel-creneaux" id="tunnelCreneaux" hidden>
+          <h3 class="etiquette" id="creneauxTitre">—</h3>
+          <div class="creneaux-grille donnee" id="creneauxGrille"></div>
+          <p class="tunnel-message" id="creneauxMessage" hidden></p>
+        </div>
+      </div>
+
+      <!-- ÉTAPE 3 — les coordonnées ----------------------------------------- -->
+      <div class="etape" data-etape="3" hidden>
+        <h2>À quel nom ?</h2>
+
+        <form id="formulaireReservation" novalidate>
+          <div class="champ">
+            <label for="clientNom">Prénom et nom</label>
+            <input type="text" id="clientNom" name="nom" autocomplete="name" required maxlength="80">
+            <p class="aide" id="aideNom" hidden></p>
+          </div>
+
+          <div class="champ">
+            <label for="clientTel">Téléphone</label>
+            <input type="tel" id="clientTel" name="telephone" autocomplete="tel" required maxlength="20" inputmode="tel">
+            <p class="aide" id="aideTel">Pour vous prévenir si quelque chose change.</p>
+          </div>
+
+          <div class="champ">
+            <label for="clientEmail">Courriel <span class="secondaire">(facultatif)</span></label>
+            <input type="email" id="clientEmail" name="email" autocomplete="email" maxlength="120">
+            <p class="aide" id="aideEmail" hidden></p>
+          </div>
+
+          <!--# Le récapitulatif complet, juste au-dessus du bouton : c'est le
+               dernier endroit où l'on vérifie avant de valider, et il ne doit
+               pas demander de faire défiler. #-->
+          <h3 class="etiquette tunnel-fiche-titre">Fiche de travail</h3>
+          <dl class="fiche tunnel-fiche" id="tunnelFiche"></dl>
+
+          <p class="tunnel-message" id="messageReservation" hidden></p>
+
+          <button type="submit" class="action action-pleine" id="validerReservation">
+            Réserver ce créneau
+          </button>
+
+          <p class="petit secondaire tunnel-mention">
+            Aucun compte à créer, aucun paiement en ligne. En réservant, vous
+            acceptez que vos coordonnées servent à gérer ce rendez-vous
+            (<button type="button" class="lien-nu" data-legal="confidentialite">confidentialité</button>).
+          </p>
+        </form>
+      </div>
+
+      <!-- ÉTAPE 4 — la confirmation ----------------------------------------- -->
+      <div class="etape" data-etape="4" hidden>
+        <h2 class="tunnel-confirme">C'est réservé</h2>
+        <p class="intro" id="confirmationPhrase">—</p>
+
+        <h3 class="etiquette tunnel-fiche-titre">Fiche de travail</h3>
+        <dl class="fiche tunnel-fiche" id="confirmationFiche"></dl>
+
+        <p class="petit secondaire tunnel-mention" id="confirmationNote">
+          Notez la référence : elle suffit à annuler. Un empêchement ? Prévenez
+          la veille si vous pouvez, le créneau repart à quelqu'un d'autre.
+        </p>
+
+        <div class="tunnel-actions-fin">
+          <button type="button" class="action-douce" id="annulerReservation">Annuler ce rendez-vous</button>
+          <button type="button" class="lien-nu" id="nouvelleReservation">Prendre un autre rendez-vous</button>
+        </div>
+
+        <p class="tunnel-message" id="messageAnnulation" hidden></p>
+      </div>
+
+    </div>
+  </div>
+</section>

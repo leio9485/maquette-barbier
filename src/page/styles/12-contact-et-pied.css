@@ -1,0 +1,158 @@
+/* ---------------------------------------------------------------------------
+   CONTACT ET PIED DE PAGE
+   --------------------------------------------------------------------------- */
+
+.contact-grille {
+  margin-top: var(--e4);
+  display: grid;
+  gap: var(--e5);
+}
+
+.contact-titre {
+  margin-bottom: var(--e2);
+  padding-bottom: var(--e1);
+  border-bottom: 1px solid var(--filet);
+  color: var(--craie);
+}
+
+/* Les horaires. Deux colonnes de la même fiche de travail : le jour à gauche,
+   les heures en chasse fixe à droite. Sept lignes qui s'alignent parfaitement,
+   sans une seule bordure de tableau. */
+.contact-horaires dt { color: var(--craie); }
+.contact-horaires dd { color: var(--craie); }
+
+/* Le jour en cours, marqué par sa seule graisse et un mot lu par les lecteurs
+   d'écran. Pas de pastille, pas de fond coloré : la ligne est déjà là, il
+   suffit de l'appuyer. */
+.contact-horaires [data-aujourdhui] dt,
+.contact-horaires [data-aujourdhui] dd { font-weight: 500; }
+
+.contact-adresse {
+  font-style: normal;
+  margin-bottom: var(--e3);
+  line-height: var(--lh-texte);
+}
+
+/* --- LE PLAN ---------------------------------------------------------------
+
+   Dessiné par le serveur, servi en SVG depuis ce site. Aucun script tiers,
+   aucun cookie, aucune requête partie ailleurs — et 6 ko une fois compressé.
+*/
+.contact-plan {
+  display: block;
+  margin-bottom: var(--e3);
+  border: 1px solid var(--filet);
+  text-decoration: none;
+}
+
+.contact-plan img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 8 / 5;
+  object-fit: cover;
+  background: var(--craie);
+}
+
+.contact-plan-legende {
+  display: block;
+  padding: var(--e1) var(--e2);
+  border-top: 1px solid var(--filet);
+  color: var(--craie);
+}
+
+.contact-plan:hover .contact-plan-legende { text-decoration: underline; }
+
+.contact-joindre { margin-bottom: var(--e3); }
+.contact-joindre dt { color: var(--craie); }
+
+.contact-liens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--e3);
+}
+
+.contact-liens a {
+  display: inline-block;
+  padding: 7px 0;
+}
+
+@media (min-width: 768px) {
+  .contact-grille {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--e5);
+  }
+}
+
+/* --- LE PIED DE PAGE ------------------------------------------------------- */
+
+.pied { border-top: 1px solid var(--filet-sombre); }
+
+.pied-corps {
+  max-width: var(--largeur-max);
+  margin: 0 auto;
+  padding: var(--e4) var(--marge);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--e3);
+}
+
+.pied-marque { margin: 0; max-width: none; }
+
+.pied-nom {
+  display: block;
+  font-family: var(--f-titre);
+  font-weight: 700;
+  font-size: var(--t-sous);
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.pied-lieu {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--t-etiq);
+  letter-spacing: var(--ls-etiq);
+  text-transform: uppercase;
+  color: var(--acier);
+}
+
+.pied-liens {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e2) var(--e3);
+}
+
+/* Un bouton qui doit se lire comme un lien.
+
+   VRAIMENT UN <button>, ET PAS UN <a href="#"> : ces trois-là n'emmènent nulle
+   part, ils ouvrent quelque chose par-dessus la page. Un lecteur d'écran
+   annonce « bouton », ce qui est exact, et le clavier n'a rien de particulier à
+   apprendre. */
+.lien-nu {
+  /* Meme raison que les liens de l'en-tete : une ligne de 13 px ne fait que
+     16 px de haut, WCAG 2.2 en demande 24 (critere 2.5.8). Le padding vertical
+     porte la cible a 30 px sans deplacer le texte. */
+  display: inline-block;
+  padding: 7px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.lien-nu:hover { color: var(--acier-clair); }
+
+@media (min-width: 768px) {
+  .pied-corps {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--e4);
+  }
+}

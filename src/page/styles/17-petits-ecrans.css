@@ -1,0 +1,70 @@
+/* ---------------------------------------------------------------------------
+   TÉLÉPHONE ET TABLETTE — les seuls ajustements qui n'ont pas trouvé leur place
+   dans le fichier de leur bloc.
+
+   >>> CE FICHIER DOIT RESTER COURT. <<<
+
+   La page est conçue mobile d'abord : chaque bloc écrit d'abord sa version
+   étroite, puis l'élargit dans SON PROPRE fichier, à côté de la règle qu'il
+   modifie. Un fichier qui rattraperait tout le site en fin de cascade est
+   exactement ce qui rend un CSS impossible à reprendre — on ne sait plus jamais
+   quelle règle gagne.
+
+   Ne mettre ici que ce qui concerne plusieurs blocs à la fois.
+   --------------------------------------------------------------------------- */
+
+/* Le bandeau grandit un peu à partir de la tablette : la ligne y tient
+   confortablement, et il porte le bouton principal du site. */
+@media (min-width: 768px) {
+  :root { --h-bandeau: 48px; }
+}
+
+/* --- LE DÉFILEMENT HORIZONTAL ---------------------------------------------
+
+   Un critère d'acceptation le dit : une réservation doit se faire depuis un
+   téléphone sans zoom ni défilement horizontal.
+
+   Cette règle est la ceinture. La bretelle, c'est que rien n'a de largeur fixe :
+   les grilles sont en `minmax(0, 1fr)`, les images en `max-width: 100%`, et les
+   deux seuls éléments qui peuvent dépasser (l'agenda multi-colonnes et une
+   longue ligne de données) défilent dans leur propre cadre.
+*/
+html, body { overflow-x: hidden; }
+
+/* --- L'IMPRESSION ---------------------------------------------------------
+
+   Un client imprime sa confirmation, ou le commerçant imprime sa journée. Ce
+   n'est pas une hypothèse d'école dans un commerce de quartier : l'agenda du
+   jour finit souvent scotché près de la caisse.
+
+   On retire ce qui n'a aucun sens sur papier, et on force le noir sur blanc —
+   la craie et l'encre sortiraient en aplats gris qui vident une cartouche.
+*/
+@media print {
+  .bandeau,
+  .entete-nav,
+  .photo-accueil,
+  .galerie,
+  .espace-barre,
+  .brouillon,
+  .surimpression,
+  .action,
+  .action-douce,
+  .lien-nu { display: none !important; }
+
+  body { background: #fff; color: #000; }
+
+  .sombre, .bleu {
+    background: #fff !important;
+    color: #000 !important;
+    --acier: #444;
+    --filet: #999;
+  }
+
+  .bloc-corps { padding: 0 0 var(--e3); display: block; }
+  .rail { border: 0; padding: 0; }
+
+  /* Une adresse de lien imprimée entre parenthèses ne sert à rien ici : le site
+     n'a qu'une page, et tous ses liens internes sont des ancres. */
+  a { text-decoration: none; color: #000; }
+}

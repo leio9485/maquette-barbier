@@ -1,0 +1,102 @@
+/* ---------------------------------------------------------------------------
+   LE BANDEAU D'ÉTAT
+
+   Une bande de 44 px collée en haut, fond encre, texte craie en chasse fixe.
+   C'est le seul endroit du site qui prend un risque, et il le prend en disant
+   une chose utile — c'est ce qui lui permet de ne pas vieillir.
+
+   Aucune ombre sous le bandeau : un filet franc suffit à le détacher du contenu
+   qui défile dessous. Une ombre portée aurait daté la page en dix-huit mois.
+   --------------------------------------------------------------------------- */
+
+.bandeau {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+
+  display: flex;
+  align-items: stretch;
+  gap: var(--e2);
+
+  min-height: var(--h-bandeau);
+  padding-left: var(--marge);
+
+  background: var(--encre);
+  color: var(--craie);
+  border-bottom: 1px solid var(--filet-sombre);
+}
+
+.bandeau-texte {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  max-width: none;
+
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0 var(--e1);
+
+  padding: var(--e1) 0;
+
+  font-size: var(--t-etiq);
+  line-height: var(--lh-sous);
+  letter-spacing: var(--ls-etiq);
+  /* Le texte arrive déjà en capitales du serveur ; cette ligne couvre le
+     contenu de secours et toute saisie future. */
+  text-transform: uppercase;
+}
+
+/* Le mot qui porte l'état. C'est la seule couleur du bandeau, et elle ne dit
+   rien à elle seule : le mot « OUVERT » ou « FERMÉ » est écrit en toutes
+   lettres à côté. Une information portée par la seule couleur est une
+   information perdue pour qui ne la distingue pas. */
+.bandeau-mot { color: var(--craie); }
+.bandeau-mot[data-etat="ouvert"] { color: var(--vert-clair); }
+.bandeau-mot[data-etat="ferme"]  { color: var(--acier-clair); }
+
+.bandeau-sep { color: var(--acier-clair); }
+
+.bandeau-suite { color: var(--craie); }
+
+/* Le prochain créneau passe en second plan quand la place manque : c'est
+   l'information la moins urgente des trois, et le bouton juste à côté y mène. */
+.bandeau-prochain { color: var(--acier-clair); }
+
+/* --- LE BOUTON -------------------------------------------------------------
+
+   Il touche le bord droit de l'écran et occupe toute la hauteur du bandeau :
+   sur un téléphone tenu d'une main, c'est la zone la plus facile à atteindre au
+   pouce, et il n'y a aucune marge à viser.
+
+   Il hérite de `.action` posé sur fond sombre — donc fond craie, texte encre
+   (15,2:1). Voir la règle de couleur des boutons dans 05-controles.css.
+*/
+.bandeau-action {
+  flex: none;
+  min-height: 0;
+  padding: 0 var(--e3);
+  border: 0;
+  font-size: var(--t-etiq);
+}
+
+/* --- PETITS ÉCRANS ---------------------------------------------------------
+
+   Sous 560 px, le prochain créneau et son séparateur disparaissent : trois
+   informations ne tiennent pas sur une ligne de 320 px, et les faire passer à
+   la ligne doublerait la hauteur du bandeau sur tous les écrans de téléphone.
+
+   Ce qui reste est l'essentiel : ouvert ou fermé, et jusqu'à quand. Le prochain
+   créneau est à un doigt de distance, dans le tunnel, où il est de toute façon
+   calculé pour la prestation réellement choisie.
+
+   `display: none` et non `visibility` : l'information est retirée du document,
+   donc aussi de ce que lit un lecteur d'écran. C'est voulu — elle serait
+   annoncée deux fois, ici et à l'étape date du tunnel.
+*/
+@media (max-width: 559px) {
+  .bandeau-prochain,
+  .bandeau-sep:last-of-type { display: none; }
+
+  .bandeau-action { padding: 0 var(--e2); }
+}

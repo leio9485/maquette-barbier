@@ -1,0 +1,134 @@
+/* ---------------------------------------------------------------------------
+   L'ÉQUIPE ET LES AVIS
+   --------------------------------------------------------------------------- */
+
+/* --- L'ÉQUIPE --------------------------------------------------------------
+
+   Une ligne par personne, filet entre chaque : la même forme que la liste
+   tarifaire, appliquée à un autre contenu. C'est ce qui fait que la page tient
+   ensemble sans qu'aucune section n'ait de décor propre.
+*/
+.equipe-liste { margin-top: var(--e4); }
+
+.equipe-personne {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--e3);
+  padding: var(--e3) 0;
+  border-bottom: 1px solid var(--filet);
+}
+
+.equipe-liste li:first-child { border-top: 1px solid var(--filet); }
+
+/* Le portrait. Carré, jamais rond : le rond est la forme de l'avatar, et
+   l'avatar est ce que fait tout le monde. Taille fixe pour que les trois
+   personnes s'alignent, quelles que soient les photos déposées. */
+.equipe-portrait {
+  flex: none;
+  width: 88px;
+  height: 88px;
+  background: var(--encre);
+  overflow: hidden;
+}
+
+.equipe-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.08);
+}
+
+/* Sans photo : les initiales sur la couleur de la personne. C'est ce que voit
+   un commerce qui n'a pas encore déposé ses portraits — et il en dépose depuis
+   ses réglages en quelques secondes.
+
+   Le texte est en craie sur des couleurs choisies pour tenir au moins 5:1
+   (voir src/lib/defaults.js) : ce repli reste lisible, il n'est pas décoratif. */
+.equipe-initiales {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: var(--craie);
+  font-family: var(--f-titre);
+  font-size: var(--t-section);
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.equipe-texte { min-width: 0; }
+
+.equipe-nom {
+  font-family: var(--f-titre);
+  font-size: var(--t-sous);
+  font-weight: 700;
+  text-transform: uppercase;
+  line-height: var(--lh-sous);
+}
+
+.equipe-role {
+  margin-top: 2px;
+  color: var(--acier);
+  font-size: var(--t-petit);
+}
+
+/* Les prestations qu'une personne assure, et ses jours : deux données, donc
+   chasse fixe. Le point médian les sépare sans ajouter de puce. */
+.equipe-detail {
+  margin-top: var(--e1);
+  font-family: var(--f-donnee);
+  font-size: var(--t-petit);
+  color: var(--acier);
+  line-height: var(--lh-donnee);
+}
+
+@media (min-width: 768px) {
+  .equipe-portrait { width: 112px; height: 112px; }
+}
+
+/* --- LES AVIS --------------------------------------------------------------
+
+   Sur aplat encre. Trois citations en Plex Sans 500, attribution en chasse
+   fixe. Aucune étoile, aucune pastille ronde à initiales, aucun guillemet
+   décoratif de 80 px — voir src/lib/temoignages.js pour le raisonnement.
+*/
+.avis-liste {
+  margin-top: var(--e4);
+  display: grid;
+  gap: var(--e4);
+}
+
+.avis-citation { margin: 0; }
+
+.avis-citation p {
+  margin: 0;
+  font-size: var(--t-intro);
+  font-weight: 500;
+  line-height: 1.5;
+  max-width: 42ch;
+  /* Les guillemets sont écrits par le style plutôt que saisis : un commerçant
+     qui recopie un avis de sa fiche Google ne pense pas à les mettre, et trois
+     citations dont une seule en porte font désordre. */
+}
+
+.avis-citation p::before { content: '« '; }
+.avis-citation p::after  { content: ' »'; }
+
+.avis-auteur {
+  margin: var(--e2) 0 0;
+  font-size: var(--t-petit);
+  color: var(--acier);
+}
+
+.avis-auteur cite { font-style: normal; }
+
+@media (min-width: 900px) {
+  /* Trois colonnes à partir de 900 px. Les citations sont courtes : en une
+     seule colonne, la section ferait défiler un écran entier pour trois
+     phrases. */
+  .avis-liste {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--e4);
+  }
+}

@@ -1,0 +1,31 @@
+<!--# ---------------------------------------------------------------------------
+   L'EN-TÊTE — le nom du commerce, et le sommaire de la page.
+
+   Pas de menu escamotable, pas de bouton à trois traits, pas de surimpression
+   plein écran sur téléphone. Cinq liens en chasse fixe tiennent sur deux lignes
+   de 13 px : ouvrir un panneau pour les montrer coûterait du code, une icône
+   générique et une animation, pour cacher ce qui tient déjà à l'écran.
+
+   L'en-tête ne se colle PAS en haut : le bandeau d'état occupe déjà cette place,
+   et deux bandes fixes mangeraient un quart d'un écran de téléphone.
+
+   ⚠️ L'ordre des liens suit celui des sections de la page (voir index.html).
+   --------------------------------------------------------------------------- #-->
+<header class="entete">
+  <div class="entete-corps">
+
+    <a class="entete-marque" href="#contenu">
+      <span class="entete-nom" data-champ="nom">L'Établi</span>
+      <span class="entete-lieu donnee">Barbier <span aria-hidden="true">·</span> <span data-champ="ville">Bavay</span></span>
+    </a>
+
+    <nav class="entete-nav etiquette" aria-label="Sections de la page">
+      <a href="#prestations">Prestations</a>
+      <a href="#equipe" data-section="equipe">Équipe</a>
+      <a href="#galerie">Galerie</a>
+      <a href="#avis" data-section="avis">Avis</a>
+      <a href="#contact">Contact</a>
+    </nav>
+
+  </div>
+</header>

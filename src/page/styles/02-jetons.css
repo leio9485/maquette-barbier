@@ -1,0 +1,158 @@
+/* ---------------------------------------------------------------------------
+   LES JETONS — couleurs, typographie, espacement.
+
+   >>> C'EST LE SEUL FICHIER OU L'ON CHANGE UNE COULEUR OU UNE TAILLE. <<<
+
+   Tout le reste du style s'y refere. Une valeur ecrite en dur ailleurs est un
+   bogue : elle echappera au prochain reglage et se decouvrira six mois plus
+   tard, sur un ecran qu'on n'avait pas.
+   --------------------------------------------------------------------------- */
+
+:root {
+
+  /* --- COULEURS -----------------------------------------------------------
+
+     Cinq couleurs. L'acier et le vert existent chacun en deux valeurs — une
+     pour les fonds clairs, une pour les fonds sombres — parce qu'une seule ne
+     peut pas etre lisible sur les deux. Ce sont deux valeurs de la MEME teinte,
+     pas deux couleurs de plus.
+
+     LES CONTRASTES SONT MESURES, PAS ESTIMES. Chacun est note en face de sa
+     valeur, et le seuil a tenir est 4,5:1 pour du texte, 3:1 pour une bordure
+     ou un composant. Avant de changer un hex ici, refaire le calcul.
+  */
+
+  --encre:        #16191B;  /* sur craie : 15,2:1 */
+  --bleu-travail: #24405C;  /* sur craie :  9,2:1 — l'action, et rien d'autre */
+  --craie:        #EFEEEA;  /* sur encre : 15,2:1 — sur bleu : 9,2:1 */
+
+  /* Le texte secondaire. Deux valeurs, une par fond. */
+  --acier:        #656D70;  /* sur craie : 4,55:1 */
+  --acier-clair:  #8E9699;  /* sur encre : 5,9:1  — illisible sur craie */
+
+  /* Les etats positifs, et eux seuls : confirme, disponible, ouvert. */
+  --vert-signal:  #3F6B52;  /* sur craie : 5,3:1 */
+  --vert-clair:   #6E9F80;  /* sur encre : 5,8:1 — illisible sur craie */
+
+  /* Le filet de separation. JAMAIS de texte dans cette couleur : elle ne tient
+     que le role d'une ligne, ou 3:1 suffit. */
+  --filet:        #C9C7C1;  /* sur craie : 1,7:1 — bordures uniquement */
+  --filet-sombre: #3A4144;  /* le meme role sur fond encre */
+
+  /* Le refus. Ce n'est pas une sixieme couleur : c'est l'encre, qu'on emploie
+     pour dire qu'une chose ne va pas. Le rouge de la charte n'existe pas, et
+     c'est voulu — un site de barbier n'a pas d'alarme a sonner. Un message
+     d'erreur se distingue par sa place et son filet, pas par sa couleur. */
+  --refus:        var(--encre);
+
+  /* --- TYPOGRAPHIE --------------------------------------------------------
+
+     Trois familles, trois roles, aucun chevauchement :
+       titres  Archivo 700, capitales, jamais sous 18 px, jamais en italique
+       texte   Source Sans 3, 400/500
+       donnee  Source Code Pro 400 — tarifs, durees, heures, dates, telephone
+
+     Le choix des familles et sa raison sont dans 01-polices.css.
+
+     La derniere regle n'est pas decorative. Dans un site de reservation, les
+     chiffres SONT le contenu : en chasse fixe ils s'alignent en colonnes et se
+     lisent d'un coup d'oeil. C'est ce qui donne son caractere a la page sans
+     ajouter un seul ornement — donc sans rien qui puisse se demoder.
+  */
+
+  --f-titre:  'Archivo', 'Helvetica Neue', Arial, sans-serif;
+  --f-texte:  'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --f-donnee: 'Source Code Pro', ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+
+  /* L'echelle. Fluide entre 390 px et 1440 px : une seule valeur par role,
+     aucun palier a redeclarer dans le fichier des petits ecrans. */
+
+  --t-display: clamp(2rem, 1.36rem + 3.2vw, 3.5rem);      /* 32 -> 56 */
+  --t-section: clamp(1.5rem, 1.18rem + 1.6vw, 2.25rem);   /* 24 -> 36 */
+  --t-sous:    1.125rem;                                   /* 18, fixe */
+  --t-intro:   clamp(1.125rem, 1.07rem + 0.27vw, 1.25rem); /* 18 -> 20 */
+  --t-texte:   clamp(1rem, 0.98rem + 0.11vw, 1.0625rem);   /* 16 -> 17 */
+  --t-petit:   0.875rem;                                   /* 14, fixe */
+  --t-etiq:    0.8125rem;                                  /* 13, fixe */
+
+  --lh-display: 1;
+  --lh-section: 1.08;
+  --lh-sous:    1.25;
+  --lh-texte:   1.6;
+  --lh-donnee:  1.4;
+
+  /* Interlettrage. Resserre sur les grands titres en capitales, ouvert sur les
+     petites etiquettes en capitales — sans quoi elles se referment. */
+  --ls-display: -0.02em;
+  --ls-section: -0.01em;
+  --ls-etiq:     0.06em;
+
+  /* --- ESPACEMENT ---------------------------------------------------------
+
+     Six valeurs, et JAMAIS une septieme. Une direction epuree se juge sur ses
+     espacements : des qu'on s'autorise un 12 px "juste ici", l'echelle ne tient
+     plus rien et la page redevient ordinaire.
+
+     Rien sous 8 px n'est un espacement : les ecarts plus fins viennent des
+     interlignes et de la hauteur fixe des controles.
+  */
+
+  --e1:  8px;
+  --e2: 16px;
+  --e3: 24px;
+  --e4: 40px;
+  --e5: 64px;
+  --e6: 96px;
+
+  /* --- MISE EN PAGE ------------------------------------------------------- */
+
+  --largeur-max:  1320px;
+  --largeur-rail:  160px;
+  --mesure:         66ch;  /* la longueur de ligne au-dela de laquelle on relit
+                              deux fois la meme ligne */
+
+  /* Marge laterale. Trois valeurs seulement, reprises du meme jeu. */
+  --marge: var(--e3);
+
+  /* La hauteur du bandeau d'etat, colle en haut de la page.
+     Declaree ICI et non dans son propre fichier : le decalage des ancres
+     (scroll-padding-top) en depend, et il se pose sur <html>. */
+  --h-bandeau: 44px;
+
+  /* --- CONTROLES ---------------------------------------------------------- */
+
+  /* 48 px : la cible tactile minimale confortable au pouce. Ce site se remplit
+     depuis un telephone, souvent d'une seule main. */
+  --hauteur-controle: 48px;
+
+  /* ANGLES DROITS. 2 px sur les champs de saisie, et c'est tout ce que la
+     charte autorise. Ne pas introduire de troisieme valeur. */
+  --rayon-champ: 2px;
+
+  /* --- MOUVEMENT ----------------------------------------------------------
+
+     150 ms sur les etats interactifs. Rien d'autre ne bouge : aucune apparition
+     au defilement, aucune parallaxe, aucun compteur anime. L'immobilite fait
+     partie du serieux, et c'est aussi ce qui ne se demode pas.
+  */
+
+  --transition: 150ms ease;
+}
+
+/* Le mouvement, quand le systeme demande qu'il n'y en ait pas.
+   Meme ces 150 ms disparaissent : la demande est explicite, on l'honore en
+   entier plutot qu'a moitie. */
+@media (prefers-reduced-motion: reduce) {
+  :root { --transition: 0ms; }
+
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Les marges laterales suivent la largeur, en restant dans l'echelle. */
+@media (min-width: 768px)  { :root { --marge: var(--e4); } }
+@media (min-width: 1120px) { :root { --marge: var(--e5); } }

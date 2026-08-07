@@ -1,0 +1,38 @@
+<!--# ---------------------------------------------------------------------------
+   LE BANDEAU D'ÉTAT — l'élément signature du site.
+
+   Une bande étroite, en chasse fixe, collée en haut de la page, qui dit la
+   vérité du moment : ouvert ou fermé, ce qui vient ensuite, et le prochain
+   créneau réellement libre.
+
+   Trois raisons d'être, et il faut les trois pour justifier d'y mettre toute
+   l'audace du site :
+     - USAGE   la question qu'on se pose en arrivant sur la page d'un barbier,
+               c'est « je peux venir quand ? ». La réponse est là, avant tout
+               défilement.
+     - VENTE   ça démontre en trois secondes qu'il y a un vrai serveur derrière,
+               et pas une page figée.
+     - DURÉE   une information utile ne se démode pas.
+
+   ⚠️ CE QUI SUIT `<!--@bandeau-->` EST REMPLACÉ PAR LE SERVEUR à chaque envoi
+      (src/lib/page.js). Le texte écrit ici est le CONTENU DE SECOURS : il ne
+      s'affiche que si l'état n'a pas pu être calculé — base injoignable, par
+      exemple. Il annonce donc les horaires, et rien de plus : pas de message
+      d'erreur, pas de bandeau vide, pas de « chargement... ».
+
+      Ne pas retirer les deux marqueurs.
+   --------------------------------------------------------------------------- #-->
+<div class="bandeau" id="bandeau">
+  <!-- L'état du commerce, recalculé à chaque envoi de la page puis rafraîchi
+       par /api/status. Le contenu de secours ci-dessous ne s'affiche que si le
+       serveur n'a rien pu calculer. -->
+  <p class="bandeau-texte donnee" id="bandeauTexte" aria-live="polite">
+<!--@bandeau-->
+<span class="bandeau-suite">OUVERT DU MARDI AU SAMEDI</span><span class="bandeau-sep" aria-hidden="true">·</span><span class="bandeau-prochain">NOCTURNE LE VENDREDI JUSQU'À 21H00</span>
+<!--/@bandeau-->
+  </p>
+
+  <!--# Le bouton reste HORS de la zone remplacée : il ne change jamais, et il
+       doit rester cliquable même quand l'état n'a pas pu être calculé. #-->
+  <a class="action bandeau-action" href="#reserver">Réserver</a>
+</div>

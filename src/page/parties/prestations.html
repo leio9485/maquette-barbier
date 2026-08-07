@@ -1,0 +1,41 @@
+<!--# ---------------------------------------------------------------------------
+   LES PRESTATIONS — une liste tarifaire, pas une grille de cartes.
+
+   Intitulé à gauche, durée et prix en chasse fixe à droite, un filet entre
+   chaque ligne. Alignés en colonnes, treize tarifs se comparent d'un coup
+   d'œil ; en cartes, il faut les lire un par un — et une carte a besoin d'une
+   ombre ou d'un rayon pour exister, que la charte n'autorise ni l'une ni
+   l'autre.
+
+   Chaque ligne est un bouton qui mène au tunnel avec la prestation déjà
+   choisie : c'est le chemin le plus court entre « combien ça coûte » et « je
+   réserve », et c'est ce qui fait tenir la réservation en moins de 45 secondes.
+
+   ⚠️ CE QUI SUIT `<!--@prestations-->` EST REMPLACÉ PAR LE SERVEUR à chaque
+      envoi (src/lib/catalogue.js), puis réécrit à l'identique par la page une
+      fois les réglages reçus. Le contenu écrit ici ne s'affiche que si la base
+      est injoignable. Ne pas retirer les deux marqueurs.
+   --------------------------------------------------------------------------- #-->
+<section class="bloc" id="prestations">
+  <div class="bloc-corps">
+
+    <div class="rail">
+      <p class="etiquette"><span class="rail-numero">02</span> Prestations</p>
+    </div>
+
+    <div class="contenu">
+      <h2>Tarifs et durées,<br>annoncés d'avance</h2>
+      <p class="intro">
+        Le règlement se fait sur place, en espèces ou par carte. Choisissez une
+        ligne pour réserver.
+      </p>
+
+      <div class="tarifs" id="tarifs">
+<!--@prestations-->
+        <p class="secondaire">Les tarifs sont momentanément indisponibles. Appelez-nous, on vous les donne.</p>
+<!--/@prestations-->
+      </div>
+    </div>
+
+  </div>
+</section>

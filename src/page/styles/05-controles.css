@@ -1,0 +1,249 @@
+/* ---------------------------------------------------------------------------
+   LES CONTROLES — boutons, champs, fiche de travail.
+
+   Trois formes pour tout le site. Si une quatrieme apparait un jour, c'est
+   presque toujours qu'une des trois n'a pas ete reconnue.
+   --------------------------------------------------------------------------- */
+
+/* --- LES BOUTONS ----------------------------------------------------------
+
+   REGLE DE COULEUR, ET ELLE N'A PAS D'EXCEPTION : le bouton prend la couleur
+   qui contraste avec SON fond.
+
+     sur craie          fond bleu de travail, texte craie   (9,2:1)
+     sur encre ou bleu  fond craie, texte encre            (15,2:1)
+
+   Le bleu pose sur l'encre donne 1,7:1 : le bouton serait un rectangle
+   invisible, et c'est exactement l'erreur qu'on fait quand on decide qu'une
+   couleur est "la couleur des boutons" sans regarder ce qu'il y a dessous.
+
+   Angles droits, aucune ombre, aucun degrade. Ce qui distingue un bouton du
+   reste, c'est l'aplat plein et le libelle — pas un effet de relief.
+*/
+.action,
+.action-douce {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--e1);
+  min-height: var(--hauteur-controle);
+  padding: 0 var(--e3);
+  border: 1px solid transparent;
+  border-radius: 0;
+  font-family: var(--f-titre);
+  font-size: var(--t-petit);
+  font-weight: 700;
+  letter-spacing: var(--ls-etiq);
+  text-transform: uppercase;
+  text-decoration: none;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition),
+              border-color var(--transition);
+}
+
+.action {
+  background: var(--bleu-travail);
+  color: var(--craie);
+}
+.action:hover { background: var(--encre); color: var(--craie); }
+
+/* Le second role : meme forme, sans aplat. Pour ce qui accompagne l'action
+   principale sans lui disputer l'oeil (« Appeler », « Annuler ce rendez-vous »). */
+.action-douce {
+  background: transparent;
+  color: var(--encre);
+  border-color: var(--encre);
+}
+.action-douce:hover { background: var(--encre); color: var(--craie); }
+
+/* L'inversion sur fond sombre. */
+.sombre .action, .bleu .action {
+  background: var(--craie);
+  color: var(--encre);
+}
+.sombre .action:hover, .bleu .action:hover {
+  background: var(--acier-clair);
+  color: var(--encre);
+}
+
+.sombre .action-douce, .bleu .action-douce {
+  color: var(--craie);
+  border-color: var(--craie);
+}
+.sombre .action-douce:hover, .bleu .action-douce:hover {
+  background: var(--craie);
+  color: var(--encre);
+}
+
+/* Un bouton eteint dit qu'il existe mais qu'il n'est pas disponible. Il garde
+   3:1 avec son fond — un controle desactive reste un controle qu'on doit
+   pouvoir lire, et c'est un point que la plupart des sites ratent. */
+.action[disabled], .action-douce[disabled] {
+  background: transparent;
+  color: var(--acier);
+  border-color: var(--filet);
+  cursor: not-allowed;
+}
+
+/* Pleine largeur : c'est la forme normale sur telephone, ou le pouce vise mal
+   et ou rien ne justifie de laisser du vide a cote de l'action principale. */
+.action-pleine { width: 100%; }
+
+@media (min-width: 768px) {
+  .action, .action-douce { min-height: 44px; }
+  .action-pleine { width: auto; }
+}
+
+/* --- LES CHAMPS ----------------------------------------------------------- */
+
+.champ { margin-bottom: var(--e3); }
+
+.champ label {
+  display: block;
+  margin-bottom: var(--e1);
+  font-size: var(--t-petit);
+  font-weight: 500;
+}
+
+.champ input,
+.champ select,
+.champ textarea {
+  width: 100%;
+  min-height: var(--hauteur-controle);
+  padding: 0 var(--e2);
+  border: 1px solid var(--acier);
+  border-radius: var(--rayon-champ);
+  background: var(--craie);
+  color: var(--encre);
+  font-family: var(--f-texte);
+  /* 16 px MINIMUM, et ce n'est pas un choix esthetique : sous cette taille,
+     Safari sur iPhone agrandit la page des qu'on touche le champ, et le
+     visiteur se retrouve a faire defiler horizontalement au milieu de sa
+     saisie. C'est la premiere cause de tunnel abandonne sur telephone. */
+  font-size: 1rem;
+  transition: border-color var(--transition);
+}
+
+/* Un numero de telephone, une date, une heure : c'est une donnee, elle se
+   saisit en chasse fixe comme elle s'affiche. */
+.champ input[type="tel"],
+.champ input[inputmode="numeric"] {
+  font-family: var(--f-donnee);
+  font-variant-numeric: tabular-nums;
+}
+
+.champ input:focus,
+.champ select:focus,
+.champ textarea:focus {
+  border-color: var(--bleu-travail);
+  outline: 2px solid var(--bleu-travail);
+  outline-offset: 0;
+}
+
+.champ .aide {
+  margin: var(--e1) 0 0;
+  font-size: var(--t-petit);
+  color: var(--acier);
+}
+
+/* Un champ refuse. Pas de rouge (la charte n'en a pas) : un filet epais a
+   gauche, et le motif ecrit en toutes lettres sous le champ. La couleur n'est
+   de toute facon jamais le seul porteur d'une information. */
+.champ[data-refus] input,
+.champ[data-refus] select,
+.champ[data-refus] textarea {
+  border-color: var(--encre);
+  border-left-width: 3px;
+}
+
+.champ[data-refus] .aide { color: var(--encre); font-weight: 500; }
+
+/* --- LES BOUTONS RADIO, EN FORME D'ONGLETS PLEINS -------------------------
+
+   Employes pour « avec qui ? ». L'element reste un vrai <input type="radio">,
+   masque a l'oeil mais present pour le clavier et les lecteurs d'ecran : les
+   fleches parcourent le groupe, l'espace choisit, l'intitule est annonce.
+   Refaire ce comportement avec des <div> coute cent lignes et le rate.
+*/
+.choix { display: flex; flex-wrap: wrap; gap: var(--e1); }
+
+.choix input {
+  position: absolute;
+  opacity: 0;
+  width: 1px; height: 1px;
+}
+
+.choix label {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--hauteur-controle);
+  padding: 0 var(--e2);
+  border: 1px solid var(--acier);
+  font-family: var(--f-donnee);
+  font-size: var(--t-petit);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition),
+              border-color var(--transition);
+}
+
+.choix label:hover { border-color: var(--encre); }
+
+.choix input:checked + label {
+  background: var(--bleu-travail);
+  border-color: var(--bleu-travail);
+  color: var(--craie);
+}
+
+/* Le focus doit se voir sur l'intitule, puisque le bouton lui-meme est masque. */
+.choix input:focus-visible + label {
+  outline: 2px solid var(--contour);
+  outline-offset: 2px;
+}
+
+/* --- LA FICHE DE TRAVAIL --------------------------------------------------
+
+   Intitule a gauche, valeur en chasse fixe a droite, filet entre chaque ligne.
+   C'est la forme que prennent le recapitulatif du tunnel, la confirmation, et
+   le tableau des horaires.
+
+   Le vocabulaire de l'atelier applique la ou il sert vraiment : une fiche de
+   travail se lit en diagonale, valeur par valeur, et c'est exactement ce qu'on
+   demande a un recapitulatif.
+*/
+.fiche { margin: 0; }
+
+.fiche > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--e2);
+  padding: var(--e2) 0;
+  border-bottom: 1px solid var(--filet);
+}
+
+.fiche > div:first-child { border-top: 1px solid var(--filet); }
+
+.fiche dt {
+  color: var(--acier);
+  font-size: var(--t-petit);
+}
+
+.fiche dd {
+  margin: 0;
+  font-family: var(--f-donnee);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* La ligne qui porte le total, ou la valeur qui compte le plus. */
+.fiche .appui dd { font-size: var(--t-intro); }
+
+/* Un numero de telephone ou une adresse dans une fiche est un lien qu'on
+   TOUCHE — c'est meme tout l'interet de `tel:` sur un telephone. Il doit donc
+   tenir les 24 px de WCAG 2.2 (critere 2.5.8), ce qu'une ligne de 17 px ne fait
+   pas. Le padding l'y porte sans deplacer la valeur. */
+.fiche dd a {
+  display: inline-block;
+  padding: 4px 0;
+}

@@ -1,0 +1,125 @@
+/* ---------------------------------------------------------------------------
+   LA LISTE TARIFAIRE
+
+   La forme la plus visible du site après le bandeau, et celle qui remplace la
+   grille de cartes. Tout y tient en trois règles : une ligne pleine largeur,
+   un filet entre chaque, les chiffres en chasse fixe à droite.
+   --------------------------------------------------------------------------- */
+
+.tarifs { margin-top: var(--e4); }
+
+.tarif-rayon + .tarif-rayon { margin-top: var(--e4); }
+
+.tarif-rayon-titre {
+  /* L'intitulé de rayon reprend la voix des étiquettes : chasse fixe, capitales,
+     13 px. Il annonce, il ne raconte pas — et il ne dispute donc pas l'œil au
+     titre de section, qui est en Archivo. */
+  font-family: var(--f-donnee);
+  font-size: var(--t-etiq);
+  font-weight: 400;
+  letter-spacing: var(--ls-etiq);
+  color: var(--acier);
+  padding-bottom: var(--e1);
+  border-bottom: 1px solid var(--filet);
+}
+
+.tarif-rayon-desc {
+  margin: var(--e2) 0 0;
+  color: var(--acier);
+  font-size: var(--t-petit);
+}
+
+/* --- LA LIGNE --------------------------------------------------------------
+
+   Un vrai <button> qui occupe toute la largeur : au pouce, on vise la ligne,
+   pas un mot dedans. 56 px de haut au minimum, filet en bas, aucun fond au
+   repos — la liste doit se lire comme un tableau, pas comme un empilement de
+   boutons.
+*/
+.tarif-liste { margin: 0; }
+
+.tarif-ligne {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--e2);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--e2) 0;
+
+  background: none;
+  border: 0;
+  border-bottom: 1px solid var(--filet);
+  border-radius: 0;
+
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  transition: background-color var(--transition), padding var(--transition);
+}
+
+/* Au survol, la ligne prend un aplat très léger et se décale de 8 px : c'est le
+   seul mouvement de la page, il dure 150 ms, et il dit « cette ligne est
+   cliquable » sans ajouter ni ombre ni couleur. */
+.tarif-ligne:hover {
+  background: rgba(22, 25, 27, 0.04);
+  padding-left: var(--e1);
+  padding-right: var(--e1);
+}
+
+.tarif-texte {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tarif-nom { font-weight: 500; }
+
+.tarif-desc {
+  color: var(--acier);
+  font-size: var(--t-petit);
+  line-height: 1.45;
+  max-width: 46ch;
+}
+
+/* --- LES CHIFFRES ----------------------------------------------------------
+
+   Durée et prix, en chasse fixe, alignés à droite. Les largeurs sont fixes :
+   c'est ce qui met les treize tarifs en colonne, et c'est tout l'intérêt de la
+   chasse fixe. Sans elles, chaque ligne cadrerait ses chiffres à sa manière et
+   on perdrait la comparaison d'un coup d'œil.
+*/
+.tarif-donnees {
+  display: flex;
+  align-items: baseline;
+  gap: var(--e2);
+  flex: none;
+  white-space: nowrap;
+}
+
+.tarif-duree {
+  color: var(--acier);
+  font-size: var(--t-petit);
+  min-width: 6ch;
+  text-align: right;
+}
+
+.tarif-prix {
+  min-width: 5ch;
+  text-align: right;
+}
+
+@media (max-width: 479px) {
+  /* Sous 480 px, la description passe sous les chiffres plutôt que de les
+     comprimer : un prix qui passe à la ligne au milieu d'un « 22 € » est pire
+     que deux lignes de plus. */
+  .tarif-ligne { flex-wrap: wrap; }
+  .tarif-texte { flex: 1 1 100%; order: 1; }
+  .tarif-donnees { order: 0; flex: 1 1 100%; justify-content: flex-start; }
+  .tarif-duree, .tarif-prix { min-width: 0; text-align: left; }
+  .tarif-prix { order: -1; font-size: var(--t-intro); }
+}

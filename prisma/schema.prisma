@@ -1,0 +1,392 @@
+// ---------------------------------------------------------------------------
+// LE PLAN DU CLASSEUR
+//
+// Ce fichier decrit la forme des donnees : quels "tiroirs" existent et ce que
+// chacun contient. C'est le seul endroit a modifier pour faire evoluer la base ;
+// Prisma se charge ensuite de mettre le fichier de base de donnees a jour.
+//
+// Vocabulaire volontairement neutre (prestation, client, rendez-vous) plutot que
+// propre a la coiffure : la meme base doit servir un barbier, une estheticienne,
+// une onglerie ou un masseur sans etre retouchee.
+//
+// Deux conventions valables partout :
+//   - les durees et les heures sont en MINUTES (9h30 = 570, une demi-heure = 30),
+//     exactement comme dans le site actuel ;
+//   - les prix sont en CENTIMES (32 EUR = 3200). On evite ainsi les erreurs de
+//     calcul des nombres a virgule, et les tarifs du type 32,50 EUR restent possibles.
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+// Depuis Prisma 7, l'adresse de la base ne figure plus ici : elle est indiquee
+// une seule fois dans prisma.config.js (pour les migrations) et dans
+// src/db.js (pour le serveur), toutes deux la lisant depuis le fichier .env.
+datasource db {
+  provider = "sqlite"
+}
+
+/// Un rayon du catalogue : "Couleur", "Meches & balayage", "Soins"...
+///
+/// TABLE VIDE = COMMERCE SANS CATEGORIE, le comportement d'origine au caractere
+/// pres : la vitrine affiche sa grille de cartes, la reservation sa liste plate,
+/// et le mot "categorie" n'apparait nulle part. Meme regle que pour l'equipe —
+/// un commerce a trois prestations ne rencontre jamais cette notion, et une base
+/// anterieure n'a rien a reprendre.
+///
+/// Une categorie ne porte AUCUN tarif ni aucune duree : ce sont des proprietes
+/// de la prestation, et elles le restent. Ce tiroir ne sert qu'a ranger.
+model Category {
+  id String @id
+
+  name String
+  /// Phrase d'introduction affichee sous le titre du rayon, sur la vitrine.
+  /// Facultative : la plupart des rayons se passent d'explication.
+  description String @default("")
+  position    Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  services Service[]
+
+  @@index([position])
+}
+
+/// Un temoignage affiche sur la vitrine.
+///
+/// TABLE VIDE = LA SECTION « AVIS » NE S'AFFICHE PAS. Meme regle que partout
+/// ailleurs : un commerce qui demarre n'a pas encore d'avis a montrer, et un
+/// bloc vide vaut moins que pas de bloc du tout.
+///
+/// Ces temoignages ne sont PAS balises en `Review` dans les donnees
+/// structurees, et ce n'est pas un oubli : Google ecarte depuis 2019 les avis
+/// qu'un site publie a son propre sujet. Ils rassurent le visiteur, c'est leur
+/// seul role — les vrais avis vivent sur la fiche Google Business Profile, vers
+/// laquelle la section Contact renvoie. Meme raisonnement que pour la note
+/// (voir `Settings.ratingValue` et src/lib/page.js).
+///
+/// Le commercant les recopie a la main depuis sa fiche Google : c'est
+/// volontaire, et cela evite une cle d'API, un compte de facturation et une
+/// dependance a un service exterieur pour un gain de referencement nul.
+model Testimonial {
+  /// Identifiant stable, independant du texte : le formulaire des reglages
+  /// nomme ses champs avec, comme pour une prestation.
+  id String @id
+
+  /// Le temoignage lui-meme.
+  quote String
+  /// Qui l'a laisse, tel qu'il s'affiche : « Camille D. ». Les initiales de la
+  /// pastille en sont deduites, il n'y a donc rien de plus a saisir.
+  author String
+  /// Ligne secondaire, facultative : « Cliente depuis 2021 ».
+  meta   String @default("")
+  /// Le nombre d'etoiles affichees, de 1 a 5.
+  rating Int    @default(5)
+
+  position Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([position])
+}
+
+/// Une prestation proposee par le commerce (coupe, coloration, soin...).
+model Service {
+  /// Identifiant stable, independant du nom : les rendez-vous s'y referent, donc
+  /// renommer une prestation ne doit pas casser l'historique.
+  id          String  @id
+  name        String
+  description String  @default("")
+  durationMin Int
+  priceCents  Int
+
+  /// Le rayon ou elle se range. VIDE = "Sans categorie".
+  ///
+  /// Supprimer une categorie n'efface donc jamais ses prestations : elles
+  /// retombent simplement dans le rayon par defaut (onDelete: SetNull), tout
+  /// comme supprimer une prestation n'efface pas ses rendez-vous.
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  /// false = prestation "en pause" : masquee du site et de la reservation en
+  /// ligne, mais le commercant peut encore la caler lui-meme dans l'agenda.
+  active      Boolean @default(true)
+  /// Ordre d'affichage sur le site (le commercant peut reordonner ses prestations).
+  position    Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings Booking[]
+
+  /// Qui, dans l'equipe, assure cette prestation.
+  ///
+  /// LISTE VIDE = TOUTE L'EQUIPE. C'est la regle qui rend l'equipe indolore :
+  /// un commerce ou tout le monde fait tout n'ecrit jamais une seule ligne ici.
+  /// "Personne ne fait cette prestation" reste exprimable, mais par
+  /// `active: false`.
+  staffLinks ServiceStaff[]
+
+  @@index([active, position])
+  @@index([categoryId, position])
+}
+
+/// Qui assure quelle prestation.
+///
+/// Table de liaison explicite plutot qu'implicite : le nom du modele apparait
+/// alors dans le code (`tx.serviceStaff`), ce qui rend les ecritures lisibles.
+///
+/// NI TARIF NI DUREE ICI, et c'est deliberé : une coupe vaut le meme prix quelle
+/// que soit la personne qui la fait, et dure aussi longtemps. Un tarif par
+/// personne obligerait a annoncer une fourchette partout ou le choix n'est pas
+/// encore fait ; une duree par personne ferait diverger la grille des creneaux
+/// d'une coiffeuse a l'autre. Voir CLAUDE.md.
+model ServiceStaff {
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  staffId String
+  staff   Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@id([serviceId, staffId])
+  @@index([staffId])
+}
+
+/// Une case occupee dans l'agenda : soit un rendez-vous, soit un blocage.
+model Booking {
+  id String @id @default(cuid())
+
+  /// "appt" = rendez-vous client, "block" = plage rendue indisponible par le
+  /// commercant (jour de fermeture exceptionnel, pause, conges...).
+  kind String @default("appt")
+
+  /// Jour au format AAAA-MM-JJ, comme dans le site actuel.
+  date        String
+  /// Heure de debut, en minutes depuis minuit (9h30 = 570).
+  startMin    Int
+  durationMin Int
+
+  /// Le TARIF CONVENU, en centimes, fige a la prise du rendez-vous.
+  ///
+  /// Meme raison que pour la duree juste en dessous : si le commerce change ses
+  /// prix, le rendez-vous deja pris garde ce qui avait ete annonce a la cliente.
+  /// Vide pour les rendez-vous anterieurs a ce champ : on retombe alors sur le
+  /// tarif de la prestation.
+  priceCents Int?
+
+  /// La duree est recopiee sur le rendez-vous (ci-dessus) et non lue depuis la
+  /// prestation : si le tarif ou la duree changent plus tard, les rendez-vous
+  /// deja pris gardent ce qui avait ete convenu avec le client.
+  serviceId String?
+  service   Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  /// Quel membre de l'equipe realise la prestation.
+  ///
+  /// VIDE = OCCUPE TOUT LE MONDE. Deux situations y menent : un commerce sans
+  /// equipe enregistree (l'agenda unique d'origine), et un blocage pose par le
+  /// commercant sur le commerce entier. C'est la seule interpretation sure :
+  /// elle ne peut jamais produire deux rendez-vous sur la meme personne.
+  staffId String?
+  staff   Staff?  @relation(fields: [staffId], references: [id], onDelete: SetNull)
+
+  customerName  String?
+  customerPhone String?
+  customerEmail String?
+  /// Note libre du commercant sur ce rendez-vous.
+  notes         String?
+
+  /// "online" = pris par le client sur le site, "phone" = saisi par le commerce.
+  source String @default("online")
+
+  /// Jeton d'annulation, tire au hasard a la creation d'un rendez-vous pris en
+  /// ligne. Il n'est communique qu'une fois, au client qui vient de reserver, et
+  /// c'est la seule chose qui l'autorise a annuler lui-meme. Sans lui, connaitre
+  /// l'identifiant suffirait — or un identifiant se devine bien plus facilement
+  /// qu'un tirage de 32 octets. C'est aussi ce qui permettra, plus tard, de
+  /// glisser un lien d'annulation dans le SMS de confirmation.
+  cancelToken String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([date])
+  @@index([date, startMin])
+  @@index([serviceId])
+  @@index([date, staffId])
+}
+
+/// Un membre de l'equipe.
+///
+/// TABLE VIDE = COMMERCE A UN SEUL AGENDA, le comportement d'origine au
+/// caractere pres : les disponibilites se calculent alors sur une ressource
+/// unique implicite. Rien ne s'active tant qu'une personne n'est pas
+/// enregistree, et c'est ce qui permet a ce tiroir d'exister sans gener le
+/// commercant qui travaille seul.
+model Staff {
+  id   String @id @default(cuid())
+  name String
+  /// Intitule affiche sous le nom sur la vitrine ("Coloriste", "Barbier").
+  role String @default("")
+  /// Teinte qui distingue ses rendez-vous dans l'agenda, et sur laquelle se
+  /// detachent ses initiales a defaut de photo. Choisie dans une palette fermee
+  /// cote reglages, pour ne pas dejuger la charte du site.
+  color String @default("")
+  /// Sa photo, ecrite ICI, dans la base, sous forme de texte (une "data:URL").
+  ///
+  /// Ce n'est pas la facon habituelle de stocker une image, et c'est un choix :
+  /// le navigateur la reduit a un petit carre AVANT de l'envoyer, si bien qu'il
+  /// ne reste qu'une vingtaine de kilo-octets. Aucun dossier d'images a servir,
+  /// a sauvegarder ni a nettoyer quand une personne s'en va — sauvegarder un
+  /// client reste "copier data/". Vide = ses initiales sur sa couleur.
+  photo String?
+  /// false = "en pause", meme regle que pour une prestation : la personne
+  /// disparait du site et de la reservation en ligne, mais le commercant peut
+  /// encore lui caler un rendez-vous lui-meme.
+  active   Boolean @default(true)
+  position Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bookings Booking[]
+  /// Les prestations qu'elle assure. Vide = elle les assure toutes (voir Service).
+  serviceLinks ServiceStaff[]
+  /// Ses horaires propres. AUCUNE LIGNE = elle suit ceux du commerce.
+  hours        StaffHours[]
+}
+
+/// Les horaires propres a une personne (temps partiel, jour de repos...).
+///
+/// AUCUNE LIGNE POUR QUELQU'UN = IL SUIT LES HORAIRES DU COMMERCE. Meme regle
+/// que partout ailleurs : le cas courant ne demande aucune saisie, et une base
+/// anterieure se comporte exactement comme avant.
+///
+/// Ces horaires ne peuvent que reduire ceux du commerce, jamais les etendre :
+/// l'intersection est faite au moment du calcul (src/lib/availability.js), et
+/// non verifiee a l'enregistrement. La difference compte — si le commerce
+/// change ses horaires plus tard, aucune ligne ne devient silencieusement
+/// fausse.
+model StaffHours {
+  id String @id @default(cuid())
+
+  staffId String
+  staff   Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  /// 0 = dimanche, 1 = lundi ... 6 = samedi (meme convention que partout).
+  weekday Int
+
+  /// true = cette personne ne travaille pas ce jour-la, meme commerce ouvert.
+  closed Boolean @default(false)
+
+  /// Heures en minutes depuis minuit. Vides quand la personne ne travaille pas.
+  openMin  Int?
+  closeMin Int?
+
+  /// Pause personnelle, optionnelle (elle s'ajoute a celle du commerce).
+  pauseStartMin Int?
+  pauseEndMin   Int?
+
+  updatedAt DateTime @updatedAt
+
+  @@unique([staffId, weekday])
+}
+
+/// Horaires d'ouverture : une ligne par jour de la semaine, toujours sept lignes.
+model OpeningHours {
+  /// 0 = dimanche, 1 = lundi ... 6 = samedi (meme convention que le site).
+  weekday Int @id
+
+  closed Boolean @default(false)
+
+  /// Heures en minutes depuis minuit. Vides quand le jour est ferme.
+  openMin  Int?
+  closeMin Int?
+
+  /// Pause du midi, optionnelle.
+  pauseStartMin Int?
+  pauseEndMin   Int?
+
+  updatedAt DateTime @updatedAt
+}
+
+/// Les reglages generaux du commerce. Ce tiroir ne contient qu'une seule ligne.
+model Settings {
+  id Int @id @default(1)
+
+  businessName String
+  street       String
+  postalCode   String
+  city         String
+  phone        String
+  email        String
+
+  /// Note et nombre d'avis affiches sur le site.
+  ///
+  /// ATTENTION : ces deux valeurs sont recopiees a la main depuis la vraie fiche
+  /// Google du commerce. Elles ne sont PLUS publiees en donnees structurees —
+  /// Google ignore depuis 2019 les notes qu'un commerce se decerne sur son
+  /// propre site — et ne servent donc qu'a l'affichage. Voir src/lib/page.js.
+  ratingValue Float @default(0)
+  ratingCount Int   @default(0)
+
+  /// Les adresses du commerce ailleurs sur le web.
+  ///
+  /// VIDES = RIEN NE S'AFFICHE, comme partout ailleurs : un commerce sans
+  /// Instagram ne voit jamais de lien mort sur son site.
+  ///
+  /// Celle qui compte vraiment est `googleUrl`, la fiche Google Business
+  /// Profile : elle pese souvent plus lourd qu'un site entier pour un commerce
+  /// local. La publier en `sameAs` est ce qui dit a Google « ce site et cette
+  /// fiche sont le meme commerce » ; le lien visible, lui, est ce qui amene les
+  /// clientes a y deposer un avis.
+  googleUrl    String @default("")
+  instagramUrl String @default("")
+  facebookUrl  String @default("")
+
+  /// Toutes les combien de minutes un creneau est propose (30 = 9h30, 10h00...).
+  slotStepMin Int @default(30)
+  /// Delai minimum entre l'instant present et un rendez-vous reservable en ligne.
+  leadTimeMin Int @default(60)
+
+  updatedAt DateTime @updatedAt
+}
+
+/// Compte d'acces a l'espace du commercant.
+///
+/// Remplace le code "1234" ecrit en clair dans le site : seule une empreinte
+/// illisible du mot de passe est enregistree ici, jamais le mot de passe lui-meme.
+model AdminUser {
+  id           String @id @default(cuid())
+  username     String @unique
+  /// Empreinte scrypt du mot de passe. Le mot de passe lui-meme n'est ecrit
+  /// nulle part : meme en lisant toute la base, on ne peut pas le retrouver.
+  passwordHash String
+
+  createdAt   DateTime  @default(now())
+  lastLoginAt DateTime?
+
+  sessions Session[]
+}
+
+/// Une connexion ouverte.
+///
+/// Le navigateur ne conserve qu'un jeton aleatoire, depose dans un cookie ; le
+/// mot de passe ne circule qu'une fois, au moment de la connexion. Comme les
+/// sessions vivent ici et pas seulement dans le navigateur, se deconnecter les
+/// annule reellement, et on peut couper l'acces a distance si besoin.
+model Session {
+  /// Le jeton lui-meme : 32 octets tires au hasard.
+  id String @id
+
+  adminUserId String
+  admin       AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+  expiresAt  DateTime
+
+  @@index([expiresAt])
+}

@@ -1,0 +1,197 @@
+/* ---------------------------------------------------------------------------
+   LES FONDATIONS — ce que porte chaque element de la page.
+
+   Remise a zero minimale (pas de bibliotheque), regles de base, focus, liens,
+   titres, et les quelques classes que toutes les sections reutilisent.
+   --------------------------------------------------------------------------- */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  /* Le defilement s'anime quand on clique une ancre du menu — sauf si le
+     systeme demande le contraire, ce que 02-jetons.css applique deja. */
+  scroll-behavior: smooth;
+  /* Le bandeau d'etat est colle en haut : sans cette marge, une ancre poserait
+     le titre de section SOUS le bandeau, hors de vue. */
+  scroll-padding-top: calc(var(--h-bandeau) + var(--e3));
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--craie);
+  color: var(--encre);
+  font-family: var(--f-texte);
+  font-size: var(--t-texte);
+  font-weight: 400;
+  line-height: var(--lh-texte);
+  /* Pas de lissage force : on laisse le systeme rendre le texte comme il rend
+     celui de toutes les autres applications de la machine. */
+}
+
+/* Aucune image ne deborde, jamais. C'est ce qui garantit qu'une photo deposee
+   par le commercant — dont on ne connait ni la taille ni le ratio — ne casse
+   pas la page. */
+img, svg, video { display: block; max-width: 100%; }
+
+h1, h2, h3, h4 {
+  margin: 0;
+  font-family: var(--f-titre);
+  font-weight: 700;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+h1 { font-size: var(--t-display); line-height: var(--lh-display); letter-spacing: var(--ls-display); }
+h2 { font-size: var(--t-section); line-height: var(--lh-section); letter-spacing: var(--ls-section); }
+h3, h4 { font-size: var(--t-sous); line-height: var(--lh-sous); letter-spacing: 0; }
+
+p { margin: 0 0 var(--e2); max-width: var(--mesure); }
+p:last-child { margin-bottom: 0; }
+
+ul, ol { margin: 0; padding: 0; list-style: none; }
+
+/* --- LIENS ----------------------------------------------------------------
+
+   Soulignes, et ils le restent. Un lien reconnaissable sans passer la souris
+   dessus est la premiere regle d'accessibilite d'une page — et sur un telephone,
+   il n'y a pas de souris a passer.
+
+   `text-underline-offset` decolle le trait du texte : sans lui, le soulignement
+   traverse les jambages et abime la lecture en petit corps.
+*/
+a {
+  color: var(--bleu-travail);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  text-decoration-thickness: 1px;
+  transition: color var(--transition), background-color var(--transition);
+}
+
+a:hover { color: var(--encre); }
+
+/* --- LE FOCUS -------------------------------------------------------------
+
+   Visible, epais, et jamais retire. C'est le seul reperage dont dispose qui
+   navigue au clavier ; l'effacer pour des raisons de gout rend le site
+   inutilisable a ces personnes.
+
+   Pose sur `:focus-visible` et non `:focus` : le contour apparait au clavier,
+   pas au clic de souris, ou il n'apprend rien.
+
+   `--contour` bascule sur les fonds sombres (voir plus bas) : un contour encre
+   sur un aplat encre serait un contour invisible.
+*/
+:root { --contour: var(--encre); }
+
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--contour);
+  outline-offset: 2px;
+}
+
+/* --- LES DEUX FONDS -------------------------------------------------------
+
+   Une section est claire (craie) ou sombre (encre ou bleu). Le fond sombre
+   rebascule d'un coup toutes les couleurs qui en dependent — texte secondaire,
+   filets, focus, vert — plutot que de les redeclarer section par section.
+
+   C'est ce qui evite l'erreur classique : un texte gris pose sur un aplat
+   sombre, lisible sur la maquette de l'auteur et illisible pour tout le monde.
+*/
+.sombre {
+  background: var(--encre);
+  color: var(--craie);
+  --acier: var(--acier-clair);
+  --filet: var(--filet-sombre);
+  --vert-signal: var(--vert-clair);
+  --contour: var(--craie);
+}
+
+/* Le bleu de travail est BEAUCOUP plus clair que l'encre : l'acier et le vert
+   qui tiennent 5,9:1 sur l'encre n'y font plus que 3,5:1, soit sous le seuil AA
+   pour du texte.
+
+   C'est l'erreur que ce site avait faite sur le repere de section du bloc
+   « Contact » — invisible a la relecture du code, invisible a l'oeil sur un bon
+   ecran, et signalee par la mesure. D'ou une declinaison propre au fond bleu :
+   meme teinte, remontee jusqu'a 4,86:1. */
+.bleu {
+  background: var(--bleu-travail);
+  color: var(--craie);
+  --acier: #A9B0B3;        /* sur bleu : 4,86:1 */
+  --filet: #47617D;
+  --vert-signal: #A9CBB3;  /* sur bleu : 6,4:1 */
+  --contour: var(--craie);
+}
+
+.sombre a, .bleu a { color: var(--craie); }
+.sombre a:hover, .bleu a:hover { color: var(--acier-clair); }
+
+/* --- LES ROLES DE TEXTE --------------------------------------------------- */
+
+/* Une donnee : tarif, duree, heure, date, telephone, reference.
+   `tabular-nums` aligne les chiffres en colonnes meme quand ils changent. */
+.donnee {
+  font-family: var(--f-donnee);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* Une etiquette : reperes du rail, en-tetes de colonne, bandeau d'etat.
+   Capitales et chasse fixe — c'est la voix du site, employee partout ou une
+   ligne annonce plutot qu'elle ne raconte. */
+.etiquette {
+  font-family: var(--f-donnee);
+  font-size: var(--t-etiq);
+  line-height: var(--lh-sous);
+  letter-spacing: var(--ls-etiq);
+  text-transform: uppercase;
+  color: var(--acier);
+}
+
+.secondaire { color: var(--acier); }
+
+.petit { font-size: var(--t-petit); }
+
+.intro {
+  font-size: var(--t-intro);
+  line-height: 1.5;
+  max-width: 46ch;
+}
+
+/* --- ACCESSIBILITE -------------------------------------------------------- */
+
+/* Lu par les lecteurs d'ecran, invisible a l'oeil. Sert aux intitules qui
+   seraient redondants a l'ecran mais indispensables a l'oreille. */
+.hors-ecran {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* « Aller au contenu » : cache jusqu'a ce qu'on l'atteigne au clavier, ou il
+   devient le premier element visible de la page. */
+.saut {
+  position: absolute;
+  left: var(--e2);
+  top: -100px;
+  z-index: 100;
+  /* La cible tient 44 px de haut, comme les autres controles : c'est le premier
+     element qu'atteint une navigation au clavier, il n'a aucune raison d'etre
+     le plus petit de la page. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: var(--e1) var(--e2);
+  background: var(--encre);
+  color: var(--craie);
+  text-decoration: none;
+  transition: none;
+}
+.saut:focus { top: var(--e1); }
+
+[hidden] { display: none !important; }

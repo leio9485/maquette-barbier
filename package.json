@@ -1,0 +1,42 @@
+{
+  "name": "letabli-barbier",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Site vitrine et backend pour barbier — base reutilisable, une instance par client",
+  "main": "src/server.js",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "demo:reset": "node scripts/demo-reset.js",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "node prisma/seed.js",
+    "db:studio": "prisma studio",
+    "admin:create": "node scripts/create-admin.js",
+    "test:api": "node tests/api.mjs",
+    "test:settings": "node tests/settings.mjs",
+    "test:auth": "node tests/auth.mjs",
+    "test:staff": "node tests/staff.mjs",
+    "test:categories": "node tests/categories.mjs",
+    "test": "node tests/run.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.9.1",
+    "@prisma/client": "^7.9.1",
+    "better-sqlite3": "^12.11.1",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "prisma": "^7.9.1"
+  },
+  "allowScripts": {
+    "better-sqlite3@12.11.1": true,
+    "better-sqlite3@13.0.2": true,
+    "@prisma/engines@7.9.1": true,
+    "prisma@7.9.1": true
+  }
+}

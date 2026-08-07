@@ -1,0 +1,99 @@
+/* ---------------------------------------------------------------------------
+   L'ACCUEIL ET LES PHOTOS
+   --------------------------------------------------------------------------- */
+
+.accueil h1 { margin-bottom: var(--e3); }
+
+.accueil .intro { margin-bottom: var(--e4); }
+
+.accueil-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e2);
+  margin-bottom: var(--e5);
+}
+
+/* Le numéro de téléphone est une donnée : il s'écrit en chasse fixe, y compris
+   dans un bouton. C'est la règle du site, elle n'a pas d'exception. */
+.accueil-actions .action-douce {
+  font-family: var(--f-donnee);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.accueil-reperes { max-width: 34rem; }
+
+@media (max-width: 479px) {
+  /* Sur les écrans les plus étroits, les deux actions prennent toute la largeur
+     et se superposent : côte à côte, elles tomberaient sous 140 px chacune, et
+     le libellé « Réserver un créneau » passerait sur trois lignes. */
+  .accueil-actions { flex-direction: column; }
+  .accueil-actions .action,
+  .accueil-actions .action-douce { width: 100%; }
+}
+
+/* --- LA PHOTO D'ACCUEIL ----------------------------------------------------
+
+   Bord à bord, sans cadre, sans arrondi, sans ombre, et surtout sans texte
+   par-dessus.
+
+   LE RATIO EST IMPOSÉ ICI, et l'image recadrée pour le remplir. C'est ce qui
+   permet à un vrai client de déposer n'importe quelle photo sans casser la
+   page : elle sera cadrée, jamais déformée, jamais laissée en 3000 px de haut.
+
+   Presque carrée sur téléphone (4:5), très large sur grand écran (21:9) : la
+   même image, deux cadrages. Le sujet doit donc être au centre — c'est écrit
+   dans public/photos/LISEZ-MOI.md, à l'intention de qui déposera les photos.
+*/
+.photo-accueil {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  background: var(--encre);
+  overflow: hidden;
+}
+
+.photo-accueil img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Noir et blanc contrasté, appliqué par le site plutôt que par le photographe :
+     c'est ce qui fait tenir ensemble des photos prises à des moments différents,
+     et ce qui empêche une photo couleur déposée plus tard de jurer avec le
+     reste de la page. */
+  filter: grayscale(1) contrast(1.08);
+}
+
+@media (min-width: 560px)  { .photo-accueil { aspect-ratio: 3 / 2; } }
+@media (min-width: 900px)  { .photo-accueil { aspect-ratio: 21 / 9; } }
+
+/* --- LES RÉSERVES DE PHOTO -------------------------------------------------
+
+   Ce qui s'affiche tant qu'aucune photo n'a été déposée : un aplat encre au bon
+   ratio, portant en chasse fixe le cadrage attendu.
+
+   C'est délibérément visible plutôt que discret. Une réserve muette se ferait
+   oublier et partirait en ligne ; celle-ci dit ce qu'il manque, à qui doit le
+   fournir. Et surtout, la page a déjà sa mise en page définitive : déposer les
+   photos ne déplacera plus rien.
+*/
+.reserve {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--e3);
+  background: var(--encre);
+  color: var(--acier-clair);
+  font-family: var(--f-donnee);
+  font-size: var(--t-etiq);
+  letter-spacing: var(--ls-etiq);
+  text-transform: uppercase;
+  text-align: center;
+  line-height: var(--lh-sous);
+}
+
+.photo-accueil .reserve {
+  position: absolute;
+  inset: 0;
+}

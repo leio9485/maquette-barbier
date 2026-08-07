@@ -1,0 +1,68 @@
+<!--# ---------------------------------------------------------------------------
+   L'ACCUEIL — le titre, une phrase, deux actions, les repères pratiques.
+
+   AUCUN TEXTE SUR LA PHOTO, et c'est une règle, pas une préférence : un titre
+   posé sur une image ne tient jamais le contraste AA (l'image change, le
+   contraste avec elle), et c'est le geste le plus vu sur les sites de commerce
+   local. Le titre est donc sur l'aplat craie, et la photo occupe son propre
+   bloc, bord à bord, juste en dessous.
+
+   Le titre est écrit ici plutôt que peint par le JavaScript : c'est le plus gros
+   texte du premier écran, il doit être là à la première image.
+   --------------------------------------------------------------------------- #-->
+<section class="bloc" id="accueil">
+  <div class="bloc-corps">
+
+    <div class="rail">
+      <p class="etiquette"><span class="rail-numero">01</span> Accueil</p>
+    </div>
+
+    <div class="contenu accueil">
+      <h1>Coupe, barbe<br>et rasage<br>à <span data-champ="ville">Bavay</span></h1>
+
+      <p class="intro">
+        Trois barbiers, du mardi au samedi. Rendez-vous en ligne ou par
+        téléphone, réglé sur place.
+      </p>
+
+      <div class="accueil-actions">
+        <a class="action" href="#reserver">Réserver un créneau</a>
+        <a class="action-douce donnee" href="tel:+33327399840" data-champ="telephone-lien">
+          <span data-champ="telephone">03 27 39 98 40</span>
+        </a>
+      </div>
+
+      <!--# Les repères pratiques, en fiche de travail : intitulé à gauche,
+           valeur en chasse fixe à droite. Trois lignes, celles qu'on cherche en
+           arrivant. Les horaires complets sont en bas de page ; ici, seul
+           aujourd'hui compte. #-->
+      <dl class="fiche accueil-reperes">
+        <div>
+          <dt>Adresse</dt>
+          <dd><span data-champ="rue">12 rue de Valenciennes</span>, <span data-champ="code-postal">59570</span> <span data-champ="ville">Bavay</span></dd>
+        </div>
+        <div>
+          <dt>Aujourd'hui</dt>
+          <dd data-champ="horaires-du-jour">—</dd>
+        </div>
+        <div>
+          <dt>Sans rendez-vous</dt>
+          <dd>Selon l'affluence</dd>
+        </div>
+      </dl>
+    </div>
+
+  </div>
+</section>
+
+<!--# LA PHOTO D'ACCUEIL — bord à bord, aucun texte dessus, aucun cadre.
+
+     Le ratio est imposé par le CSS et l'image est recadrée (`object-fit: cover`)
+     plutôt qu'étirée : c'est ce qui garantit qu'une photo déposée plus tard par
+     un vrai client, de n'importe quelle taille, ne casse pas la mise en page.
+
+     `data-photo` désigne l'emplacement côté serveur (src/lib/photos.js) ; le
+     JavaScript y pose l'adresse réelle au chargement. #-->
+<div class="photo-accueil" data-photo="hero">
+  <img alt="" width="1200" height="675" hidden>
+</div>

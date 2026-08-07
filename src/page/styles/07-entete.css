@@ -1,0 +1,94 @@
+/* ---------------------------------------------------------------------------
+   L'EN-TÊTE
+   --------------------------------------------------------------------------- */
+
+.entete {
+  background: var(--craie);
+  border-bottom: 1px solid var(--filet);
+}
+
+.entete-corps {
+  max-width: var(--largeur-max);
+  margin: 0 auto;
+  padding: var(--e3) var(--marge);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--e2);
+}
+
+/* --- LE NOM --------------------------------------------------------------- */
+
+.entete-marque {
+  display: block;
+  text-decoration: none;
+  color: var(--encre);
+  /* Le nom n'est pas un lien qu'on souligne : c'est le titre du document, qui
+     se trouve aussi ramener en haut de page. Le souligner en ferait un lien de
+     navigation ordinaire au milieu des autres. */
+}
+
+.entete-nom {
+  display: block;
+  font-family: var(--f-titre);
+  font-weight: 700;
+  font-size: clamp(1.5rem, 1.3rem + 1vw, 2rem);
+  line-height: 1;
+  letter-spacing: var(--ls-section);
+  text-transform: uppercase;
+}
+
+.entete-lieu {
+  display: block;
+  margin-top: var(--e1);
+  font-size: var(--t-etiq);
+  letter-spacing: var(--ls-etiq);
+  text-transform: uppercase;
+  color: var(--acier);
+}
+
+/* --- LE SOMMAIRE ---------------------------------------------------------- */
+
+.entete-nav {
+  display: flex;
+  flex-wrap: wrap;
+  /* Aucun ecart vertical : le padding des liens (ci-dessous) le fournit deja,
+     et l'ajouter deux fois ecarterait les deux lignes de 32 px sur telephone. */
+  gap: 0 var(--e3);
+  margin: calc(var(--e1) * -1) 0;
+}
+
+.entete-nav a {
+  display: inline-block;
+  /* 8 px au-dessus et en dessous d'une ligne de 13 px : la cible atteint 32 px
+     de haut. WCAG 2.2 en demande 24 au minimum (critere 2.5.8), et un lien de
+     13 px n'en fait que 16 — c'est le genre de manque qui ne se voit pas sur
+     un écran d'ordinateur et qui fait rater le lien deux fois sur trois au
+     pouce. Le `gap` de la barre est reduit d'autant pour que rien ne bouge. */
+  padding: var(--e1) 0;
+  color: var(--acier);
+  text-decoration: none;
+  /* Le soulignement apparaît au survol et au focus plutôt qu'en permanence :
+     dans une barre de navigation, cinq liens soulignés d'affilée forment une
+     rangée de traits qui se lit moins bien que les mots eux-mêmes. Les liens
+     DANS LE TEXTE, eux, restent soulignés en toutes circonstances — c'est là
+     qu'un lien doit se distinguer de ce qui l'entoure (voir 03-fondations.css). */
+}
+
+.entete-nav a:hover,
+.entete-nav a:focus-visible {
+  color: var(--encre);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+@media (min-width: 768px) {
+  .entete-corps {
+    flex-direction: row;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--e4);
+  }
+
+  .entete-nav { justify-content: flex-end; }
+}

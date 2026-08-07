@@ -1,0 +1,45 @@
+# Briques installees par npm : jamais versionnees, on les reinstalle avec `npm install`
+node_modules/
+
+# Code engendre automatiquement par Prisma a partir de prisma/schema.prisma.
+# Recree par `npx prisma generate`, lance tout seul apres chaque `npm install`.
+src/generated/
+
+# Secrets (mots de passe, cles) : ne doivent jamais partir dans git
+.env
+.env.*
+!.env.example
+
+# Base de donnees SQLite : les donnees du salon, propres a chaque instance
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# TOUT data/ : ce sont les donnees d'UNE instance, celles d'un client.
+#
+# La base y etait deja ecartee par *.db, mais le dossier contient aussi les
+# photos deposees par le commercant et les legendes de sa galerie. Une photo de
+# son salon n'a rien a faire dans le depot — et "sauvegarder un client = copier
+# data/" dit assez que ce dossier lui appartient, pas au code.
+data/
+
+# Dossier de travail de Claude Code : des centaines de mega-octets, dont rien
+# qui appartienne au projet.
+#
+#   - settings.local.json porte des chemins codes en dur pour CETTE machine ;
+#     le « .local. » de son nom dit assez qu'il ne se partage pas ;
+#   - worktrees/ contient des copies completes du depot, chacune avec son propre
+#     node_modules, un binaire compile (better_sqlite3.node) et — c'est le point
+#     qui tranche — une base de donnees. Elle n'a rien a faire dans le depot,
+#     c'est exactement ce que la regle « data/ » ci-dessus ecarte.
+#
+# `launch.json`, lui, decrit comment demarrer le serveur en developpement et
+# n'a rien de personnel : il est versionne par l'exception ci-dessous.
+.claude/*
+!.claude/launch.json
+
+# Divers systeme
+Thumbs.db
+desktop.ini
+.DS_Store

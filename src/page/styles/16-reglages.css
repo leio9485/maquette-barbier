@@ -1,0 +1,233 @@
+/* ---------------------------------------------------------------------------
+   LES RÉGLAGES
+   --------------------------------------------------------------------------- */
+
+.reglages-sommaire a {
+  display: inline-block;
+  padding: 7px 0;
+}
+
+.reglages-sommaire {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--e3);
+  padding-bottom: var(--e2);
+  border-bottom: 1px solid var(--filet);
+  margin-bottom: var(--e4);
+}
+
+.reglages-bloc { margin-bottom: var(--e5); }
+
+.reglages-bloc h2 {
+  margin-bottom: var(--e2);
+  padding-bottom: var(--e1);
+  border-bottom: 1px solid var(--filet);
+  font-size: var(--t-sous);
+  letter-spacing: 0;
+}
+
+.reglages-bloc > .secondaire { margin-bottom: var(--e3); }
+
+.reglages-grille {
+  display: grid;
+  gap: 0 var(--e3);
+}
+
+@media (min-width: 640px) {
+  .reglages-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* --- UNE LIGNE MODIFIABLE --------------------------------------------------
+
+   Prestations, personnes, avis, rayons : tous se présentent pareil, et c'est
+   voulu. Quatre listes qui se ressemblent s'apprennent une fois.
+*/
+.reglages-ligne {
+  padding: var(--e3) 0;
+  border-bottom: 1px solid var(--filet);
+}
+
+.reglages-ligne:first-child { border-top: 1px solid var(--filet); }
+
+.reglages-ligne-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e2);
+  margin-bottom: var(--e2);
+}
+
+.reglages-ligne-titre {
+  font-family: var(--f-donnee);
+  font-size: var(--t-etiq);
+  letter-spacing: var(--ls-etiq);
+  text-transform: uppercase;
+  color: var(--acier);
+}
+
+.reglages-ligne-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--e1);
+}
+
+/* Les boutons d'ordre et de suppression : carrés de 36 px, en chasse fixe.
+   Aucune icône — un pack d'icônes date une page, et « ↑ » « ↓ » « × » se lisent
+   dans toutes les polices depuis toujours. Le vrai libellé est dans
+   `aria-label`, pour les lecteurs d'écran. */
+.reglages-bouton {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--filet);
+  background: none;
+  color: var(--encre);
+  font-family: var(--f-donnee);
+  font-size: var(--t-petit);
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color var(--transition), background-color var(--transition);
+}
+
+.reglages-bouton:hover { border-color: var(--encre); }
+.reglages-bouton[disabled] { color: var(--acier); cursor: not-allowed; }
+
+/* Un élément mis en pause : il reste entièrement lisible, et le dit en toutes
+   lettres. Baisser son opacité l'aurait fait passer sous le seuil de contraste,
+   ce qui est précisément ce qu'on ne veut pas d'un réglage qu'il faut pouvoir
+   retrouver pour le rallumer. */
+.reglages-ligne[data-pause] .reglages-ligne-titre::after {
+  content: ' · en pause';
+  color: var(--acier);
+}
+
+/* --- LES HORAIRES ---------------------------------------------------------- */
+
+.horaire-jour {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--e1) var(--e2);
+  padding: var(--e2) 0;
+  border-bottom: 1px solid var(--filet);
+}
+
+.horaire-jour:first-child { border-top: 1px solid var(--filet); }
+
+.horaire-nom {
+  display: flex;
+  align-items: center;
+  gap: var(--e1);
+  font-family: var(--f-donnee);
+  font-size: var(--t-petit);
+  min-width: 12ch;
+}
+
+.horaire-plages {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e1);
+}
+
+.horaire-plages input[type="time"] {
+  width: auto;
+  min-height: 40px;
+  padding: 0 var(--e1);
+  border: 1px solid var(--acier);
+  border-radius: var(--rayon-champ);
+  background: var(--craie);
+  color: var(--encre);
+  font-family: var(--f-donnee);
+  font-size: 1rem;
+}
+
+.horaire-plages input[disabled] { color: var(--acier); }
+
+.horaire-sep { color: var(--acier); font-family: var(--f-donnee); }
+
+@media (min-width: 640px) {
+  .horaire-jour {
+    grid-template-columns: 12ch minmax(0, 1fr);
+    align-items: center;
+  }
+}
+
+/* --- LES PHOTOS ------------------------------------------------------------ */
+
+.reglages-photos {
+  display: grid;
+  gap: var(--e3);
+}
+
+.reglages-photo-case { border: 1px solid var(--filet); }
+
+.reglages-photo-apercu {
+  aspect-ratio: 3 / 4;
+  background: var(--encre);
+  overflow: hidden;
+}
+
+.reglages-photo-apercu img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(1) contrast(1.08);
+}
+
+.reglages-photo-corps { padding: var(--e2); }
+
+@media (min-width: 640px) {
+  .reglages-photos { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+}
+
+/* --- LE BROUILLON ----------------------------------------------------------
+
+   Collé en bas de l'écran tant qu'il reste des modifications non enregistrées.
+   En bas et non en haut : c'est là que le pouce se trouve, et la barre
+   supérieure est déjà prise par les onglets.
+*/
+.brouillon {
+  position: sticky;
+  bottom: 0;
+  z-index: 30;
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e2);
+
+  margin: 0 calc(var(--marge) * -1);
+  padding: var(--e2) var(--marge);
+
+  background: var(--encre);
+  color: var(--craie);
+  border-top: 1px solid var(--filet-sombre);
+}
+
+.brouillon .etiquette { margin: 0; color: var(--craie); }
+
+.brouillon-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--e3);
+}
+
+.brouillon .lien-nu {
+  font-family: var(--f-donnee);
+  font-size: var(--t-etiq);
+  letter-spacing: var(--ls-etiq);
+  text-transform: uppercase;
+  color: var(--acier-clair);
+}
+
+.brouillon .lien-nu:hover { color: var(--craie); }
+
+/* Sur fond encre, le bouton s'inverse — la règle de 05-controles.css, appliquée
+   à la main ici parce que la barre n'est pas une section `.sombre`. */
+.brouillon .action {
+  background: var(--craie);
+  color: var(--encre);
+}
+
+.brouillon .action:hover { background: var(--acier-clair); }

@@ -13,4 +13,9 @@ data
 .gitignore
 tests
 CLAUDE.md
-Site vitrine
+
+# Les documents de conception : utiles au dépôt, sans objet dans l'image.
+plan-conception.md
+prompt-site-barbier.md
+render.yaml
+.claude

@@ -1,0 +1,91 @@
+# ---------------------------------------------------------------------------
+# LE SERVICE, DECRIT DANS LE DEPOT
+#
+# Render sait lire ce fichier (New > Blueprint) : plutot que de remplir une
+# dizaine de champs a la main dans une page web, et de risquer d'en oublier un,
+# le service se cree tel qu'il est ecrit ici. Le jour ou il faut le refaire —
+# autre hebergeur, autre client, incident — la configuration n'est pas perdue
+# dans une interface : elle est dans le depot, avec le reste.
+#
+# Ce fichier ne remplace pas le Dockerfile, il le designe : l'image est
+# construite exactement comme elle le serait ailleurs. Changer d'hebergeur ne
+# demande donc que de reecrire ce fichier-ci.
+#
+# ATTENTION : ceci decrit la VITRINE DE DEMONSTRATION (DEMO_MODE=true), pas le
+# site d'un client. Chez un client, DEMO_MODE doit rester absent, sans quoi
+# l'agenda de ses clients serait ouvert a tous — et l'offre gratuite ne
+# conviendrait pas davantage : elle n'offre aucun disque persistant, donc la
+# base repartirait vide a chaque reveil.
+# ---------------------------------------------------------------------------
+
+services:
+  - type: web
+    # ⚠️ CE NOM DEVIENT L'ADRESSE : https://letabli-barbier.onrender.com
+    #
+    # C'est l'adresse qu'on envoie a un prospect par SMS, donc elle compte
+    # autant que le reste. Elle porte le nom du commerce, et non celui du depot
+    # (« maquette-barbier »), qui dit a un client potentiel qu'il regarde une
+    # maquette — ce qu'on lui explique de vive voix, pas dans la barre
+    # d'adresse.
+    #
+    # Si Render refuse ce nom parce qu'il est deja pris, en changer ici ET dans
+    # PUBLIC_URL plus bas : les deux doivent rester d'accord.
+    name: letabli-barbier
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+
+    # Offre gratuite. Elle s'endort apres 15 min sans visite et met une bonne
+    # minute a se reveiller : c'est le prix a payer, et la raison pour laquelle
+    # les migrations sont appliquees a la construction de l'image et non au
+    # demarrage (voir Dockerfile).
+    #
+    # A SAVOIR AVANT UN RENDEZ-VOUS : ouvrir le site cinq minutes avant de le
+    # montrer. Un prospect qui attend soixante secondes devant une page blanche
+    # se fait une idee du produit, et ce n'est pas la bonne.
+    plan: free
+
+    # Francfort : le plus proche des visiteurs francais parmi les regions
+    # offertes, et l'Union europeenne — ce que la page de confidentialite
+    # affirme (« aucune donnee transferee hors de l'Union »).
+    region: frankfurt
+
+    branch: main
+    autoDeploy: true
+
+    # Le service est declare en bonne sante quand cette adresse repond. Elle ne
+    # depend pas de la base : elle dit que le serveur repond, ce qui est bien la
+    # question posee.
+    healthCheckPath: /api/health
+
+    envVars:
+      # INDISPENSABLE en ligne : c'est lui qui marque le cookie de session
+      # "Secure" et qui apprend au serveur qu'il est derriere un relais. Sans
+      # lui, le site fonctionne EN APPARENCE — et les tentatives de connexion de
+      # tous les visiteurs sont comptees dans le meme panier. Le serveur le
+      # signale au demarrage (voir `verifierMiseEnLigne` dans src/server.js).
+      - key: NODE_ENV
+        value: production
+
+      # Vitrine de demonstration : compte demo/demonstration affiche a l'ecran,
+      # base reconstruite a chaque demarrage, site retire des moteurs de
+      # recherche par un en-tete X-Robots-Tag.
+      #
+      # >>> A NE JAMAIS POSER CHEZ UN VRAI CLIENT. <<<
+      - key: DEMO_MODE
+        value: "true"
+
+      # Render fournit sinon un port a lui ; on impose celui du Dockerfile pour
+      # que les deux ne puissent pas diverger.
+      - key: PORT
+        value: "3000"
+
+      # Adresse publique du site : adresse canonique et og:url de la page, et
+      # lien de la fiche pour les apercus de lien (celui qui s'affiche quand on
+      # envoie l'adresse par SMS).
+      #
+      # ⚠️ DOIT CORRESPONDRE AU `name` CI-DESSUS. Le jour ou un vrai nom de
+      # domaine est branche, c'est cette ligne qu'il faut corriger — sans quoi
+      # la page continuerait de se declarer a l'ancienne adresse, et les moteurs
+      # de recherche suivraient l'adresse annoncee, pas celle qu'on visite.
+      - key: PUBLIC_URL
+        value: https://letabli-barbier.onrender.com

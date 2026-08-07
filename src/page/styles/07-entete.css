@@ -1,20 +1,35 @@
 /* ---------------------------------------------------------------------------
    L'EN-TÊTE
+
+   Sur aplat encre : il prolonge le bandeau d'état au-dessus et le bloc
+   d'accueil en dessous. Le haut de la page est un seul noir continu, coupé par
+   deux filets — celui du bandeau, et celui qui referme l'en-tête.
+
+   La classe `sombre` (03-fondations.css) fait le reste : elle rebascule le
+   texte secondaire, les filets et le contour de focus d'un coup, plutôt que de
+   les redéclarer un par un ici.
    --------------------------------------------------------------------------- */
 
 .entete {
-  background: var(--craie);
   border-bottom: 1px solid var(--filet);
 }
 
+/* Sur téléphone, l'en-tête empile le nom puis deux lignes de sommaire : à
+   24 px de padding il faisait 167 px, soit un cinquième de l'écran occupé par
+   du noir avant le premier mot du titre. À 16 px il en fait 151, et l'écart
+   avec le bandeau reste franc. Il retrouve 24 px dès qu'il passe sur une ligne. */
 .entete-corps {
   max-width: var(--largeur-max);
   margin: 0 auto;
-  padding: var(--e3) var(--marge);
+  padding: var(--e2) var(--marge);
 
   display: flex;
   flex-direction: column;
   gap: var(--e2);
+}
+
+@media (min-width: 768px) {
+  .entete-corps { padding-top: var(--e3); padding-bottom: var(--e3); }
 }
 
 /* --- LE NOM --------------------------------------------------------------- */
@@ -22,7 +37,7 @@
 .entete-marque {
   display: block;
   text-decoration: none;
-  color: var(--encre);
+  color: var(--craie);
   /* Le nom n'est pas un lien qu'on souligne : c'est le titre du document, qui
      se trouve aussi ramener en haut de page. Le souligner en ferait un lien de
      navigation ordinaire au milieu des autres. */
@@ -77,7 +92,7 @@
 
 .entete-nav a:hover,
 .entete-nav a:focus-visible {
-  color: var(--encre);
+  color: var(--craie);
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
@@ -91,4 +106,43 @@
   }
 
   .entete-nav { justify-content: flex-end; }
+}
+
+/* --- L'EN-TÊTE COLLÉ, À PARTIR DE 1000 px ---------------------------------
+
+   Le motif est dans parties/entete.html : sur un écran d'ordinateur, une page
+   de huit écrans de long qui perd son sommaire au premier défilement oblige à
+   remonter tout en haut pour changer de section. Deux barres collées y coûtent
+   112 px, soit un huitième de la hauteur.
+
+   Le nom et la ville passent sur UNE SEULE LIGNE et la hauteur devient fixe :
+   sans cela, la barre ferait 96 px et le décalage des ancres — qui est calculé
+   à partir de ces deux valeurs — serait une estimation. Une ancre qui pose son
+   titre sous la barre est exactement le défaut qu'on essaie d'éviter.
+
+   `top: var(--h-bandeau)` : l'en-tête se cale SOUS le bandeau, qui est collé à
+   0 et porte un `z-index` plus élevé. Les deux ne se recouvrent jamais.
+*/
+@media (min-width: 1000px) {
+  .entete {
+    position: sticky;
+    top: var(--h-bandeau);
+    z-index: 40;
+    background: var(--encre);
+  }
+
+  .entete-corps {
+    min-height: var(--h-entete);
+    padding-top: 0;
+    padding-bottom: 0;
+    align-items: center;
+  }
+
+  .entete-marque {
+    display: flex;
+    align-items: baseline;
+    gap: var(--e2);
+  }
+
+  .entete-lieu { margin-top: 0; }
 }

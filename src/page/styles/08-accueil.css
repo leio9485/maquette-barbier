@@ -1,6 +1,22 @@
 /* ---------------------------------------------------------------------------
-   L'ACCUEIL ET LES PHOTOS
+   L'ACCUEIL, LA PHOTO, ET LA BANDE DE REPÈRES
    --------------------------------------------------------------------------- */
+
+/* Le bloc d'accueil est sur aplat encre et se termine SUR la photo : aucun
+   espace entre les deux, sans quoi une bande noire apparaîtrait entre le texte
+   et l'image et couperait en deux ce qui doit se lire comme un seul plan.
+
+   Moins d'air au-dessus qu'une section ordinaire : l'en-tête est du même noir
+   et joue déjà ce rôle. Sur téléphone, ces 24 px de moins sont ce qui fait
+   entrer le haut de la photo dans le premier écran. */
+.accueil-bloc .bloc-corps {
+  padding-top: var(--e4);
+  padding-bottom: var(--e5);
+}
+
+@media (min-width: 768px) {
+  .accueil-bloc .bloc-corps { padding-top: var(--e5); }
+}
 
 .accueil h1 { margin-bottom: var(--e3); }
 
@@ -10,8 +26,12 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--e2);
-  margin-bottom: var(--e5);
 }
+
+/* L'action principale de la page respire plus large que les autres boutons :
+   c'est le seul endroit où l'écart entre le premier et le second rôle se joue
+   sur la taille et pas seulement sur l'aplat. */
+.accueil-actions .action { padding: 0 var(--e4); }
 
 /* Le numéro de téléphone est une donnée : il s'écrit en chasse fixe, y compris
    dans un bouton. C'est la règle du site, elle n'a pas d'exception. */
@@ -21,8 +41,6 @@
   letter-spacing: 0;
   text-transform: none;
 }
-
-.accueil-reperes { max-width: 34rem; }
 
 @media (max-width: 479px) {
   /* Sur les écrans les plus étroits, les deux actions prennent toute la largeur
@@ -45,6 +63,10 @@
    Presque carrée sur téléphone (4:5), très large sur grand écran (21:9) : la
    même image, deux cadrages. Le sujet doit donc être au centre — c'est écrit
    dans public/photos/LISEZ-MOI.md, à l'intention de qui déposera les photos.
+
+   Le fond est en encre, comme le bloc d'accueil juste au-dessus : tant que
+   l'image n'est pas arrivée, on voit la suite de l'aplat et rien ne saute
+   quand elle arrive. C'est aussi ce qui permet de la charger sans la précharger.
 */
 .photo-accueil {
   position: relative;
@@ -67,6 +89,81 @@
 
 @media (min-width: 560px)  { .photo-accueil { aspect-ratio: 3 / 2; } }
 @media (min-width: 900px)  { .photo-accueil { aspect-ratio: 21 / 9; } }
+/* Au-delà de 1200 px, le 21:9 donnait 610 px de haut : une fois le titre passé,
+   l'écran suivant ne contenait plus que la photo. En 3:1 la bande fait 475 px,
+   le bloc d'accueil et la photo tiennent ensemble en un écran et demi, et les
+   repères sont à une petite poussée de molette. */
+@media (min-width: 1200px) { .photo-accueil { aspect-ratio: 3 / 1; } }
+
+/* --- LA BANDE DE REPÈRES ---------------------------------------------------
+
+   Trois colonnes sous la photo : adresse, horaires du jour, sans rendez-vous.
+   C'est la fiche de travail du site tournée à l'horizontale — même vocabulaire
+   (intitulé en étiquette, valeur en chasse fixe), autre densité.
+
+   Elle joue deux rôles à la fois. Elle répond aux trois questions pratiques
+   sans faire défiler jusqu'au bas de page ; et elle marque le passage du grand
+   aplat sombre du haut au fond clair du reste, ce que ferait sinon une couture
+   nue entre deux couleurs.
+
+   Elle n'a ni rail ni titre : ce n'est pas une section du sommaire, c'est une
+   règle de lecture entre deux sections.
+*/
+.reperes {
+  border-bottom: 1px solid var(--filet);
+}
+
+.reperes-corps {
+  max-width: var(--largeur-max);
+  margin: 0 auto;
+  padding: 0 var(--marge);
+}
+
+.reperes-liste {
+  display: grid;
+  margin: 0;
+}
+
+.reperes-liste > div {
+  padding: var(--e2) 0;
+  border-top: 1px solid var(--filet);
+  min-width: 0;
+}
+
+/* Le premier repère ne porte pas de filet haut : la photo au-dessus fait déjà
+   la coupure, et deux traits à 1 px d'intervalle se lisent comme un défaut. */
+.reperes-liste > div:first-child { border-top: 0; }
+
+.reperes-liste dt { margin-bottom: 2px; }
+
+/* 14 px et non 17 : en chasse fixe, « 12 rue de Valenciennes, 59570 Bavay »
+   tient sur 357 px, et la colonne du milieu n'en fait que 176 sur une tablette.
+   À 17 px l'adresse passait sur quatre lignes et la bande faisait 137 px de
+   haut pour deux valeurs d'une ligne — un tiers de bande vide à côté d'un
+   paragraphe. La distinction avec l'intitulé ne tient de toute façon pas à la
+   taille : l'un est en acier et en capitales espacées, l'autre en encre. */
+.reperes-liste dd {
+  margin: 0;
+  font-size: var(--t-petit);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--lh-donnee);
+}
+
+@media (min-width: 768px) {
+  /* Trois colonnes, séparées par le même filet tourné d'un quart de tour —
+     exactement ce que fait le rail quand la place le permet. */
+  .reperes-liste {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .reperes-liste > div {
+    padding: var(--e3) var(--e3);
+    border-top: 0;
+    border-left: 1px solid var(--filet);
+  }
+
+  .reperes-liste > div:first-child { padding-left: 0; border-left: 0; }
+}
 
 /* --- LES RÉSERVES DE PHOTO -------------------------------------------------
 

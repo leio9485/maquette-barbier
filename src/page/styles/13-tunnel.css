@@ -124,7 +124,7 @@
 
 .calendrier-jour:hover { border-color: var(--encre); }
 
-/* Fermé ou complet. Le jour reste LISIBLE (l'acier tient 4,55:1) et reste
+/* Fermé ou complet. Le jour reste LISIBLE (l'acier tient 5,95:1) et reste
    annoncé aux lecteurs d'écran comme indisponible : on ne cache pas
    l'information, on dit qu'elle ne mène nulle part. */
 .calendrier-jour[disabled] {

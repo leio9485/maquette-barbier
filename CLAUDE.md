@@ -70,8 +70,36 @@ de grille de cartes de prestations.
 - **Angles droits.** Rayon 0 partout, 2 px sur les champs de saisie.
 - **Aucune ombre portée.** La hiérarchie se fait par aplats pleins bord à bord
   et par les blancs.
-- **Aligné à gauche, jamais centré.**
+- **Aligné à gauche, jamais centré** — et *aligné sur la même abscisse* :
+  bandeau, nom du commerce, rails de section, bande de repères et pied de page
+  démarrent tous à la gouttière de la grille, y compris les éléments qui vont
+  d'un bord de l'écran à l'autre. Le bandeau la recalcule
+  (`06-bandeau-etat.css`) parce qu'il n'a pas de conteneur centré.
 - **Presque aucun mouvement** : 150 ms sur les états interactifs, rien d'autre.
+
+#### Ce qu'une direction sans ornement demande en échange
+
+Retirer les ombres, les rayons, les dégradés et les couleurs, c'est retirer la
+plus grande partie des moyens habituels de faire une hiérarchie. **Ce qui reste
+doit alors être poussé plus loin qu'ailleurs**, sans quoi la page ne se lit plus
+comme épurée mais comme inachevée — le reproche exact qui a motivé la reprise
+de la mise en page.
+
+Trois réglages en dépendent, et il faut les trois :
+
+- **L'écart de tailles.** Le display monte à 72 px, les titres de section à
+  42 px. À 56 et 36, la page n'avait plus aucun contraste de taille pour
+  remplacer ceux qu'on lui a retirés.
+- **Les gris se voient.** L'acier est passé de 4,55:1 à **5,95:1**. Un site qui
+  emploie du texte secondaire partout se lit délavé quand ce gris est au
+  minimum syndical.
+- **Les filets se voient.** De 1,5:1 à **2,1:1** sur les deux fonds. Toute la
+  structure du site tient à des traits de 1 px ; un trait invisible ne
+  structure rien.
+
+L'aplat sombre porte la même logique : le bandeau, l'en-tête, l'accueil et la
+photo forment **un seul noir continu** sur tout le premier écran. C'est ce qui
+donne au site une devanture au lieu d'un document.
 
 ### L'élément signature
 
@@ -154,6 +182,33 @@ tiennent 5,9:1 sur l'encre n'y font plus que 3,5:1. D'où des déclinaisons
 propres au fond bleu dans `03-fondations.css`. Avant de poser une couleur sur un
 nouveau fond : mesurer.
 
+**`overflow-x: hidden` décolle tout ce qui est `sticky`.** Le garde-fou contre
+le défilement horizontal était posé en `hidden` sur `<html>` et `<body>` : c'est
+ce qui empêchait le bandeau d'état de suivre le défilement, pendant des mois,
+sans le moindre signe dans le code du bandeau lui-même. `hidden` fait de
+l'élément une **boîte de défilement**, et `position: sticky` se cale alors sur
+elle — une boîte qui ne défile jamais, puisque c'est la page qui défile.
+La règle est aujourd'hui `html { overflow-x: clip }` : `clip` coupe le
+débordement **sans** créer de boîte de défilement. Ne jamais revenir à `hidden`,
+et ne pas la poser sur `<body>` — de là, la valeur remonte à la fenêtre et
+emporte le défilement vertical avec elle.
+
+**Une section claire après une section sombre gardait zéro espace en haut.** La
+règle qui fusionne deux aplats identiques ne regardait que la *seconde* section
+(`.bloc + .bloc:not(.sombre)`). Résultat : « 04 · Galerie » commençait au pixel
+exact où finissait le noir de l'équipe. Les deux sections sont testées
+maintenant (`04-grille-et-rail.css`) — en ajouter une troisième variante de fond
+demande de reprendre les trois sélecteurs ensemble.
+
+**L'en-tête se colle en haut, mais seulement à partir de 1000 px.** Il ne se
+collait pas du tout, et le motif était juste : deux bandes fixes mangent un
+quart d'un écran de téléphone. Ce motif ne vaut que sur téléphone — sur un
+écran d'ordinateur, 48 + 64 px sur 900 de haut, c'est un huitième, et sans lui
+le sommaire disparaît dès le premier défilement d'une page qui fait huit écrans.
+Sa hauteur est le jeton `--h-entete` (0 en dessous de 1000 px) parce que le
+décalage des ancres, `scroll-padding-top`, en est la somme avec `--h-bandeau`.
+Changer l'un sans l'autre remet les titres de section sous la barre.
+
 ## Vérifier
 
 ```bash
@@ -167,8 +222,17 @@ absent** du `.env`.
 accessibilité 100, bonnes pratiques 100, SEO 100. LCP 2,0 s en 4G lente simulée,
 CLS 0, 153 Ko transférés.
 
-Rendu vérifié en 390, 768 et 1440 px : aucun défilement horizontal, aucune cible
-tactile sous 24 px, tous les contrastes employés au-dessus de 4,5:1.
+⚠️ **Ces chiffres datent d'avant la reprise de la mise en page** et n'ont pas
+été refaits depuis. Rien n'a été ajouté au poids de la page — aucune requête,
+aucune police, aucun script — mais la photo d'accueil est passée sous le premier
+écran, ce qui peut en faire le nouvel élément de LCP. **Relancer Lighthouse
+avant de montrer le site à un prospect.**
+
+Rendu vérifié après la reprise en 390, 768 et 1440 px : aucun défilement
+horizontal, aucune cible tactile sous 24 px, aucune combinaison de couleurs
+employée sous son seuil (audit automatique sur la vitrine et sur l'espace
+commerçant, texte courant 4,5:1 et grand texte 3:1), bandeau et en-tête collés
+en haut aux bonnes hauteurs, tunnel parcouru jusqu'aux créneaux.
 
 ## Mise en ligne
 

@@ -36,10 +36,21 @@
   padding: var(--e5) var(--marge);
 }
 
-/* Deux sections de meme fond qui se suivent ne doivent pas payer deux fois le
+/* Deux sections DE MEME FOND qui se suivent ne doivent pas payer deux fois le
    meme espace : la seconde perd son padding haut, et le bord franc entre elles
-   disparait — ce qui est exact, c'est le meme aplat. */
-.bloc + .bloc:not(.sombre):not(.bleu) .bloc-corps { padding-top: 0; }
+   disparait — ce qui est exact, c'est le meme aplat.
+
+   ⚠️ LA REGLE CLAIRE NE REGARDAIT QUE LA SECONDE SECTION. `.bloc + .bloc:not(
+      .sombre):not(.bleu)` retirait le padding de TOUTE section claire suivant
+      une section, y compris sombre. En pratique : le repere « 04 · Galerie »
+      commencait au pixel exact ou finissait l'aplat noir de l'equipe, et
+      « 06 · Reserver » de meme sous les avis. Deux titres colles a une arete
+      franche, sans un pixel d'air — c'est le genre de detail qui fait qu'une
+      page soignee se lit comme une page bâclee, et il etait invisible dans le
+      code parce que la regle a l'air symetrique des deux autres.
+
+      Les deux sections sont maintenant testees, ici comme en dessous. */
+.bloc:not(.sombre):not(.bleu) + .bloc:not(.sombre):not(.bleu) .bloc-corps { padding-top: 0; }
 .sombre + .sombre .bloc-corps,
 .bleu + .bleu .bloc-corps { padding-top: 0; }
 

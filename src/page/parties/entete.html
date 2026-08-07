@@ -6,12 +6,23 @@
    de 13 px : ouvrir un panneau pour les montrer coûterait du code, une icône
    générique et une animation, pour cacher ce qui tient déjà à l'écran.
 
-   L'en-tête ne se colle PAS en haut : le bandeau d'état occupe déjà cette place,
-   et deux bandes fixes mangeraient un quart d'un écran de téléphone.
+   ⚠️ SUR APLAT ENCRE, comme le bandeau juste au-dessus et l'accueil juste en
+      dessous. Il était sur craie : une bande beige coincée entre deux noirs,
+      c'est-à-dire une couture au tiers du premier écran. En encre, le haut de
+      la page est un seul aplat continu.
+
+   ⚠️ L'EN-TÊTE SE COLLE EN HAUT, MAIS SEULEMENT À PARTIR DE 1000 px. La note
+      d'origine disait qu'il ne se collait pas, et son motif était le téléphone :
+      deux bandes fixes y mangeraient un quart de l'écran. Ce motif ne vaut que
+      là. Sur un écran d'ordinateur, 48 + 64 px de barre sur 900 de haut, c'est
+      un huitième — et le prix à payer sans elle est que le sommaire et le nom
+      du commerce disparaissent dès le premier défilement, sur une page qui fait
+      huit écrans de long. Sous 1000 px, la règle d'origine s'applique
+      inchangée : seul le bandeau reste collé.
 
    ⚠️ L'ordre des liens suit celui des sections de la page (voir index.html).
    --------------------------------------------------------------------------- #-->
-<header class="entete">
+<header class="entete sombre">
   <div class="entete-corps">
 
     <a class="entete-marque" href="#contenu">

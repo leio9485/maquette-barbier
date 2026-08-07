@@ -19,7 +19,22 @@
   gap: var(--e2);
 
   min-height: var(--h-bandeau);
-  padding-left: var(--marge);
+
+  /* LE TEXTE SE CALE SUR LA GRILLE DE LA PAGE, pas sur le bord de l'écran.
+
+     Il partait de `var(--marge)`, soit 64 px. Mais le contenu de la page est
+     centré dans 1320 px : sur un écran de 1440, il commence à 116 px. Le
+     bandeau, le nom du commerce et le rail du dessous démarraient donc à trois
+     abscisses différentes — un décrochement de 52 px en haut de page, sur les
+     trois lignes que l'œil compare en premier.
+
+     `100%` désigne ici la largeur du conteneur du bandeau, c'est-à-dire la page
+     moins sa barre de défilement : c'est la seule façon d'obtenir la gouttière
+     exacte, `100vw` comptant la barre en trop. Sous 1320 px + marges, la moitié
+     gauche devient négative et le `max()` retombe sur la marge courante.
+
+     Le bouton, lui, touche toujours le bord droit de l'écran : voir plus bas. */
+  padding-left: max(var(--marge), calc((100% - var(--largeur-max)) / 2 + var(--marge)));
 
   background: var(--encre);
   color: var(--craie);

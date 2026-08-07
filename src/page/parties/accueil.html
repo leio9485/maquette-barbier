@@ -1,16 +1,35 @@
 <!--# ---------------------------------------------------------------------------
-   L'ACCUEIL — le titre, une phrase, deux actions, les repères pratiques.
+   L'ACCUEIL — le titre, une phrase, deux actions. Puis la photo. Puis les
+   repères pratiques, en bande.
 
    AUCUN TEXTE SUR LA PHOTO, et c'est une règle, pas une préférence : un titre
    posé sur une image ne tient jamais le contraste AA (l'image change, le
    contraste avec elle), et c'est le geste le plus vu sur les sites de commerce
-   local. Le titre est donc sur l'aplat craie, et la photo occupe son propre
+   local. Le titre est donc sur son propre aplat, et la photo occupe son propre
    bloc, bord à bord, juste en dessous.
+
+   ⚠️ L'ACCUEIL EST SUR APLAT ENCRE, et c'est le changement qui porte le plus.
+      Il était sur craie : la page s'ouvrait sur un grand rectangle beige clair,
+      un titre, deux boutons et trois lignes de gris — la première impression
+      d'un document, pas d'une devanture. En encre, l'en-tête, le titre et la
+      photo forment un seul bloc noir qui va d'un bord à l'autre et occupe le
+      premier écran entier. C'est la seule chose que voit un prospect avant de
+      décider s'il continue.
+
+      L'aplat sombre court sans couture depuis le bandeau d'état jusqu'au bas de
+      la photo : bandeau, en-tête et accueil sont tous en encre, et la photo est
+      collée dessous sans marge. Une seule couture, franche, entre la photo et
+      la bande de repères.
+
+   ⚠️ LES REPÈRES ONT ÉTÉ SORTIS DE L'ACCUEIL. Ils y allongeaient la colonne de
+      180 px et repoussaient la photo hors du premier écran. En bande de trois
+      colonnes sous la photo, ils se lisent d'un coup d'œil, ils marquent le
+      passage au fond clair, et ils libèrent la place qui manquait.
 
    Le titre est écrit ici plutôt que peint par le JavaScript : c'est le plus gros
    texte du premier écran, il doit être là à la première image.
    --------------------------------------------------------------------------- #-->
-<section class="bloc" id="accueil">
+<section class="bloc sombre accueil-bloc" id="accueil">
   <div class="bloc-corps">
 
     <div class="rail">
@@ -31,25 +50,6 @@
           <span data-champ="telephone">03 27 39 98 40</span>
         </a>
       </div>
-
-      <!--# Les repères pratiques, en fiche de travail : intitulé à gauche,
-           valeur en chasse fixe à droite. Trois lignes, celles qu'on cherche en
-           arrivant. Les horaires complets sont en bas de page ; ici, seul
-           aujourd'hui compte. #-->
-      <dl class="fiche accueil-reperes">
-        <div>
-          <dt>Adresse</dt>
-          <dd><span data-champ="rue">12 rue de Valenciennes</span>, <span data-champ="code-postal">59570</span> <span data-champ="ville">Bavay</span></dd>
-        </div>
-        <div>
-          <dt>Aujourd'hui</dt>
-          <dd data-champ="horaires-du-jour">—</dd>
-        </div>
-        <div>
-          <dt>Sans rendez-vous</dt>
-          <dd>Selon l'affluence</dd>
-        </div>
-      </dl>
     </div>
 
   </div>
@@ -61,8 +61,44 @@
      plutôt qu'étirée : c'est ce qui garantit qu'une photo déposée plus tard par
      un vrai client, de n'importe quelle taille, ne casse pas la mise en page.
 
+     Sa réserve est en encre, comme le bloc d'accueil juste au-dessus : tant que
+     l'image n'est pas arrivée, on voit la suite de l'aplat, pas un trou.
+
      `data-photo` désigne l'emplacement côté serveur (src/lib/photos.js) ; le
      JavaScript y pose l'adresse réelle au chargement. #-->
 <div class="photo-accueil" data-photo="hero">
   <img alt="" width="1200" height="675" hidden>
 </div>
+
+<!--# LA BANDE DE REPÈRES — les trois choses qu'on cherche en arrivant.
+
+     Trois colonnes séparées par un filet, intitulé en étiquette, valeur en
+     chasse fixe. C'est la fiche de travail du site, tournée à l'horizontale :
+     même vocabulaire, autre densité — et c'est cette variation de densité qui
+     empêche les sept sections de se ressembler.
+
+     Ce n'est PAS un `.bloc` : la bande n'a pas de rail, pas de titre, et pas
+     l'espacement d'une section. Lui donner la classe la ferait aussi entrer
+     dans la règle qui supprime le padding haut de deux blocs clairs qui se
+     suivent, et les prestations viendraient se coller au filet.
+
+     Les horaires du jour sont peints par la page depuis les réglages ; le tiret
+     ne s'affiche que le temps de la réponse, et jamais « chargement... ». #-->
+<section class="reperes" aria-label="Informations pratiques">
+  <div class="reperes-corps">
+    <dl class="reperes-liste">
+      <div>
+        <dt class="etiquette">Adresse</dt>
+        <dd class="donnee"><span data-champ="rue">12 rue de Valenciennes</span>, <span data-champ="code-postal">59570</span> <span data-champ="ville">Bavay</span></dd>
+      </div>
+      <div>
+        <dt class="etiquette">Aujourd'hui</dt>
+        <dd class="donnee" data-champ="horaires-du-jour">—</dd>
+      </div>
+      <div>
+        <dt class="etiquette">Sans rendez-vous</dt>
+        <dd class="donnee">Selon l'affluence</dd>
+      </div>
+    </dl>
+  </div>
+</section>

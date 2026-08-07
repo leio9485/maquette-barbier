@@ -11,9 +11,10 @@ html {
   /* Le defilement s'anime quand on clique une ancre du menu — sauf si le
      systeme demande le contraire, ce que 02-jetons.css applique deja. */
   scroll-behavior: smooth;
-  /* Le bandeau d'etat est colle en haut : sans cette marge, une ancre poserait
-     le titre de section SOUS le bandeau, hors de vue. */
-  scroll-padding-top: calc(var(--h-bandeau) + var(--e3));
+  /* Le bandeau d'etat est colle en haut, et l'en-tete aussi a partir de
+     1000 px : sans cette marge, une ancre poserait le titre de section SOUS
+     eux, hors de vue. `--h-entete` vaut 0 tant que l'en-tete defile. */
+  scroll-padding-top: calc(var(--h-bandeau) + var(--h-entete) + var(--e3));
   -webkit-text-size-adjust: 100%;
 }
 

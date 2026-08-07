@@ -8,20 +8,32 @@
 
 .tarifs { margin-top: var(--e4); }
 
-.tarif-rayon + .tarif-rayon { margin-top: var(--e4); }
+/* Un cran d'espace de plus entre deux rayons qu'entre deux lignes du même
+   rayon : à 40 px, les quatre rayons se lisaient comme une seule liste de
+   treize lignes, et la section faisait 1800 px de gris d'affilée. À 64, ce
+   sont quatre chapitres. C'est le seul découpage dont la liste dispose —
+   elle n'a ni carte, ni cadre, ni fond. */
+.tarif-rayon + .tarif-rayon { margin-top: var(--e5); }
 
 .tarif-rayon-titre {
   /* L'intitulé de rayon reprend la voix des étiquettes : chasse fixe, capitales,
      13 px. Il annonce, il ne raconte pas — et il ne dispute donc pas l'œil au
-     titre de section, qui est en Archivo. */
+     titre de section, qui est en Archivo.
+
+     En encre et non en acier : c'est une tête de chapitre, pas une mention
+     secondaire. En gris, elle avait le même poids que les descriptions qu'elle
+     surplombe, et le rayon ne se distinguait plus de son contenu. */
   font-family: var(--f-donnee);
   font-size: var(--t-etiq);
   font-weight: 400;
   letter-spacing: var(--ls-etiq);
-  color: var(--acier);
+  color: var(--encre);
   padding-bottom: var(--e1);
   border-bottom: 1px solid var(--filet);
 }
+
+.sombre .tarif-rayon-titre,
+.bleu .tarif-rayon-titre { color: var(--craie); }
 
 .tarif-rayon-desc {
   margin: var(--e2) 0 0;
@@ -68,6 +80,17 @@
   background: rgba(22, 25, 27, 0.04);
   padding-left: var(--e1);
   padding-right: var(--e1);
+}
+
+/* Et l'intitulé se souligne. L'aplat seul ne suffisait pas : treize lignes sans
+   aucune marque de lien se lisent comme un tableau de prix, on les parcourt
+   sans imaginer qu'on peut cliquer dedans — alors que c'est le chemin le plus
+   court du site vers la réservation. Le soulignement est la marque du lien
+   partout ailleurs dans la page ; il l'est ici aussi. */
+.tarif-ligne:hover .tarif-nom,
+.tarif-ligne:focus-visible .tarif-nom {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 
 .tarif-texte {

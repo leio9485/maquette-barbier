@@ -26,8 +26,14 @@
   --bleu-travail: #24405C;  /* sur craie :  9,2:1 — l'action, et rien d'autre */
   --craie:        #EFEEEA;  /* sur encre : 15,2:1 — sur bleu : 9,2:1 */
 
-  /* Le texte secondaire. Deux valeurs, une par fond. */
-  --acier:        #656D70;  /* sur craie : 4,55:1 */
+  /* Le texte secondaire. Deux valeurs, une par fond.
+
+     L'acier a ete FONCE : il tenait 4,55:1, soit le minimum strict. A ce
+     niveau, une page qui emploie beaucoup de texte secondaire — et celle-ci en
+     emploie partout : descriptions de prestations, intitules de fiche, reperes
+     du rail — se lit delavee. Le gris trop clair est la premiere chose qui fait
+     qu'une mise en page soignee passe pour une maquette inachevee. */
+  --acier:        #545B5F;  /* sur craie : 5,95:1 */
   --acier-clair:  #8E9699;  /* sur encre : 5,9:1  — illisible sur craie */
 
   /* Les etats positifs, et eux seuls : confirme, disponible, ouvert. */
@@ -35,9 +41,14 @@
   --vert-clair:   #6E9F80;  /* sur encre : 5,8:1 — illisible sur craie */
 
   /* Le filet de separation. JAMAIS de texte dans cette couleur : elle ne tient
-     que le role d'une ligne, ou 3:1 suffit. */
-  --filet:        #C9C7C1;  /* sur craie : 1,7:1 — bordures uniquement */
-  --filet-sombre: #3A4144;  /* le meme role sur fond encre */
+     que le role d'une ligne, ou 3:1 suffit.
+
+     Les deux filets ont ete FONCES eux aussi, de 1,5:1 a 2,1:1. La charte fait
+     porter TOUTE la hierarchie du site aux aplats et aux traits de 1 px :
+     si le trait ne se voit pas, il ne reste que le vide, et la page perd sa
+     structure — c'est la seconde cause de l'effet « pas fini ». */
+  --filet:        #A8A59D;  /* sur craie : 2,12:1 — bordures uniquement */
+  --filet-sombre: #4A5255;  /* sur encre : 2,21:1 — le meme role, fond sombre */
 
   /* Le refus. Ce n'est pas une sixieme couleur : c'est l'encre, qu'on emploie
      pour dire qu'une chose ne va pas. Le rouge de la charte n'existe pas, et
@@ -65,12 +76,20 @@
   --f-donnee: 'Source Code Pro', ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace;
 
   /* L'echelle. Fluide entre 390 px et 1440 px : une seule valeur par role,
-     aucun palier a redeclarer dans le fichier des petits ecrans. */
+     aucun palier a redeclarer dans le fichier des petits ecrans.
 
-  --t-display: clamp(2rem, 1.36rem + 3.2vw, 3.5rem);      /* 32 -> 56 */
-  --t-section: clamp(1.5rem, 1.18rem + 1.6vw, 2.25rem);   /* 24 -> 36 */
+     L'ECHELLE A ETE OUVERTE. Elle montait a 56 px de titre sur un ecran de
+     1440 : c'est la taille d'un sous-titre de journal, pas d'une premiere page.
+     Une direction sans ornement ne tient QUE par l'ecart entre ses tailles —
+     retirer les ombres, les rayons et les couleurs sans agrandir les titres,
+     c'est retirer la moitie du contraste et n'en remettre aucune.
+
+  */
+
+  --t-display: clamp(2.25rem, 1.05rem + 5vw, 4.5rem);      /* 36 -> 72 */
+  --t-section: clamp(1.625rem, 1.25rem + 1.9vw, 2.625rem); /* 26 -> 42 */
   --t-sous:    1.125rem;                                   /* 18, fixe */
-  --t-intro:   clamp(1.125rem, 1.07rem + 0.27vw, 1.25rem); /* 18 -> 20 */
+  --t-intro:   clamp(1.1875rem, 1.1rem + 0.4vw, 1.375rem); /* 19 -> 22 */
   --t-texte:   clamp(1rem, 0.98rem + 0.11vw, 1.0625rem);   /* 16 -> 17 */
   --t-petit:   0.875rem;                                   /* 14, fixe */
   --t-etiq:    0.8125rem;                                  /* 13, fixe */
@@ -118,6 +137,12 @@
      Declaree ICI et non dans son propre fichier : le decalage des ancres
      (scroll-padding-top) en depend, et il se pose sur <html>. */
   --h-bandeau: 44px;
+
+  /* La hauteur de l'en-tete, qui se colle SOUS le bandeau a partir de 1000 px.
+     Zero en dessous : l'en-tete y defile avec la page, et le decalage des
+     ancres ne doit alors compter que le bandeau. Meme raison qu'au-dessus pour
+     la declarer ici — c'est un terme du meme calcul. */
+  --h-entete: 0px;
 
   /* --- CONTROLES ---------------------------------------------------------- */
 

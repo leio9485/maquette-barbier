@@ -58,10 +58,10 @@
 
   /* --- TYPOGRAPHIE --------------------------------------------------------
 
-     Trois familles, trois roles, aucun chevauchement :
-       titres  Archivo 700, capitales, jamais sous 18 px, jamais en italique
-       texte   Source Sans 3, 400/500
-       donnee  Source Code Pro 400 — tarifs, durees, heures, dates, telephone
+     Une superfamille, trois cuts, trois roles, aucun chevauchement :
+       titres  IBM Plex Sans Condensed 600, capitales, jamais sous 18 px
+       texte   IBM Plex Sans, 400/500
+       donnee  IBM Plex Mono 400 — tarifs, durees, heures, dates, telephone
 
      Le choix des familles et sa raison sont dans 01-polices.css.
 
@@ -71,9 +71,15 @@
      ajouter un seul ornement — donc sans rien qui puisse se demoder.
   */
 
-  --f-titre:  'Archivo', 'Helvetica Neue', Arial, sans-serif;
-  --f-texte:  'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
-  --f-donnee: 'Source Code Pro', ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+  --f-titre:  'IBM Plex Sans Condensed', 'Helvetica Neue', Arial, sans-serif;
+  --f-texte:  'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  --f-donnee: 'IBM Plex Mono', ui-monospace, 'SF Mono', 'Cascadia Mono', Consolas, monospace;
+
+  /* LA GRAISSE DES TITRES, EN JETON. Le Condensed n'est livre qu'en 600 : tout
+     `font-weight: 700` ecrit ailleurs ferait synthetiser un faux gras par le
+     navigateur — plus epais, plus mou, et different d'un systeme a l'autre. En
+     passant par un jeton, changer de cut se fait ici et nulle part ailleurs. */
+  --g-titre: 600;
 
   /* L'echelle. Fluide entre 390 px et 1440 px : une seule valeur par role,
      aucun palier a redeclarer dans le fichier des petits ecrans.

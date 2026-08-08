@@ -137,6 +137,60 @@ function peindrePrestations(config) {
   }
 }
 
+// --- LES INDICATEURS DE CONFIANCE -------------------------------------------
+
+/**
+ * La note Google, dans la bande de preuves et en tete de la section « Avis ».
+ *
+ * MASQUEE TANT QU'IL N'Y A RIEN A DIRE. Les reglages livres portent une note a
+ * zero, et c'est delibere : ce commerce n'existe pas, il n'a pas de fiche
+ * Google. « 0/5 sur 0 avis » affiche en grand vaut moins que rien du tout.
+ *
+ * Les trois autres indicateurs sont ecrits en dur dans parties/accueil.html :
+ * ce sont des faits sur le fonctionnement du site (pas d'acompte, pas de
+ * compte, reservation a toute heure), vrais pour toutes les instances.
+ *
+ * La note s'ecrit a la francaise — 4,8 et non 4.8. C'est une donnee affichee a
+ * un client francais, pas une valeur de calcul.
+ */
+function peindreConfiance(config) {
+  const avis = config.reviews || {};
+  const note = Number(avis.rating) || 0;
+  const nombre = Number(avis.count) || 0;
+  const montrable = note > 0 && nombre > 0;
+
+  const texteNote = String(note).replace('.', ',') + '/5';
+  const texteNombre = nombre > 1 ? `sur ${nombre} avis Google` : 'sur 1 avis Google';
+
+  poserTexte($('#preuveNote'), texteNote);
+  poserTexte($('#preuveNombre'), texteNombre);
+  montrer($('#preuveAvis'), montrable);
+
+  // La meme note, rappelee en tete de la section « Avis » — c'est la que le
+  // visiteur la cherche, et c'est elle qui donne leur poids aux trois
+  // temoignages qui suivent.
+  const source = $('#avisSource');
+  if (source) {
+    poserTexte($('#avisSourceNote'), `${texteNote} ${texteNombre.replace('sur ', '· ')}`);
+    montrer(source, montrable);
+  }
+
+  // Le lien vers la fiche Google. Il ne s'affiche que si l'adresse est saisie :
+  // jamais de lien mort vers une fiche qui n'existe pas.
+  //
+  // C'est le lien le plus utile de la section : les avis qui comptent sont ceux
+  // que Google heberge, pas ceux qu'un commerce recopie sur son propre site.
+  // L'envoyer la-bas est plus honnete que de faire semblant que trois citations
+  // choisies valent une reputation.
+  const lien = $('#avisLienGoogle');
+  const pied = $('#avisPied');
+  if (lien && pied) {
+    const adresse = config.salon?.links?.google || '';
+    if (adresse) lien.setAttribute('href', adresse);
+    montrer(pied, Boolean(adresse));
+  }
+}
+
 // --- L'EQUIPE ---------------------------------------------------------------
 
 /** « Rémi » -> « R ». Deux mots -> deux lettres. */
@@ -210,6 +264,20 @@ function peindreEquipe(config) {
         + `<p class="equipe-nom">${esc(p.name)}</p>`
         + (p.role ? `<p class="equipe-role">${esc(p.role)}</p>` : '')
         + (detail.length ? `<p class="equipe-detail">${detail.map(esc).join(' <span aria-hidden="true">·</span> ')}</p>` : '')
+      + '</div>'
+      // Le bouton qui ouvre le tunnel avec cette personne deja retenue. Il
+      // manquait : on presentait trois personnes, puis il fallait descendre au
+      // tunnel, choisir une prestation, et y retrouver le prenom dans une
+      // rangee de boutons. Trois manipulations pour une intention formulee a
+      // l'ecran d'avant.
+      //
+      // L'intitule porte le prenom, et pas seulement « Reserver » : c'est ce
+      // qui permet a quelqu'un qui pilote le site a la voix de dire ce qu'il
+      // voit (WCAG 2.5.3), et ce qui evite trois boutons identiques a la suite.
+      + '<div class="equipe-action">'
+        + `<button type="button" class="action-douce" data-reserver-avec="${esc(p.id)}">`
+          + `Réserver avec ${esc(p.name)}`
+        + '</button>'
       + '</div>'
       + '</li>';
   }).join('');
@@ -364,6 +432,9 @@ function peindreVitrine(config) {
   peindrePrestations(config);
   peindreEquipe(config);
   peindreAvis(config);
+  // Apres `peindreAvis` : c'est elle qui montre ou masque la section entiere,
+  // et la note ne doit pas reapparaitre dans une section masquee.
+  peindreConfiance(config);
   peindrePhotos(config);
   peindreHoraires(config);
   peindrePlan(config);

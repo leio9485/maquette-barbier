@@ -12,6 +12,12 @@
 
 .equipe-personne {
   display: flex;
+  /* `wrap` est indispensable, pas décoratif : sous 560 px, le bouton « Réserver
+     avec X » prend toute la largeur et doit passer à la ligne. Sans lui, les
+     trois enfants restaient sur une seule rangée et le bouton débordait de
+     112 px hors de l'écran — le défilement horizontal que tout le reste du
+     site s'interdit. */
+  flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--e3);
   padding: var(--e3) 0;
@@ -60,17 +66,23 @@
   color: var(--craie);
   font-family: var(--f-titre);
   font-size: var(--t-sous);
-  font-weight: 700;
+  font-weight: var(--g-titre);
   line-height: 1;
   letter-spacing: 0;
 }
 
-.equipe-texte { min-width: 0; }
+.equipe-texte {
+  min-width: 0;
+  /* `1 1 0` et non `1` tout court : la base doit être nulle pour que le texte
+     accepte de se comprimer à côté du portrait plutôt que de pousser le bouton
+     hors de la ligne. */
+  flex: 1 1 0;
+}
 
 .equipe-nom {
   font-family: var(--f-titre);
   font-size: var(--t-sous);
-  font-weight: 700;
+  font-weight: var(--g-titre);
   text-transform: uppercase;
   line-height: var(--lh-sous);
 }
@@ -91,6 +103,38 @@
   line-height: var(--lh-donnee);
 }
 
+/* --- RÉSERVER AVEC QUELQU'UN EN PARTICULIER --------------------------------
+
+   Le bouton manquait, et c'était le défaut de la section : on présentait trois
+   personnes, on disait « vous choisissez au moment de réserver », et il
+   fallait ensuite descendre au tunnel, choisir une prestation, puis retrouver
+   le prénom dans une rangée de boutons. Trois manipulations pour une intention
+   formulée à l'écran d'avant.
+
+   Il ouvre le tunnel avec la personne déjà retenue : le tunnel garde le choix
+   de côté et l'applique dès que la prestation est connue (js/07-tunnel.js).
+
+   Sur téléphone, il passe sous le texte et prend toute la largeur ; à partir de
+   560 px il se cale à droite de la ligne, aligné sur le nom.
+*/
+/* `1 0 100%` : le bouton occupe une ligne à lui seul sous 560 px. L'écart
+   d'avec le texte est celui du `gap` de la ligne — aucune marge à ajouter. */
+.equipe-action {
+  flex: 1 0 100%;
+}
+
+.equipe-action .action-douce {
+  width: 100%;
+  min-height: 44px;
+  font-size: var(--t-etiq);
+}
+
+@media (min-width: 560px) {
+  .equipe-personne { align-items: center; }
+  .equipe-action { flex: none; margin-top: 0; }
+  .equipe-action .action-douce { width: auto; }
+}
+
 @media (min-width: 768px) {
   .equipe-portrait { width: 112px; height: 112px; }
 }
@@ -101,10 +145,37 @@
    fixe. Aucune étoile, aucune pastille ronde à initiales, aucun guillemet
    décoratif de 80 px — voir src/lib/temoignages.js pour le raisonnement.
 */
+
+/* LA NOTE GOOGLE, en tête de section. C'est la seule chose de cette section qui
+   ait valeur de preuve : trois citations choisies par le commerce donnent le
+   ton, elles ne prouvent rien. La note est comptée ailleurs.
+
+   Masquée tant qu'aucune note n'est saisie — les réglages livrés sont à zéro,
+   et « 0/5 sur 0 avis » vaut moins que rien. */
+.avis-source {
+  margin: var(--e3) 0 0;
+  max-width: none;
+}
+
+.avis-source-note {
+  font-size: var(--t-intro);
+  color: var(--craie);
+}
+
 .avis-liste {
   margin-top: var(--e4);
   display: grid;
   gap: var(--e4);
+}
+
+/* Un filet au-dessus de chaque citation. Sans lui, les trois colonnes
+   flottaient dans le noir sans début ni fin, et la section était la seule de la
+   page à ne pas montrer sa structure. Avec, elles se lisent comme les trois
+   colonnes d'un registre — la même forme que la liste tarifaire et que la fiche
+   de travail, tournée d'un quart de tour. */
+.avis {
+  padding-top: var(--e3);
+  border-top: 1px solid var(--filet);
 }
 
 .avis-citation { margin: 0; }
@@ -130,6 +201,13 @@
 }
 
 .avis-auteur cite { font-style: normal; }
+
+/* Le lien vers la fiche Google. Masqué tant que l'adresse n'est pas saisie :
+   jamais de lien mort. */
+.avis-pied {
+  margin: var(--e4) 0 0;
+  max-width: none;
+}
 
 @media (min-width: 900px) {
   /* Trois colonnes à partir de 900 px. Les citations sont courtes : en une

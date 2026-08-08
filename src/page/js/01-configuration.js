@@ -19,6 +19,10 @@ const RESERVATION = {
   etape: 1,
   prestation: null,   // l'objet prestation complet
   staffId: '',        // '' = peu importe
+  // La personne demandee depuis la section Equipe (« Reserver avec X »), mise
+  // de cote jusqu'a ce qu'on sache quelle prestation est choisie : c'est elle
+  // qui determine qui peut la faire. Voir `reserverAvec()` et `peindreQui()`.
+  attenteStaffId: '',
   date: '',           // 'AAAA-MM-JJ'
   creneau: null,      // { start, label, staff }
   mois: null,         // le premier jour du mois affiche au calendrier

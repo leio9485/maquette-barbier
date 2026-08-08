@@ -78,6 +78,24 @@ function avis(t) {
 export function sectionTemoignages(config) {
   const liste = config.testimonials ?? [];
 
+  // LA NOTE GOOGLE ET LE LIEN VERS LA FICHE. Les deux se masquent seuls quand
+  // le commerce n'a rien saisi, et ils sont ecrits ici plutot que laisses au
+  // JavaScript pour la meme raison que les temoignages : un lecteur qui
+  // n'execute pas de code doit voir la note.
+  //
+  // C'est la seule chose de cette section qui vaille une preuve. Trois
+  // citations choisies par le commerce lui-meme ne prouvent rien — elles
+  // donnent le ton. La note, elle, est comptee ailleurs, et le lien permet
+  // d'aller le verifier.
+  const note = Number(config.reviews?.rating) || 0;
+  const nombre = Number(config.reviews?.count) || 0;
+  const montrable = note > 0 && nombre > 0;
+
+  const texteNote = String(note).replace('.', ',') + '/5';
+  const texteNombre = nombre > 1 ? `· ${nombre} avis Google` : '· 1 avis Google';
+
+  const google = config.salon?.links?.google || '';
+
   return `<section class="bloc sombre" id="avis"${liste.length ? '' : ' hidden'}>`
     + '<div class="bloc-corps">'
       + '<div class="rail">'
@@ -85,9 +103,15 @@ export function sectionTemoignages(config) {
       + '</div>'
       + '<div class="contenu">'
         + '<h2>Ce qu\'en disent<br>les clients</h2>'
+        + `<p class="avis-source" id="avisSource"${montrable ? '' : ' hidden'}>`
+          + `<span class="avis-source-note donnee" id="avisSourceNote">${esc(texteNote)} ${esc(texteNombre)}</span>`
+        + '</p>'
         + `<ul class="avis-liste" id="avisListe" data-nombre="${liste.length}">`
           + liste.map(avis).join('')
         + '</ul>'
+        + `<p class="avis-pied" id="avisPied"${google ? '' : ' hidden'}>`
+          + `<a id="avisLienGoogle" href="${esc(google || '#')}" target="_blank" rel="noopener">Lire les avis sur Google</a>`
+        + '</p>'
       + '</div>'
     + '</div>'
     + '</section>';

@@ -6,9 +6,60 @@
 
 .tunnel h2 { margin-bottom: var(--e3); }
 
-/* Le compteur d'étape. Dans le rail sur grand écran, en ligne d'en-tête sur
-   téléphone — comme tout ce que porte le rail. */
-.tunnel-compteur { margin-top: var(--e2); }
+.tunnel .intro { margin-bottom: var(--e4); }
+
+/* --- LA FRISE DES QUATRE ÉTAPES --------------------------------------------
+
+   Elle n'existait pas à l'écran : le seul repère était un « 02 / 04 » de 13 px
+   posé dans le rail, hors du regard sur grand écran. On ne savait ni combien
+   d'étapes il y avait, ni où l'on en était.
+
+   ⚠️ CE N'EST PAS UNE BARRE DE PROGRESSION, et la distinction n'est pas un
+      prétexte. Une barre de progression, ce sont des ronds numérotés reliés par
+      un trait, avec un remplissage qui s'anime : trois formes dessinées, un
+      pack d'icônes en puissance, et un motif qui date à vue d'œil.
+
+      Ici : quatre cellules de texte, un filet de 1 px au-dessus de chacune,
+      épaissi à 3 px sur l'étape en cours. Rien n'est dessiné, rien ne bouge, et
+      c'est exactement le vocabulaire du reste du site — le filet et l'aplat.
+
+   Les étapes franchies restent en encre et non en gris : on peut y revenir, et
+   les griser dirait le contraire.
+*/
+.frise {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 var(--e2);
+  margin: 0 0 var(--e5);
+  padding: 0;
+}
+
+.frise-etape {
+  padding: var(--e1) 0 0;
+  border-top: 3px solid var(--filet);
+  color: var(--acier);
+  /* Le filet fait 3 px partout : c'est la COULEUR qui distingue l'étape en
+     cours, pas l'épaisseur. Une bordure qui change d'épaisseur décalerait le
+     texte des trois autres cellules d'un pixel. */
+}
+
+.frise-numero { color: inherit; }
+
+/* Une étape franchie : lisible, et on peut y revenir. */
+.frise-etape[data-fait] {
+  border-top-color: var(--acier);
+  color: var(--encre);
+}
+
+/* L'étape en cours. */
+.frise-etape[aria-current] {
+  border-top-color: var(--encre);
+  color: var(--encre);
+}
+
+@media (min-width: 560px) {
+  .frise { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
 
 .tunnel-rappel { margin-bottom: var(--e4); }
 
@@ -122,6 +173,14 @@
               border-color var(--transition);
 }
 
+/* UN JOUR DISPONIBLE PORTE UN ENCADRÉ, AU REPOS. Sans lui, le calendrier était
+   trente chiffres identiques dont on ne savait pas lesquels étaient cliquables :
+   la différence entre un jour libre et un jour fermé tenait à une nuance de
+   gris, qui ne dit rien à personne et rien du tout à qui distingue mal les
+   couleurs. L'encadré est la même forme que celle des créneaux juste en
+   dessous — dans ce site, ce qui est encadré se clique. */
+.calendrier-jour:not([disabled]) { border-color: var(--filet); }
+
 .calendrier-jour:hover { border-color: var(--encre); }
 
 /* Fermé ou complet. Le jour reste LISIBLE (l'acier tient 5,95:1) et reste
@@ -150,16 +209,30 @@
   text-underline-offset: 0.25em;
 }
 
-/* --- LES CRÉNEAUX ---------------------------------------------------------- */
+.calendrier-legende {
+  margin: var(--e1) 0 0;
+  max-width: none;
+}
+
+/* --- LES CRÉNEAUX ----------------------------------------------------------
+
+   Rangés par demi-journée. Une journée ouverte de 8h30 à 21h en donne
+   trente-trois : en une seule grille, c'est un mur de chiffres où l'on ne
+   trouve pas « vers 18h » sans le chercher case par case.
+*/
 
 .tunnel-creneaux { margin-bottom: var(--e3); }
 
 .tunnel-creneaux h3 {
-  margin-bottom: var(--e2);
+  margin-bottom: var(--e3);
   padding-bottom: var(--e1);
   border-bottom: 1px solid var(--filet);
   color: var(--encre);
 }
+
+.creneaux-groupe + .creneaux-groupe { margin-top: var(--e3); }
+
+.creneaux-moment { margin: 0 0 var(--e1); }
 
 .creneaux-grille {
   display: grid;

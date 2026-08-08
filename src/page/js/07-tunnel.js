@@ -26,8 +26,15 @@ function allerEtape(numero, { defiler = true } = {}) {
     montrer(etape, Number(etape.dataset.etape) === numero);
   }
 
-  poserTexte($('#tunnelNumero'), String(numero).padStart(2, '0'));
-  poserTexte($('#tunnelNomEtape'), NOMS_ETAPES[numero]);
+  // LA FRISE. Trois etats : franchie, en cours, a venir. `aria-current="step"`
+  // est le mot que les lecteurs d'ecran annoncent — la seule mise en forme ne
+  // s'entend pas, et c'est justement l'information qui manquait le plus.
+  for (const cellule of $$('.frise-etape')) {
+    const rang = Number(cellule.dataset.frise);
+    cellule.toggleAttribute('data-fait', rang < numero);
+    if (rang === numero) cellule.setAttribute('aria-current', 'step');
+    else cellule.removeAttribute('aria-current');
+  }
 
   if (defiler) {
     // On remonte en haut de la section, pas en haut de la page : le bandeau
@@ -64,6 +71,23 @@ function choisirPrestation(id) {
 
   allerEtape(2);
   chargerMois();
+}
+
+/**
+ * « Reserver avec X », depuis la section Equipe.
+ *
+ * La personne est mise DE COTE, pas appliquee tout de suite : on ne sait pas
+ * encore quelle prestation sera choisie, et c'est elle qui determine qui peut
+ * la faire. `peindreQui()` retrouve l'attente et coche le bon bouton — ou
+ * l'ignore si la personne n'assure pas la prestation retenue, auquel cas
+ * « peu importe » reste coche plutot que de proposer un choix impossible.
+ */
+function reserverAvec(staffId) {
+  RESERVATION.attenteStaffId = staffId || '';
+
+  // On repart de l'etape 1 : la prestation reste la question qui vient en
+  // premier, y compris quand on sait deja avec qui.
+  allerEtape(1);
 }
 
 // --- ETAPE 2 : avec qui -----------------------------------------------------
@@ -103,12 +127,21 @@ function peindreQui() {
 
   montrer(bloc, true);
 
-  choix.innerHTML = '<input type="radio" name="staff" id="staff-peu-importe" value="" checked>'
+  // La personne mise de cote par « Reserver avec X » (section Equipe), si elle
+  // assure bien la prestation choisie. Sinon on l'oublie : proposer un choix
+  // que le serveur refusera ensuite est pire que ne rien proposer.
+  const attendue = equipe.some((p) => p.id === RESERVATION.attenteStaffId)
+    ? RESERVATION.attenteStaffId
+    : '';
+  RESERVATION.attenteStaffId = '';
+
+  choix.innerHTML = `<input type="radio" name="staff" id="staff-peu-importe" value=""${attendue ? '' : ' checked'}>`
     + '<label for="staff-peu-importe">Peu importe</label>'
-    + equipe.map((p) => `<input type="radio" name="staff" id="staff-${esc(p.id)}" value="${esc(p.id)}">`
+    + equipe.map((p) => `<input type="radio" name="staff" id="staff-${esc(p.id)}" value="${esc(p.id)}"`
+      + `${p.id === attendue ? ' checked' : ''}>`
       + `<label for="staff-${esc(p.id)}">${esc(p.name)}</label>`).join('');
 
-  RESERVATION.staffId = '';
+  RESERVATION.staffId = attendue;
 }
 
 // --- ETAPE 2 : le calendrier ------------------------------------------------
@@ -158,6 +191,28 @@ async function chargerMois() {
   }
 
   peindreCalendrier(debutMois, etats);
+
+  // LE PREMIER JOUR LIBRE S'OUVRE TOUT SEUL.
+  //
+  // L'etape 2 s'ouvrait sur un calendrier muet : trente cases de chiffres, dont
+  // on ne savait pas lesquelles etaient cliquables, et aucune heure a l'ecran.
+  // Il fallait deviner qu'il fallait cliquer un jour pour voir apparaitre des
+  // creneaux. C'est la marche la plus haute du tunnel, et elle etait invisible.
+  //
+  // En ouvrant le premier jour disponible, l'etape s'affiche avec des heures
+  // dedans : on comprend d'un coup d'oeil ce qu'on attend de nous, et le cas le
+  // plus frequent — « le plus tot possible » — est deja fait.
+  //
+  // Seulement si aucune date n'est encore retenue : revenir de l'etape 3 ou
+  // changer de mois ne doit pas effacer le choix en cours.
+  if (!RESERVATION.date) {
+    const premierLibre = [...etats.entries()]
+      .filter(([iso, etat]) => etat === 'open' && iso >= aujourdhui())
+      .map(([iso]) => iso)
+      .sort()[0];
+
+    if (premierLibre) await chargerCreneaux(premierLibre);
+  }
 }
 
 function peindreCalendrier(debutMois, etats) {
@@ -204,9 +259,46 @@ function peindreCalendrier(debutMois, etats) {
 
 // --- ETAPE 2 : les creneaux -------------------------------------------------
 
+/**
+ * Les creneaux d'un jour, RANGES PAR DEMI-JOURNEE.
+ *
+ * Une journee de barbier ouverte de 8h30 a 21h en donne trente-trois. En une
+ * seule grille, c'est un mur de chiffres ou l'on ne trouve pas « vers 18h »
+ * sans le chercher case par case. Coupes a 13h, ce sont deux listes courtes,
+ * annoncees par leur nom, et l'oeil va directement dans la bonne.
+ *
+ * La coupure est a 13h et non a midi : chez un barbier la pause de midi est
+ * dans le creux, et « 12h45 » appartient a la matinee pour qui reserve.
+ *
+ * ⚠️ `start` EST UN NOMBRE DE MINUTES DEPUIS MINUIT, pas un horodatage. 510
+ *    vaut 8h30, 990 vaut 16h30. Le passer a `new Date()` donne le 1er janvier
+ *    1970 a 1h du matin pour toutes les valeurs — les trente-trois creneaux
+ *    d'un samedi se retrouvaient alors dans « Matin », et l'erreur ne se voyait
+ *    qu'a la lecture des groupes, pas a celle du code.
+ */
+const MINUTES_MIDI = 13 * 60;
+
+function grouperCreneaux(creneaux) {
+  const matin = creneaux.filter((c) => c.start < MINUTES_MIDI);
+  const apresMidi = creneaux.filter((c) => c.start >= MINUTES_MIDI);
+
+  return [
+    { nom: 'Matin', liste: matin },
+    { nom: 'Après-midi', liste: apresMidi },
+  ].filter((g) => g.liste.length > 0);
+}
+
+function htmlCreneau(c) {
+  const etiquette = c.free ? c.label : `${c.label} — déjà pris`;
+  return `<button type="button" class="creneau" data-creneau="${c.start}"`
+    + ` aria-pressed="false" aria-label="${esc(etiquette)}"`
+    + (c.free ? '' : ' disabled')
+    + `>${esc(c.label)}</button>`;
+}
+
 async function chargerCreneaux(date) {
   const bloc = $('#tunnelCreneaux');
-  const grille = $('#creneauxGrille');
+  const grille = $('#creneauxGroupes');
   const message = $('#creneauxMessage');
   if (!bloc || !grille || !RESERVATION.prestation) return;
 
@@ -246,13 +338,12 @@ async function chargerCreneaux(date) {
     return;
   }
 
-  grille.innerHTML = reponse.slots.map((c) => {
-    const etiquette = c.free ? c.label : `${c.label} — déjà pris`;
-    return `<button type="button" class="creneau" data-creneau="${c.start}"`
-      + ` aria-pressed="false" aria-label="${esc(etiquette)}"`
-      + (c.free ? '' : ' disabled')
-      + `>${esc(c.label)}</button>`;
-  }).join('');
+  grille.innerHTML = grouperCreneaux(reponse.slots).map((g) =>
+    '<div class="creneaux-groupe">'
+      + `<h4 class="etiquette creneaux-moment">${esc(g.nom)}</h4>`
+      + `<div class="creneaux-grille donnee">${g.liste.map(htmlCreneau).join('')}</div>`
+    + '</div>'
+  ).join('');
 }
 
 function choisirCreneau(bouton) {
@@ -263,6 +354,12 @@ function choisirCreneau(bouton) {
   for (const autre of $$('.creneau')) {
     autre.setAttribute('aria-pressed', String(autre === bouton));
   }
+
+  // Le rendez-vous retenu, rappele en tete de l'etape 3 avec son chemin de
+  // retour. C'etait l'etape sans porte de sortie : on y arrivait en cliquant
+  // une heure, et plus rien ne permettait d'en changer.
+  poserTexte($('#rappelCreneau'),
+    `${dateCourte(RESERVATION.date)} à ${RESERVATION.creneau.label}`);
 
   peindreFiche($('#tunnelFiche'));
   allerEtape(3);
@@ -413,8 +510,14 @@ function confirmer(reponse) {
   // La reference est le debut du jeton d'annulation, en capitales : six
   // caracteres suffisent a la lire au telephone, et le jeton complet reste en
   // memoire pour l'annulation.
+  //
+  // ⚠️ LES TIRETS ET SOULIGNES SONT RETIRES AVANT LA COUPE. Le jeton est en
+  //    base64url : il contient des `-` et des `_`, et un tirage sur deux
+  //    donnait une reference du genre « -HHJBG » ou « A_9K2M ». Ce n'est pas
+  //    faux — le jeton complet sert seul a l'annulation — mais c'est la
+  //    derniere chose que le client lit, et on lui demande de la noter.
   peindreFiche($('#confirmationFiche'), {
-    reference: (reponse.cancelToken || '').slice(0, 6).toUpperCase(),
+    reference: (reponse.cancelToken || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase(),
   });
 
   montrer($('#annulerReservation'), true);
@@ -449,6 +552,7 @@ async function demanderAnnulation() {
 function recommencer() {
   RESERVATION.prestation = null;
   RESERVATION.staffId = '';
+  RESERVATION.attenteStaffId = '';
   RESERVATION.date = '';
   RESERVATION.creneau = null;
   RESERVATION.confirmee = null;
@@ -472,10 +576,18 @@ function brancherTunnel() {
     if (ligne) choisirPrestation(ligne.dataset.id);
   });
 
-  // Retour a l'etape 1 depuis le rappel.
+  // Les retours en arriere, depuis n'importe quelle etape.
   document.addEventListener('click', (evenement) => {
     const retour = evenement.target.closest('[data-retour]');
     if (retour) allerEtape(Number(retour.dataset.retour));
+  });
+
+  // « Reserver avec X », depuis la section Equipe. Meme motif que les lignes de
+  // prestation : un seul ecouteur pose sur le document, parce que la liste de
+  // l'equipe est repeinte a chaque enregistrement des reglages.
+  document.addEventListener('click', (evenement) => {
+    const bouton = evenement.target.closest('[data-reserver-avec]');
+    if (bouton) reserverAvec(bouton.dataset.reserverAvec);
   });
 
   // Avec qui : le calendrier ET les creneaux changent, puisque les
@@ -503,7 +615,10 @@ function brancherTunnel() {
     if (jour && !jour.disabled) chargerCreneaux(jour.dataset.date);
   });
 
-  $('#creneauxGrille')?.addEventListener('click', (evenement) => {
+  // Sur le conteneur des GROUPES, et non sur une grille : depuis que les
+  // creneaux sont ranges par demi-journee, les grilles sont creees a chaque
+  // changement de jour et un ecouteur pose sur l'une d'elles disparaitrait avec.
+  $('#creneauxGroupes')?.addEventListener('click', (evenement) => {
     const creneau = evenement.target.closest('.creneau');
     if (creneau && !creneau.disabled) choisirCreneau(creneau);
   });

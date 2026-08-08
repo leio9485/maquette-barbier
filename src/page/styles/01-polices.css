@@ -6,34 +6,52 @@
    tiers a chaque visite — ce dernier point est une obligation, pas un gout
    (voir la page de confidentialite : aucun traceur tiers).
 
-   QUATRE FICHIERS, 57 KO AU TOTAL. Chacun coute une requete et un temps
+   QUATRE FICHIERS, 80 KO AU TOTAL. Chacun coute une requete et un temps
    d'attente sur le premier ecran, et ce site s'ouvre sur un telephone en 4G.
 
-     archivo-700.woff2      les titres, et rien d'autre
-     sourcesans-400.woff2   le texte courant
-     sourcesans-500.woff2   l'appui : citations, valeurs saisies
-     sourcecode-400.woff2   TOUTE donnee : tarifs, durees, heures, dates
+     plexcond-600.woff2   les titres, et rien d'autre
+     plexsans-400.woff2   le texte courant
+     plexsans-500.woff2   l'appui : citations, valeurs saisies
+     plexmono-400.woff2   TOUTE donnee : tarifs, durees, heures, dates
 
-   POURQUOI CELLES-CI, ET PAS LES GROTESQUES DU MOMENT
+   UNE SEULE SUPERFAMILLE, TROIS CUTS — IBM Plex.
 
-   Le choix compte autant que la palette, parce que c'est ce qui date une page
-   le plus surement. Inter, Space Grotesk, Manrope, IBM Plex — surtout Plex Mono
-   — sont devenues la signature typographique des produits techniques des annees
-   2020. Elles seront lisibles dans cinq ans ; elles diront aussi « fait en
-   2026 », ce qui est exactement ce qu'on ne veut pas d'un site que le barbier
-   ne refera pas.
+   C'etait Archivo + Source Sans 3 + Source Code Pro : trois familles de trois
+   fonderies, choisies chacune pour elle-meme. Elles se tenaient, mais elles ne
+   formaient pas un systeme, et l'ensemble se lisait comme un assemblage — le
+   reproche exact qui a motive la reprise (« ca fait quartier »).
 
-   Les trois retenues sont anterieures a cette vague et n'appartiennent a aucun
-   univers de marque :
+   Plex est dessine d'un bloc par Mike Abbink pour IBM : le Condensed, le Sans
+   et le Mono partagent leur squelette, leur hauteur d'x et leurs chiffres. Une
+   duree en chasse fixe s'aligne sur le texte a cote sans un reglage, et surtout
+   les trois roles se lisent comme trois voix de la MEME personne. C'est ce qui
+   distingue une identite d'une selection de polices.
 
-     Archivo          grotesque de presse, dessinee pour les titres de journaux.
-                      Serree, robuste, faite pour etre lue en grand.
-     Source Sans 3    humaniste. Le contraste avec Archivo est reel — l'une est
-     Source Code Pro  neo-grotesque, l'autre humaniste — et les deux Source sont
-                      une superfamille dessinee ensemble : leurs chiffres, leur
-                      hauteur d'x et leurs proportions s'accordent d'origine.
-                      Aucun reglage a faire pour qu'une duree en chasse fixe
-                      s'aligne sur le texte a cote.
+     Plex Sans Condensed 600   les titres. Condense : « COUPE, BARBE ET RASAGE »
+                               tient sur trois lignes courtes en 72 px, la ou une
+                               grotesque de chasse normale demandait de descendre
+                               la taille. C'est la police d'affichage du systeme,
+                               pas une graisse de plus du texte.
+     Plex Sans 400 / 500       le texte courant et son appui.
+     Plex Mono 400             toute donnee.
+
+   ⚠️ CE FICHIER DISAIT LE CONTRAIRE, et l'argument merite d'etre garde plutot
+      qu'efface : Inter, Space Grotesk, Manrope et Plex — surtout Plex Mono —
+      sont la signature typographique des produits techniques des annees 2020,
+      et un site qu'un barbier ne refera pas ne devrait pas porter de date.
+
+      L'arbitrage a ete rendu dans l'autre sens, en connaissance de cause. Deux
+      raisons. La premiere : le defaut constate n'etait pas que le site aurait
+      l'air date en 2031, c'est qu'il avait l'air amateur en 2026 — un risque
+      certain pese plus qu'un risque suppose. La seconde : ce que Plex date, ce
+      sont les interfaces de logiciel, pas les commerces ; sur un site de
+      barbier, personne n'a la reference, et il ne reste que le dessin. Plex
+      Mono ne sert d'ailleurs ici qu'aux chiffres — jamais a un paragraphe, qui
+      est la ou la citation technique se ferait entendre.
+
+      Si l'ensemble devait vieillir malgre tout, c'est un fichier a changer :
+      les quatre @font-face ci-dessous, les trois jetons de 02-jetons.css et les
+      deux `preload` du squelette. Rien d'autre du site ne nomme une police.
 
    Aucune italique nulle part : ni fichier, ni synthese.
 
@@ -47,32 +65,32 @@
    --------------------------------------------------------------------------- */
 
 @font-face {
-  font-family: 'Archivo';
-  src: url('/fonts/archivo-700.woff2') format('woff2');
-  font-weight: 700;
+  font-family: 'IBM Plex Sans Condensed';
+  src: url('/fonts/plexcond-600.woff2') format('woff2');
+  font-weight: 600;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'Source Sans 3';
-  src: url('/fonts/sourcesans-400.woff2') format('woff2');
+  font-family: 'IBM Plex Sans';
+  src: url('/fonts/plexsans-400.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'Source Sans 3';
-  src: url('/fonts/sourcesans-500.woff2') format('woff2');
+  font-family: 'IBM Plex Sans';
+  src: url('/fonts/plexsans-500.woff2') format('woff2');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'Source Code Pro';
-  src: url('/fonts/sourcecode-400.woff2') format('woff2');
+  font-family: 'IBM Plex Mono';
+  src: url('/fonts/plexmono-400.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;

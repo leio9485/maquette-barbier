@@ -1,26 +1,37 @@
 /* ---------------------------------------------------------------------------
-   L'ACCUEIL, LA PHOTO, ET LA BANDE DE REPÈRES
+   L'ACCUEIL — TITRE ET PHOTO CÔTE À CÔTE, PUIS LES DEUX BANDES
    --------------------------------------------------------------------------- */
 
-/* Le bloc d'accueil est sur aplat encre et se termine SUR la photo : aucun
-   espace entre les deux, sans quoi une bande noire apparaîtrait entre le texte
-   et l'image et couperait en deux ce qui doit se lire comme un seul plan.
+/* --- LE BLOC, EN COLONNE (TÉLÉPHONE ET TABLETTE) ---------------------------
+
+   Une colonne : le texte, puis la photo dessous. Le corps de texte reprend le
+   conteneur centré du reste du site pour que le titre s'aligne exactement sur
+   les rails des autres sections.
 
    Moins d'air au-dessus qu'une section ordinaire : l'en-tête est du même noir
    et joue déjà ce rôle. Sur téléphone, ces 24 px de moins sont ce qui fait
-   entrer le haut de la photo dans le premier écran. */
-.accueil-bloc .bloc-corps {
-  padding-top: var(--e4);
-  padding-bottom: var(--e5);
+   entrer le haut de la photo dans le premier écran.
+*/
+.hero-texte-corps {
+  max-width: var(--largeur-max);
+  margin: 0 auto;
+  padding: var(--e4) var(--marge) var(--e5);
 }
 
-@media (min-width: 768px) {
-  .accueil-bloc .bloc-corps { padding-top: var(--e5); }
+/* Le repère de section garde sa forme de ligne d'annonce À TOUTES LES LARGEURS.
+   Sans cette règle, la grille reprendrait la main à 768 px et le transformerait
+   en colonne à filet vertical (04-grille-et-rail.css) — sauf qu'il n'y a pas de
+   colonne de rail dans le hero : la place va à la photo. */
+.hero .rail {
+  margin-bottom: var(--e3);
+  padding: 0 0 var(--e1);
+  border: 0;
+  border-bottom: 1px solid var(--filet);
 }
 
-.accueil h1 { margin-bottom: var(--e3); }
+.hero h1 { margin-bottom: var(--e3); }
 
-.accueil .intro { margin-bottom: var(--e4); }
+.hero .intro { margin-bottom: var(--e4); }
 
 .accueil-actions {
   display: flex;
@@ -51,27 +62,28 @@
   .accueil-actions .action-douce { width: 100%; }
 }
 
-/* --- LA PHOTO D'ACCUEIL ----------------------------------------------------
+/* --- LA PHOTO --------------------------------------------------------------
 
-   Bord à bord, sans cadre, sans arrondi, sans ombre, et surtout sans texte
-   par-dessus.
+   Sans cadre, sans arrondi, sans ombre, et surtout sans texte par-dessus.
 
    LE RATIO EST IMPOSÉ ICI, et l'image recadrée pour le remplir. C'est ce qui
    permet à un vrai client de déposer n'importe quelle photo sans casser la
    page : elle sera cadrée, jamais déformée, jamais laissée en 3000 px de haut.
 
-   Presque carrée sur téléphone (4:5), très large sur grand écran (21:9) : la
-   même image, deux cadrages. Le sujet doit donc être au centre — c'est écrit
-   dans public/photos/LISEZ-MOI.md, à l'intention de qui déposera les photos.
+   ⚠️ NE JAMAIS RECADRER PLUS SERRÉ QUE LA SOURCE. La photo livrée fait 1200 ×
+      675, soit 16:9. En 3:1 il n'en restait que 59 % de la hauteur et la tête
+      du client était coupée — c'est ce qui faisait qu'on « ne voyait rien ».
+      4:3 sur téléphone, 3:2 à partir de 560 px : on recoupe la largeur, jamais
+      le sujet. Et à partir de 1000 px, la photo prend la hauteur de la colonne
+      de texte à côté, ce qui la ramène près du carré.
 
-   Le fond est en encre, comme le bloc d'accueil juste au-dessus : tant que
-   l'image n'est pas arrivée, on voit la suite de l'aplat et rien ne saute
-   quand elle arrive. C'est aussi ce qui permet de la charger sans la précharger.
+   Le fond est en encre, comme le bloc à côté : tant que l'image n'est pas
+   arrivée, on voit la suite de l'aplat et rien ne saute quand elle arrive.
 */
 .photo-accueil {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 5;
+  aspect-ratio: 4 / 3;
   background: var(--encre);
   overflow: hidden;
 }
@@ -83,21 +95,121 @@
   /* Noir et blanc contrasté, appliqué par le site plutôt que par le photographe :
      c'est ce qui fait tenir ensemble des photos prises à des moments différents,
      et ce qui empêche une photo couleur déposée plus tard de jurer avec le
-     reste de la page. */
-  filter: grayscale(1) contrast(1.08);
+     reste de la page.
+
+     La luminosité est remontée de 12 % depuis que la photo est posée sur un
+     aplat encre : la version d'origine, prise en intérieur sombre, s'y fondait.
+     Un noir et blanc sur fond noir doit être plus clair que sur fond clair —
+     sans quoi on ne distingue plus où finit l'image. */
+  filter: grayscale(1) contrast(1.1) brightness(1.12);
 }
 
-@media (min-width: 560px)  { .photo-accueil { aspect-ratio: 3 / 2; } }
-@media (min-width: 900px)  { .photo-accueil { aspect-ratio: 21 / 9; } }
-/* Au-delà de 1200 px, le 21:9 donnait 610 px de haut : une fois le titre passé,
-   l'écran suivant ne contenait plus que la photo. En 3:1 la bande fait 475 px,
-   le bloc d'accueil et la photo tiennent ensemble en un écran et demi, et les
-   repères sont à une petite poussée de molette. */
-@media (min-width: 1200px) { .photo-accueil { aspect-ratio: 3 / 1; } }
+@media (min-width: 560px) { .photo-accueil { aspect-ratio: 3 / 2; } }
+
+/* --- LE BLOC, EN DEUX COLONNES (À PARTIR DE 1000 px) -----------------------
+
+   Le texte à gauche, la photo à droite jusqu'au bord de l'écran. Le premier
+   écran contient alors les trois choses qui décident : ce qu'on fait, à quoi ça
+   ressemble, et le bouton pour réserver.
+
+   L'ALIGNEMENT DU TEXTE EST EXACT, ET SANS UNE SEULE UNITÉ `vw`. La colonne de
+   gauche fait exactement la moitié de la page ; on y pose un bloc dont la
+   largeur maximale est la moitié de la grille, poussé à droite par
+   `margin-left: auto`. Son bord gauche tombe donc pile sur la gouttière —
+   (page − 1320) / 2 — et le `padding-left` y ajoute la marge courante. Le titre
+   s'aligne au pixel sur le bandeau, sur le nom du commerce et sur tous les
+   rails de section, quelle que soit la largeur de l'écran ET quelle que soit
+   celle de la barre de défilement, que `100vw` aurait comptée en trop.
+
+   La photo, elle, n'a plus de ratio : elle prend la hauteur de la colonne de
+   texte (`stretch`, qui est le comportement par défaut d'un élément de grille).
+   C'est ce qui la ramène près du carré et lui rend son sujet entier.
+*/
+@media (min-width: 1000px) {
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .hero-texte {
+    display: flex;
+    align-items: center;
+  }
+
+  .hero-texte-corps {
+    width: 100%;
+    max-width: calc(var(--largeur-max) / 2);
+    margin: 0 0 0 auto;
+    padding: var(--e5) var(--e4) var(--e5) var(--marge);
+  }
+
+  .photo-accueil {
+    aspect-ratio: auto;
+    /* Un plancher, pour le cas où la colonne de texte serait plus courte que
+       prévu — un titre plus court chez un autre client, par exemple. */
+    min-height: 30rem;
+  }
+}
+
+/* --- LES INDICATEURS DE CONFIANCE ------------------------------------------
+
+   Quatre faits, sur le même noir que le hero, séparés du titre par un filet.
+   Valeur en chasse fixe, motif dessous en petit.
+
+   Une seule colonne sur téléphone (les motifs font deux lignes), deux à partir
+   de 560 px, quatre à partir de 1000. `auto-fit` plutôt qu'un nombre fixe : la
+   case des avis Google se masque quand le commerce n'a pas de note, et la bande
+   doit se répartir aussi bien à trois qu'à quatre.
+*/
+.preuves-bande {
+  border-top: 1px solid var(--filet);
+}
+
+.preuves-corps {
+  max-width: var(--largeur-max);
+  margin: 0 auto;
+  padding: var(--e3) var(--marge);
+}
+
+.preuves {
+  display: grid;
+  gap: var(--e3);
+}
+
+.preuve { min-width: 0; }
+
+.preuve-valeur {
+  display: block;
+  font-size: var(--t-sous);
+  line-height: var(--lh-sous);
+  color: var(--craie);
+}
+
+.preuve-motif {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--t-petit);
+  line-height: 1.45;
+  color: var(--acier);
+  max-width: 32ch;
+}
+
+/* 13 rem et non 15 : à 15, une tablette de 768 px n'en tenait que deux par
+   rangée et la troisième restait seule sur la suivante, à côté d'un trou. À 13,
+   les trois tiennent sur une ligne — et les quatre aussi dès 1000 px, quand la
+   note Google est renseignée. */
+@media (min-width: 560px) {
+  .preuves { grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); }
+}
+
+@media (min-width: 768px) {
+  .preuves-corps { padding-top: var(--e4); padding-bottom: var(--e4); }
+  .preuves { gap: var(--e4); }
+}
 
 /* --- LA BANDE DE REPÈRES ---------------------------------------------------
 
-   Trois colonnes sous la photo : adresse, horaires du jour, sans rendez-vous.
+   Trois colonnes sous les preuves : adresse, horaires du jour, téléphone.
    C'est la fiche de travail du site tournée à l'horizontale — même vocabulaire
    (intitulé en étiquette, valeur en chasse fixe), autre densité.
 
@@ -130,8 +242,9 @@
   min-width: 0;
 }
 
-/* Le premier repère ne porte pas de filet haut : la photo au-dessus fait déjà
-   la coupure, et deux traits à 1 px d'intervalle se lisent comme un défaut. */
+/* Le premier repère ne porte pas de filet haut : la bande de preuves au-dessus
+   fait déjà la coupure, et deux traits à 1 px d'intervalle se lisent comme un
+   défaut. */
 .reperes-liste > div:first-child { border-top: 0; }
 
 .reperes-liste dt { margin-bottom: 2px; }
@@ -147,6 +260,13 @@
   font-size: var(--t-petit);
   font-variant-numeric: tabular-nums;
   line-height: var(--lh-donnee);
+}
+
+/* Le téléphone est un lien qu'on TOUCHE : il doit tenir les 24 px de WCAG 2.2
+   (critère 2.5.8), ce qu'une ligne de 14 px ne fait pas. */
+.reperes-liste dd a {
+  display: inline-block;
+  padding: 5px 0;
 }
 
 @media (min-width: 768px) {

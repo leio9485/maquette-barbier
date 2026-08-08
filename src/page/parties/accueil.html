@@ -1,42 +1,53 @@
 <!--# ---------------------------------------------------------------------------
-   L'ACCUEIL — le titre, une phrase, deux actions. Puis la photo. Puis les
-   repères pratiques, en bande.
+   L'ACCUEIL — le titre et la photo CÔTE À CÔTE, puis les repères pratiques.
 
    AUCUN TEXTE SUR LA PHOTO, et c'est une règle, pas une préférence : un titre
    posé sur une image ne tient jamais le contraste AA (l'image change, le
    contraste avec elle), et c'est le geste le plus vu sur les sites de commerce
-   local. Le titre est donc sur son propre aplat, et la photo occupe son propre
-   bloc, bord à bord, juste en dessous.
+   local. Le titre est sur l'aplat encre, la photo occupe sa propre colonne.
 
-   ⚠️ L'ACCUEIL EST SUR APLAT ENCRE, et c'est le changement qui porte le plus.
-      Il était sur craie : la page s'ouvrait sur un grand rectangle beige clair,
-      un titre, deux boutons et trois lignes de gris — la première impression
-      d'un document, pas d'une devanture. En encre, l'en-tête, le titre et la
-      photo forment un seul bloc noir qui va d'un bord à l'autre et occupe le
-      premier écran entier. C'est la seule chose que voit un prospect avant de
-      décider s'il continue.
+   ⚠️ LA PHOTO EST À CÔTÉ DU TITRE, PLUS EN DESSOUS. Elle était en bande pleine
+      largeur sous le texte, recadrée en 3:1 : d'une photo de 1200 × 675 il ne
+      restait que 59 % de la hauteur, la tête du client était coupée, et le tout
+      posé sur un aplat noir sous un bloc noir. On ne voyait plus rien.
 
-      L'aplat sombre court sans couture depuis le bandeau d'état jusqu'au bas de
-      la photo : bandeau, en-tête et accueil sont tous en encre, et la photo est
-      collée dessous sans marge. Une seule couture, franche, entre la photo et
-      la bande de repères.
+      En colonne, elle garde un cadrage proche du carré — on recoupe la largeur,
+      jamais le sujet — et elle est bordée de noir d'un seul côté, donc elle se
+      détache. Le premier écran contient enfin les trois choses qui décident :
+      ce qu'on fait, à quoi ça ressemble, et le bouton pour réserver.
 
-   ⚠️ LES REPÈRES ONT ÉTÉ SORTIS DE L'ACCUEIL. Ils y allongeaient la colonne de
-      180 px et repoussaient la photo hors du premier écran. En bande de trois
-      colonnes sous la photo, ils se lisent d'un coup d'œil, ils marquent le
-      passage au fond clair, et ils libèrent la place qui manquait.
+      Sous 1000 px, elle repasse dessous, en 4:3 puis 3:2 — jamais plus étroit
+      que la source, pour la même raison.
+
+   ⚠️ LES INDICATEURS DE CONFIANCE SONT DANS LE BLOC, pas dans une bande à eux.
+      C'est à côté du bouton qu'ils servent, au moment où l'on hésite à cliquer.
+      Une bande de plus sous la photo les aurait mis là où on ne les lit plus.
+
+      Ils disent des faits vérifiables, jamais un adjectif : pas de « service
+      d'exception », pas de « votre satisfaction ». La note Google se masque
+      seule tant qu'aucune n'est saisie (voir js/04-contenu-statique.js) —
+      afficher « 0/5 sur 0 avis » vaut moins que ne rien afficher.
+
+   ⚠️ « SANS RENDEZ-VOUS : SELON L'AFFLUENCE » A ÉTÉ RETIRÉ des repères. Le site
+      ne connaît pas l'affluence : c'était la seule ligne de la page qui donnait
+      une information que personne ne mesure. À sa place, le téléphone — qui est
+      une donnée vraie, et la deuxième chose qu'on cherche après les horaires.
 
    Le titre est écrit ici plutôt que peint par le JavaScript : c'est le plus gros
    texte du premier écran, il doit être là à la première image.
    --------------------------------------------------------------------------- #-->
-<section class="bloc sombre accueil-bloc" id="accueil">
-  <div class="bloc-corps">
+<section class="bloc sombre hero" id="accueil">
 
-    <div class="rail">
-      <p class="etiquette"><span class="rail-numero">01</span> Accueil</p>
-    </div>
+  <div class="hero-texte">
+    <div class="hero-texte-corps">
 
-    <div class="contenu accueil">
+      <!--# Le repère de section. Dans le hero il n'y a pas de rail en colonne :
+           la place va à la photo. Il prend donc la forme qu'il a de toute façon
+           sur téléphone — une ligne d'annonce soulignée d'un filet. #-->
+      <div class="rail hero-rail">
+        <p class="etiquette"><span class="rail-numero">01</span> Accueil</p>
+      </div>
+
       <h1>Coupe, barbe<br>et rasage<br>à <span data-champ="ville">Bavay</span></h1>
 
       <p class="intro">
@@ -50,25 +61,69 @@
           <span data-champ="telephone">03 27 39 98 40</span>
         </a>
       </div>
-    </div>
 
+    </div>
   </div>
+
+  <!--# LA PHOTO. Le ratio est imposé par le CSS et l'image recadrée
+       (`object-fit: cover`) plutôt qu'étirée : c'est ce qui garantit qu'une
+       photo déposée plus tard par un vrai client, de n'importe quelle taille,
+       ne casse pas la mise en page.
+
+       Sa réserve est en encre, comme le bloc à côté : tant que l'image n'est
+       pas arrivée, on voit la suite de l'aplat, pas un trou.
+
+       `data-photo` désigne l'emplacement côté serveur (src/lib/photos.js) ; le
+       JavaScript y pose l'adresse réelle au chargement. #-->
+  <div class="photo-accueil" data-photo="hero">
+    <img alt="" width="1200" height="675" hidden>
+  </div>
+
 </section>
 
-<!--# LA PHOTO D'ACCUEIL — bord à bord, aucun texte dessus, aucun cadre.
+<!--# LES INDICATEURS DE CONFIANCE — quatre faits, sur le même noir que le hero.
 
-     Le ratio est imposé par le CSS et l'image est recadrée (`object-fit: cover`)
-     plutôt qu'étirée : c'est ce qui garantit qu'une photo déposée plus tard par
-     un vrai client, de n'importe quelle taille, ne casse pas la mise en page.
+     Ils referment l'aplat sombre : le bandeau, l'en-tête, le titre, la photo et
+     cette bande ne font qu'un seul bloc, et la coupure franche se produit une
+     seule fois, au passage sur la bande de repères.
 
-     Sa réserve est en encre, comme le bloc d'accueil juste au-dessus : tant que
-     l'image n'est pas arrivée, on voit la suite de l'aplat, pas un trou.
+     ⚠️ DES FAITS, JAMAIS UN ADJECTIF. « Réservation 24 h/24 » se vérifie ;
+        « service d'exception » ne se vérifie pas, et c'est la phrase qu'écrit
+        tout le monde. Trois des quatre disent ce que le site fait — c'est aussi
+        ce qui distingue un rendez-vous pris ici d'un rendez-vous pris sur une
+        plateforme : pas d'acompte, pas de compte à créer.
 
-     `data-photo` désigne l'emplacement côté serveur (src/lib/photos.js) ; le
-     JavaScript y pose l'adresse réelle au chargement. #-->
-<div class="photo-accueil" data-photo="hero">
-  <img alt="" width="1200" height="675" hidden>
-</div>
+     ⚠️ LA NOTE GOOGLE PART MASQUÉE et n'apparaît que si le commerce en a saisi
+        une (js/04-contenu-statique.js). Elle est à zéro dans les réglages
+        livrés, et c'est délibéré : ce commerce n'existe pas, il n'a pas de
+        fiche Google, et « 0/5 sur 0 avis » vaut moins que rien du tout. Un vrai
+        client recopie sa note depuis sa fiche, la case apparaît, et c'est le
+        plus fort des quatre.
+
+     Ce n'est pas un `.bloc` : pas de rail, pas de titre, pas l'espacement d'une
+     section — même raison que la bande de repères plus bas. #-->
+<section class="preuves-bande sombre" aria-label="Ce que vaut la réservation en ligne">
+  <div class="preuves-corps">
+    <ul class="preuves">
+      <li class="preuve" id="preuveAvis" hidden>
+        <span class="preuve-valeur donnee" id="preuveNote">—</span>
+        <span class="preuve-motif" id="preuveNombre">sur les avis Google</span>
+      </li>
+      <li class="preuve">
+        <span class="preuve-valeur donnee">24 h/24</span>
+        <span class="preuve-motif">réservation en ligne, sans passer d'appel</span>
+      </li>
+      <li class="preuve">
+        <span class="preuve-valeur donnee">0 €</span>
+        <span class="preuve-motif">d'acompte : on règle sur place, après</span>
+      </li>
+      <li class="preuve">
+        <span class="preuve-valeur donnee">Sans compte</span>
+        <span class="preuve-motif">ni inscription, ni mot de passe à retenir</span>
+      </li>
+    </ul>
+  </div>
+</section>
 
 <!--# LA BANDE DE REPÈRES — les trois choses qu'on cherche en arrivant.
 
@@ -96,8 +151,8 @@
         <dd class="donnee" data-champ="horaires-du-jour">—</dd>
       </div>
       <div>
-        <dt class="etiquette">Sans rendez-vous</dt>
-        <dd class="donnee">Selon l'affluence</dd>
+        <dt class="etiquette">Téléphone</dt>
+        <dd class="donnee"><a href="tel:+33327399840" data-champ="telephone-lien"><span data-champ="telephone">03 27 39 98 40</span></a></dd>
       </div>
     </dl>
   </div>

@@ -8,9 +8,24 @@
    question dont la réponse est « ça m'est égal » dans la grande majorité des
    cas, c'est un abandon de plus à chaque réservation.
 
-   PAS DE BARRE DE PROGRESSION, pas de ronds numérotés reliés par un trait : un
-   compteur « 02 / 04 » en chasse fixe dit exactement la même chose, sans un
-   pixel de décor et sans rien à redessiner quand une étape change.
+   ⚠️ LA FRISE DES QUATRE ÉTAPES EST VISIBLE. Elle ne l'était pas : le seul
+      repère était un « 02 / 04 · Date et heure » de 13 px, posé dans le rail,
+      c'est-à-dire hors du regard sur grand écran et au-dessus du titre sur
+      téléphone. Résultat : on ne savait ni combien d'étapes il y avait, ni où
+      l'on en était, ni si l'on pouvait revenir. C'est le reproche entendu —
+      « un client n'y comprendrait rien » — et c'est celui qui coûte des
+      réservations.
+
+      La note d'origine refusait « une barre de progression et des ronds
+      numérotés reliés par un trait », et elle a raison : c'est un ornement, et
+      il date. Ce qui suit n'en est pas un. Quatre cellules de texte, un filet
+      au-dessus de chacune, épais sur l'étape en cours. Aucune forme dessinée,
+      aucune icône, rien à redessiner le jour où une étape change — et
+      l'information, elle, est enfin lisible.
+
+   ⚠️ ON PEUT REVENIR DE PARTOUT. Chaque étape porte le chemin du retour, en
+      toutes lettres — « Changer de prestation », « Revenir au choix du
+      créneau ». Un tunnel dont on ne sait pas sortir se quitte par l'onglet.
 
    LES CRÉNEAUX VIENNENT DU SERVEUR, toujours. Le navigateur n'en calcule aucun :
    il demande, il affiche. C'est ce qui fait qu'un créneau proposé est un créneau
@@ -21,20 +36,37 @@
 
     <div class="rail">
       <p class="etiquette"><span class="rail-numero">06</span> Réserver</p>
-      <!--# Le compteur d'étape vit dans le rail sur grand écran, et remonte en
-           ligne d'en-tête sur téléphone — comme tout ce que porte le rail. #-->
-      <p class="etiquette tunnel-compteur" id="tunnelCompteur" aria-live="polite">
-        <span class="rail-numero" id="tunnelNumero">01</span> / 04 <span aria-hidden="true">·</span>
-        <span id="tunnelNomEtape">Prestation</span>
-      </p>
     </div>
 
     <div class="contenu tunnel">
 
+      <!--# LA FRISE. `<ol>` parce que c'est une suite ordonnée, et
+           `aria-current="step"` sur l'étape en cours : c'est le mot que les
+           lecteurs d'écran annoncent, et il dit exactement ce qu'on veut dire.
+           Les étapes franchies portent `data-fait` — elles restent lisibles,
+           parce qu'on peut y revenir. #-->
+      <ol class="frise etiquette" id="tunnelFrise">
+        <li class="frise-etape" data-frise="1" aria-current="step">
+          <span class="frise-numero">01</span> Prestation
+        </li>
+        <li class="frise-etape" data-frise="2">
+          <span class="frise-numero">02</span> Date et heure
+        </li>
+        <li class="frise-etape" data-frise="3">
+          <span class="frise-numero">03</span> Coordonnées
+        </li>
+        <li class="frise-etape" data-frise="4">
+          <span class="frise-numero">04</span> C'est réservé
+        </li>
+      </ol>
+
       <!-- ÉTAPE 1 — la prestation ------------------------------------------- -->
       <div class="etape" data-etape="1">
         <h2>Que voulez-vous<br>faire faire ?</h2>
-        <p class="intro">Durées et tarifs annoncés. Le règlement se fait sur place.</p>
+        <p class="intro">
+          Choisissez une ligne : c'est ce qui lance la réservation. Durées et
+          tarifs annoncés, réglés sur place, aucun acompte.
+        </p>
 
         <div class="tarifs" id="tunnelPrestations">
           <p class="secondaire">Chargement des prestations…</p>
@@ -44,6 +76,10 @@
       <!-- ÉTAPE 2 — la date, l'heure, et avec qui ---------------------------- -->
       <div class="etape" data-etape="2" hidden>
         <h2>Quand<br>passez-vous ?</h2>
+        <p class="intro">
+          Le premier jour disponible est déjà ouvert. Choisissez une heure, ou
+          un autre jour dans le calendrier.
+        </p>
 
         <!--# Le choix fait à l'étape précédente, rappelé en fiche de travail.
              Une ligne, pas un encadré : le visiteur doit pouvoir vérifier sans
@@ -53,7 +89,7 @@
             <dt>Prestation</dt>
             <dd>
               <span id="rappelPrestation">—</span>
-              <button type="button" class="lien-nu tunnel-changer" data-retour="1">Changer</button>
+              <button type="button" class="lien-nu tunnel-changer" data-retour="1">Changer de prestation</button>
             </dd>
           </div>
         </dl>
@@ -82,12 +118,20 @@
           </div>
 
           <div class="calendrier-grille donnee" id="calendrierGrille"></div>
+
+          <!--# La légende du calendrier. Trois états à distinguer, et le gris
+               seul ne suffit pas à dire lequel est lequel : un jour barré peut
+               être fermé comme complet, et la différence compte — on revient un
+               autre jour dans un cas, jamais dans l'autre. #-->
+          <p class="calendrier-legende petit secondaire">
+            Les jours sans encadré sont fermés ou complets.
+          </p>
         </div>
 
-        <!-- Les créneaux du jour choisi -->
+        <!-- Les créneaux du jour choisi, rangés par demi-journée -->
         <div class="tunnel-creneaux" id="tunnelCreneaux" hidden>
           <h3 class="etiquette" id="creneauxTitre">—</h3>
-          <div class="creneaux-grille donnee" id="creneauxGrille"></div>
+          <div id="creneauxGroupes"></div>
           <p class="tunnel-message" id="creneauxMessage" hidden></p>
         </div>
       </div>
@@ -95,6 +139,22 @@
       <!-- ÉTAPE 3 — les coordonnées ----------------------------------------- -->
       <div class="etape" data-etape="3" hidden>
         <h2>À quel nom ?</h2>
+        <p class="intro">
+          Deux champs, et c'est réservé. Rien à payer maintenant.
+        </p>
+
+        <!--# Le rendez-vous retenu, rappelé avec son chemin de retour. C'était
+             l'étape sans porte de sortie : on y arrivait en cliquant une heure,
+             et plus rien ne permettait d'en changer. #-->
+        <dl class="fiche tunnel-rappel">
+          <div>
+            <dt>Rendez-vous</dt>
+            <dd>
+              <span id="rappelCreneau">—</span>
+              <button type="button" class="lien-nu tunnel-changer" data-retour="2">Changer de créneau</button>
+            </dd>
+          </div>
+        </dl>
 
         <form id="formulaireReservation" novalidate>
           <div class="champ">

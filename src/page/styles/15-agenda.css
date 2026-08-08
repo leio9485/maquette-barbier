@@ -31,7 +31,7 @@
 
 .espace-nom {
   font-family: var(--f-titre);
-  font-weight: 700;
+  font-weight: var(--g-titre);
   text-transform: uppercase;
   font-size: var(--t-sous);
 }

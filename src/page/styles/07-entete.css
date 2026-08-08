@@ -46,7 +46,7 @@
 .entete-nom {
   display: block;
   font-family: var(--f-titre);
-  font-weight: 700;
+  font-weight: var(--g-titre);
   font-size: clamp(1.5rem, 1.3rem + 1vw, 2rem);
   line-height: 1;
   letter-spacing: var(--ls-section);

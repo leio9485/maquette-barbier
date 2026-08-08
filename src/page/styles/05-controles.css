@@ -32,7 +32,7 @@
   border-radius: 0;
   font-family: var(--f-titre);
   font-size: var(--t-petit);
-  font-weight: 700;
+  font-weight: var(--g-titre);
   letter-spacing: var(--ls-etiq);
   text-transform: uppercase;
   text-decoration: none;

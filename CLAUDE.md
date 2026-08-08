@@ -62,10 +62,15 @@ de grille de cartes de prestations.
 
 - **Cinq couleurs**, déclinées par fond. Tous les jetons sont dans
   `src/page/styles/02-jetons.css`, avec leur contraste **mesuré** en commentaire.
-- **Trois familles de polices**, trois rôles : Archivo pour les titres,
-  Source Sans 3 pour le texte, **Source Code Pro pour toute donnée** — tarifs,
-  durées, heures, dates, téléphone. Cette dernière règle n'a pas d'exception :
-  dans un site de réservation, les chiffres *sont* le contenu.
+- **Une superfamille, trois cuts, trois rôles** : IBM Plex Sans Condensed 600
+  pour les titres, IBM Plex Sans pour le texte, **IBM Plex Mono pour toute
+  donnée** — tarifs, durées, heures, dates, téléphone. Cette dernière règle n'a
+  pas d'exception : dans un site de réservation, les chiffres *sont* le contenu.
+  C'était trois familles de trois fonderies ; elles se tenaient sans former un
+  système. Le raisonnement complet, **et l'argument contraire qu'il a fallu
+  écarter**, sont dans `public/fonts/LISEZ-MOI.md`.
+  La graisse des titres passe par le jeton `--g-titre` : le Condensed n'existe
+  qu'en 600, et tout `font-weight: 700` ferait synthétiser un faux gras.
 - **Six espacements** : 8 / 16 / 24 / 40 / 64 / 96. Jamais un septième.
 - **Angles droits.** Rayon 0 partout, 2 px sur les champs de saisie.
 - **Aucune ombre portée.** La hiérarchie se fait par aplats pleins bord à bord
@@ -122,6 +127,48 @@ formulation existe dans le projet, elle ne peut donc pas diverger.
 ⚠️ **La dégradation consiste à ne rien faire.** Si `/api/status` échoue, le
 bandeau garde ce que le serveur y avait écrit au chargement. Jamais de message
 d'erreur, jamais de bandeau vide, jamais de « chargement… ».
+
+### Le tunnel doit se comprendre sans qu'on l'explique
+
+Le tunnel était juste et illisible : quatre étapes dont le seul repère était un
+« 02 / 04 » de 13 px posé dans le rail, un calendrier de trente chiffres dont on
+ne savait pas lesquels étaient cliquables, aucune heure à l'écran tant qu'on
+n'avait pas deviné qu'il fallait cliquer un jour, et une étape 3 sans porte de
+sortie. Cinq réglages l'ont corrigé, et ils forment un tout :
+
+- **La frise des quatre étapes est visible.** Quatre cellules de texte, un filet
+  au-dessus, la couleur pour marquer l'étape en cours. Ce n'est pas la barre de
+  progression que la charte refuse — aucune forme dessinée, rien qui s'anime.
+- **Le premier jour libre s'ouvre tout seul.** L'étape s'affiche avec des heures
+  dedans : le cas le plus fréquent, « le plus tôt possible », est déjà fait.
+- **Les créneaux sont rangés par demi-journée.** Trente-trois heures d'affilée
+  forment un mur ; deux listes courtes se lisent.
+- **Un jour disponible porte un encadré**, au repos. La différence entre libre
+  et fermé ne peut pas tenir à une nuance de gris.
+- **On peut revenir de partout**, en toutes lettres : « Changer de prestation »,
+  « Changer de créneau ».
+
+Et depuis la section Équipe, **« Réserver avec X »** ouvre le tunnel avec la
+personne déjà retenue — elle est mise de côté puis appliquée quand la prestation
+est connue, puisque c'est elle qui détermine qui peut la faire.
+
+### Les indicateurs de confiance
+
+Une bande de quatre faits, sur le même noir que l'accueil, entre la photo et les
+repères pratiques. **Des faits, jamais un adjectif** : « réservation 24 h/24 »
+se vérifie, « service d'exception » est la phrase que tout le monde écrit.
+
+Trois disent ce que le site fait — pas d'acompte, pas de compte à créer,
+réservation à toute heure : c'est aussi ce qui distingue un rendez-vous pris ici
+d'un rendez-vous pris sur une plateforme.
+
+⚠️ **La note Google est le quatrième, et il part masqué.** `reviews` vaut zéro
+dans `defaults.js`, délibérément : ce commerce n'existe pas, il n'a pas de fiche
+Google, et un chiffre inventé affiché en grand est un chiffre faux. La case
+apparaît dès qu'une note est saisie, ainsi que son rappel en tête de la section
+« Avis » et le lien « Lire les avis sur Google » (celui-ci suit
+`salon.links.google`, vide lui aussi). **Sur la démonstration, ces deux champs
+sont donc les deux lignes à remplir pour montrer la section complète.**
 
 ### Le ton des textes
 
@@ -199,6 +246,22 @@ règle qui fusionne deux aplats identiques ne regardait que la *seconde* section
 exact où finissait le noir de l'équipe. Les deux sections sont testées
 maintenant (`04-grille-et-rail.css`) — en ajouter une troisième variante de fond
 demande de reprendre les trois sélecteurs ensemble.
+
+**Ne jamais recadrer une photo plus serré que sa source.** La photo d'accueil
+livrée fait 1200 × 675, soit 16:9. Elle avait été affichée en bande 3:1 : il
+n'en restait que 59 % de la hauteur, la tête du client était coupée, et le tout
+posé sur un aplat noir sous un bloc noir — « on ne voit rien ». Elle est
+aujourd'hui **à côté du titre** à partir de 1000 px, où elle prend la hauteur de
+la colonne de texte, et en 4:3 puis 3:2 en dessous. On recoupe la largeur,
+jamais le sujet. Sa luminosité est remontée de 12 % (`08-accueil.css`) : un noir
+et blanc posé sur du noir doit être plus clair que sur fond clair.
+
+**`start`, dans les créneaux, est un nombre de MINUTES depuis minuit.** 510 vaut
+8h30, 990 vaut 16h30. Ce n'est pas un horodatage : le passer à `new Date()`
+renvoie le 1er janvier 1970 à 1h pour toutes les valeurs. Le groupement
+matin/après-midi est tombé dans le piège, et les trente-trois créneaux d'un
+samedi se sont retrouvés dans « Matin » — une erreur invisible à la lecture du
+code, visible seulement dans le résultat.
 
 **L'en-tête se colle en haut, mais seulement à partir de 1000 px.** Il ne se
 collait pas du tout, et le motif était juste : deux bandes fixes mangent un

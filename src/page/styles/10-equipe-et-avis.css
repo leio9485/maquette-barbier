@@ -97,15 +97,9 @@
   font-size: var(--t-petit);
 }
 
-/* Les prestations qu'une personne assure, et ses jours : deux données, donc
-   chasse fixe. Le point médian les sépare sans ajouter de puce. */
-.equipe-detail {
-  margin-top: var(--e1);
-  font-family: var(--f-donnee);
-  font-size: var(--t-petit);
-  color: var(--acier);
-  line-height: var(--lh-donnee);
-}
+/* (Il y avait ici `.equipe-detail`, qui portait les prestations assurées et les
+   jours travaillés. La ligne ne montre plus que la photo, le prénom et le
+   poste ; le style est parti avec elle.) */
 
 /* --- RÉSERVER AVEC QUELQU'UN EN PARTICULIER --------------------------------
 

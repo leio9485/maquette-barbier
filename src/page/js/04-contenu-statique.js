@@ -130,37 +130,49 @@ function peindrePrestations(config) {
 }
 
 /**
- * La liste deroulante de l'etape 1 du tunnel, groupee par rayon.
+ * L'etape 1 du tunnel : UN RAYON DEPLIABLE PAR LIGNE.
  *
- * ELLE REMPLACE LA LISTE TARIFAIRE ENTIERE, qui etait recopiee ici. L'etape
- * reprenait les treize lignes de la section « Prestations » — celle qu'on
- * venait de faire defiler : rien ne disait qu'on avait avance.
+ * L'etape a eu trois formes. D'abord les treize lignes du catalogue recopiees
+ * telles quelles — c'est-a-dire la section « Prestations » qu'on venait de
+ * faire defiler, si bien que rien ne disait qu'on avait avance. Puis une liste
+ * deroulante, plus courte mais qui cachait tout : on ne voyait plus ce que
+ * proposait le commerce sans ouvrir le menu.
  *
- * Le libelle porte le nom, la duree et le prix : c'est ce dont on a besoin pour
- * choisir, et ca tient sur une ligne. La description reste dans le catalogue
- * plus haut, ou on la lit avant de se decider.
+ * Le depliant garde les deux : quatre lignes qui montrent l'offre entiere avec
+ * son premier prix, et le detail a un clic.
+ *
+ * `<details>` / `<summary>` : l'ouverture, le clavier et l'annonce « replie /
+ * deplie » sont natifs. Le premier rayon part ouvert, pour qu'on voie du
+ * premier coup d'oeil ce qu'il y a dedans.
+ *
+ * Les lignes sont celles de la vitrine, `ligneTarif()` — meme balisage, donc
+ * meme `data-choix="prestation"` et meme ecouteur : cliquer une ligne mene a
+ * l'etape 2, ici comme la-haut.
  */
 function peindreChoixPrestation(config) {
-  const liste = $('#tunnelPrestation');
-  if (!liste) return;
+  const cible = $('#tunnelRayons');
+  if (!cible) return;
 
-  const options = grouperParRayon(config).map((g) => {
-    const dedans = g.services.map((s) =>
-      `<option value="${esc(s.id)}">${esc(s.name)} — ${fmtDuree(s.duration)}, ${fmtPrix(s.price)}</option>`
-    ).join('');
+  cible.innerHTML = grouperParRayon(config).map((g, rang) => {
+    const nom = g.cat && !g.seul ? g.cat.name : 'Toutes les prestations';
 
-    // Sans rayon nomme, on ne fabrique pas de groupe : un `<optgroup>` intitule
-    // « Autres » avec tout dedans n'apporte rien.
-    return g.cat && !g.seul
-      ? `<optgroup label="${esc(g.cat.name)}">${dedans}</optgroup>`
-      : dedans;
+    // Ce qu'il y a dedans, et a partir de quel prix. C'est l'information qui
+    // permet de choisir SANS ouvrir : « des 13 € » repond a la question qu'on
+    // se pose en parcourant une liste de rayons.
+    const combien = g.services.length > 1
+      ? `${g.services.length} prestations`
+      : '1 prestation';
+    const moins = Math.min(...g.services.map((s) => Number(s.price) || 0));
+    const resume = `${combien} · dès ${fmtPrix(moins)}`;
+
+    return `<details class="rayon"${rang === 0 ? ' open' : ''}>`
+      + '<summary class="rayon-tete">'
+        + `<span class="rayon-nom">${esc(nom)}</span>`
+        + `<span class="rayon-compte donnee">${esc(resume)}</span>`
+      + '</summary>'
+      + `<ul class="tarif-liste rayon-liste">${g.services.map(ligneTarif).join('')}</ul>`
+      + '</details>';
   }).join('');
-
-  liste.innerHTML = '<option value="">Choisissez une prestation</option>' + options;
-  liste.value = '';
-
-  const valider = $('#validerPrestation');
-  if (valider) valider.disabled = true;
 }
 
 // --- LES INDICATEURS DE CONFIANCE -------------------------------------------
@@ -271,20 +283,12 @@ function peindreEquipe(config) {
         + `<p class="equipe-nom">${esc(p.name)}</p>`
         + (p.role ? `<p class="equipe-role">${esc(p.role)}</p>` : '')
       + '</div>'
-      // Le bouton qui ouvre le tunnel avec cette personne deja retenue. Il
-      // manquait : on presentait trois personnes, puis il fallait descendre au
-      // tunnel, choisir une prestation, et y retrouver le prenom dans une
-      // rangee de boutons. Trois manipulations pour une intention formulee a
-      // l'ecran d'avant.
-      //
-      // L'intitule porte le prenom, et pas seulement « Reserver » : c'est ce
-      // qui permet a quelqu'un qui pilote le site a la voix de dire ce qu'il
-      // voit (WCAG 2.5.3), et ce qui evite trois boutons identiques a la suite.
-      + '<div class="equipe-action">'
-        + `<button type="button" class="action-douce" data-reserver-avec="${esc(p.id)}">`
-          + `Réserver avec ${esc(p.name)}`
-        + '</button>'
-      + '</div>'
+      // (Il y avait ici un bouton « Reserver avec X » qui ouvrait le tunnel
+      // avec la personne deja retenue. Retire : « avec qui ? » se pose une
+      // seule fois, dans le tunnel, APRES le jour — c'est la que la question a
+      // une consequence visible, puisque le choix change les creneaux libres.
+      // Poser la meme question deux fois a deux endroits, c'est laisser croire
+      // qu'il y a deux chemins differents.)
       + '</li>';
   }).join('');
 }

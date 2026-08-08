@@ -67,31 +67,16 @@ function choisirPrestation(id) {
 
   peindreQui();
 
+  RESERVATION.mois = premierDuMois(aujourdhui());
+
   allerEtape(2);
-  chargerJours();
+  chargerMois();
 }
 
-/**
- * « Reserver avec X », depuis la section Equipe.
- *
- * La personne est mise DE COTE, pas appliquee tout de suite : on ne sait pas
- * encore quelle prestation sera choisie, et c'est elle qui determine qui peut
- * la faire. `peindreQui()` retrouve l'attente et coche le bon bouton — ou
- * l'ignore si la personne n'assure pas la prestation retenue, auquel cas
- * « peu importe » reste coche plutot que de proposer un choix impossible.
- */
-function reserverAvec(staffId) {
-  RESERVATION.attenteStaffId = staffId || '';
-
-  // On repart de l'etape 1 : la prestation reste la question qui vient en
-  // premier, y compris quand on sait deja avec qui.
-  allerEtape(1);
-}
-
-// --- ETAPE 2 : avec qui -----------------------------------------------------
+// --- ETAPE 2 : AVEC QUI -----------------------------------------------------
 
 /**
- * Le choix « avec qui ? », dans l'etape date — jamais dans une etape a part.
+ * Le choix « avec qui ? », APRES le jour.
  *
  * « Peu importe » est presélectionné et donne le plus de creneaux : c'est la
  * reponse de la grande majorite des clients, et lui consacrer une etape entiere
@@ -102,9 +87,9 @@ function reserverAvec(staffId) {
  * reponse possible.
  */
 function peindreQui() {
-  const champ = $('#champQui');
-  const liste = $('#tunnelQui');
-  if (!champ || !liste || !CONFIG) return;
+  const bloc = $('#champQui');
+  const choix = $('#tunnelQuiChoix');
+  if (!bloc || !choix || !CONFIG) return;
 
   const prestation = RESERVATION.prestation;
 
@@ -118,109 +103,137 @@ function peindreQui() {
   });
 
   if (equipe.length < 2) {
-    montrer(champ, false);
+    montrer(bloc, false);
     RESERVATION.staffId = '';
     return;
   }
 
-  montrer(champ, true);
+  montrer(bloc, true);
 
-  // La personne mise de cote par « Reserver avec X » (section Equipe), si elle
-  // assure bien la prestation choisie. Sinon on l'oublie : proposer un choix
-  // que le serveur refusera ensuite est pire que ne rien proposer.
-  const attendue = equipe.some((p) => p.id === RESERVATION.attenteStaffId)
-    ? RESERVATION.attenteStaffId
-    : '';
-  RESERVATION.attenteStaffId = '';
+  choix.innerHTML = '<input type="radio" name="staff" id="staff-peu-importe" value="" checked>'
+    + '<label for="staff-peu-importe">Peu importe</label>'
+    + equipe.map((p) => `<input type="radio" name="staff" id="staff-${esc(p.id)}" value="${esc(p.id)}">`
+      + `<label for="staff-${esc(p.id)}">${esc(p.name)}</label>`).join('');
 
-  liste.innerHTML = '<option value="">Peu importe</option>'
-    + equipe.map((p) => `<option value="${esc(p.id)}"${p.id === attendue ? ' selected' : ''}>`
-      + `${esc(p.name)}</option>`).join('');
-
-  RESERVATION.staffId = attendue;
+  RESERVATION.staffId = '';
 }
 
-// --- ETAPE 2 : LE JOUR ------------------------------------------------------
+// --- ETAPE 2 : LE CALENDRIER ------------------------------------------------
 
-/**
- * Combien de jours en avant on propose.
- *
- * Huit semaines : assez pour qu'un jour ouvert existe toujours dans la liste,
- * meme si le barbier ferme deux semaines en aout, et assez court pour que la
- * liste deroulante reste parcourable d'un pouce. Au-dela, personne ne prend
- * rendez-vous chez le coiffeur.
- */
-const JOURS_PROPOSES = 56;
+function premierDuMois(iso) {
+  const d = versDate(iso);
+  return versIso(new Date(d.getFullYear(), d.getMonth(), 1, 12));
+}
 
-/** Un jour, ecrit comme on se donne rendez-vous : « samedi 9 aout ». */
-function etiquetteJour(iso) {
-  const texte = dateLongue(iso);
-  if (iso === aujourdhui()) return `Aujourd'hui — ${texte}`;
-  if (iso === versIso(new Date(versDate(aujourdhui()).getTime() + 86400000))) {
-    return `Demain — ${texte}`;
-  }
-  return texte.charAt(0).toUpperCase() + texte.slice(1);
+function moisSuivantDe(iso, pas) {
+  const d = versDate(iso);
+  return versIso(new Date(d.getFullYear(), d.getMonth() + pas, 1, 12));
 }
 
 /**
- * Remplit la liste des jours.
+ * Demande au serveur l'etat de chaque journee du mois affiche, puis dessine.
  *
- * ON N'Y MET QUE LES JOURS REELLEMENT OUVERTS. Le calendrier d'avant affichait
- * les trente et un jours du mois et laissait deviner, a une nuance de gris
- * pres, lesquels etaient cliquables. Une liste deroulante n'a pas ce probleme :
- * ce qui n'y est pas n'existe pas. Un jour ferme ou complet n'a rien a faire
- * dans un choix.
- *
- * UN SEUL APPEL POUR HUIT SEMAINES, et c'est la raison d'etre de /api/days :
- * passer par /api/slots demanderait cinquante-six allers-retours.
+ * UN SEUL APPEL POUR TOUT LE MOIS, et c'est la raison d'etre de /api/days :
+ * passer par /api/slots demanderait trente allers-retours a chaque changement
+ * de mois — et il y en a un a chaque fois qu'on change de personne, puisque les
+ * disponibilites ne sont plus les memes.
  */
-async function chargerJours() {
-  const liste = $('#tunnelJour');
-  if (!liste || !RESERVATION.prestation) return;
+async function chargerMois() {
+  const grille = $('#calendrierGrille');
+  if (!grille || !RESERVATION.prestation) return;
 
-  const premier = aujourdhui();
-  const dernier = versIso(new Date(versDate(premier).getTime() + JOURS_PROPOSES * 86400000));
+  const debutMois = RESERVATION.mois;
+  const d = versDate(debutMois);
+  poserTexte($('#calendrierMois'), `${MOIS_LONGS[d.getMonth()]} ${d.getFullYear()}`);
 
-  let ouverts = [];
+  // On ne demande jamais le passe : la fenetre commence aujourd'hui si le mois
+  // affiche est le mois courant.
+  const premier = debutMois < aujourdhui() ? aujourdhui() : debutMois;
+  const dernier = versIso(new Date(d.getFullYear(), d.getMonth() + 1, 0, 12));
+
+  // Le mois precedent est interdit des qu'il est entierement passe.
+  const precedent = $('#moisPrecedent');
+  if (precedent) precedent.disabled = moisSuivantDe(debutMois, -1) < premierDuMois(aujourdhui());
+
+  let etats = new Map();
   try {
     const reponse = await lireJours(premier, dernier, RESERVATION.prestation.id, RESERVATION.staffId);
-    ouverts = reponse.days.filter((j) => j.state === 'open').map((j) => j.date);
+    etats = new Map(reponse.days.map((j) => [j.date, j.state]));
   } catch {
-    // Le serveur n'a pas repondu. On ne laisse pas une liste vide sans rien
-    // dire : le message explique, et le telephone reste en haut de la page.
-    liste.innerHTML = '<option value="">Indisponible pour le moment</option>';
-    liste.disabled = true;
-    afficherMessage($('#creneauxMessage'),
-      "Impossible de lire les disponibilités. Réessayez, ou appelez-nous.");
-    return;
+    // Le calendrier s'affiche quand meme, toutes journees cliquables : le
+    // serveur dira au clic ce qu'il en est. Mieux vaut un calendrier un peu
+    // optimiste qu'un mois vide et un message d'erreur.
   }
 
-  liste.disabled = false;
+  peindreCalendrier(debutMois, etats);
 
-  if (!ouverts.length) {
-    liste.innerHTML = '<option value="">Aucun jour disponible</option>';
-    verrouillerHeures('Aucun jour disponible');
-    afficherMessage($('#creneauxMessage'), RESERVATION.staffId
-      ? "Cette personne n'a plus de place sur les huit prochaines semaines. Essayez « peu importe »."
-      : "Plus aucune place sur les huit prochaines semaines. Appelez-nous, on trouvera.");
-    return;
-  }
+  // LE JOUR RETENU RESTE RETENU tant qu'il est encore ouvert : changer de
+  // personne ne doit pas effacer la date qu'on venait de choisir. S'il ne l'est
+  // plus — cette personne ne travaille pas ce jour-la — on retombe sur le
+  // premier jour libre du mois affiche, et les creneaux suivent.
+  const ouverts = [...etats.entries()]
+    .filter(([iso, etat]) => etat === 'open' && iso >= aujourdhui())
+    .map(([iso]) => iso)
+    .sort();
 
-  afficherMessage($('#creneauxMessage'), '');
-
-  // Le jour deja retenu s'il est toujours ouvert, sinon le premier libre : on
-  // ne renvoie jamais le visiteur a un choix vide, et revenir de l'etape 3 ne
-  // doit pas effacer ce qu'il avait choisi.
   const retenu = ouverts.includes(RESERVATION.date) ? RESERVATION.date : ouverts[0];
 
-  liste.innerHTML = ouverts.map((iso) =>
-    `<option value="${esc(iso)}"${iso === retenu ? ' selected' : ''}>${esc(etiquetteJour(iso))}</option>`
-  ).join('');
-
-  await chargerHeures(retenu);
+  if (retenu) {
+    await chargerCreneaux(retenu);
+  } else {
+    // Aucun jour libre ce mois-ci : on le dit, et on efface les creneaux du
+    // mois precedent plutot que de les laisser a l'ecran.
+    RESERVATION.date = '';
+    montrer($('#tunnelCreneaux'), false);
+    afficherMessage($('#creneauxMessage'), RESERVATION.staffId
+      ? "Cette personne n'a aucune disponibilité ce mois-ci. Essayez « peu importe », ou le mois suivant."
+      : "Aucune disponibilité ce mois-ci. Essayez le mois suivant.");
+  }
 }
 
-// --- ETAPE 2 : L'HEURE ------------------------------------------------------
+function peindreCalendrier(debutMois, etats) {
+  const grille = $('#calendrierGrille');
+  if (!grille) return;
+
+  const d = versDate(debutMois);
+  const nbJours = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+
+  // Les cases vides avant le 1er : la semaine commence le lundi.
+  const decalage = (versDate(debutMois).getDay() + 6) % 7;
+
+  const cases = [];
+  for (let i = 0; i < decalage; i++) cases.push('<span></span>');
+
+  const jourCourant = aujourdhui();
+
+  for (let numero = 1; numero <= nbJours; numero++) {
+    const iso = versIso(new Date(d.getFullYear(), d.getMonth(), numero, 12));
+    const etat = etats.get(iso);
+
+    const passe = iso < jourCourant;
+    const indisponible = passe || !etat || etat !== 'open';
+
+    // Le motif est annonce aux lecteurs d'ecran : « complet » et « fermé » ne se
+    // devinent pas au gris de la case.
+    const raison = passe ? 'passé'
+      : etat === 'closed' ? 'fermé'
+      : etat === 'full' ? 'complet'
+      : '';
+
+    const etiquette = `${dateLongue(iso)}${raison ? ' — ' + raison : ''}`;
+
+    cases.push(`<button type="button" class="calendrier-jour" data-date="${esc(iso)}"`
+      + ` aria-pressed="${RESERVATION.date === iso}"`
+      + ` aria-label="${esc(etiquette)}"`
+      + (iso === jourCourant ? ' data-aujourdhui' : '')
+      + (indisponible ? ' disabled' : '')
+      + `>${numero}</button>`);
+  }
+
+  grille.innerHTML = cases.join('');
+}
+
+// --- ETAPE 2 : LES CRENEAUX -------------------------------------------------
 
 /** La coupure matin / apres-midi, en minutes depuis minuit.
  *
@@ -230,102 +243,98 @@ async function chargerJours() {
  *    d'un samedi se retrouvaient alors tous dans « Matin ». */
 const MINUTES_MIDI = 13 * 60;
 
-/** La liste des heures, eteinte, avec la raison ecrite dedans. */
-function verrouillerHeures(raison) {
-  const liste = $('#tunnelHeure');
-  if (!liste) return;
-  liste.innerHTML = `<option value="">${esc(raison)}</option>`;
-  liste.disabled = true;
-  const valider = $('#validerCreneau');
-  if (valider) valider.disabled = true;
+/**
+ * Les creneaux d'un jour, ranges par demi-journee.
+ *
+ * Une journee ouverte de 8h30 a 21h en donne trente-trois. En une seule grille
+ * c'est un mur de chiffres ou l'on ne trouve pas « vers 18h » sans le chercher
+ * case par case ; coupes a 13h, ce sont deux listes courtes.
+ *
+ * La coupure est a 13h et non a midi : chez un barbier la pause de midi est
+ * dans le creux, et « 12h45 » appartient a la matinee pour qui reserve.
+ */
+function grouperCreneaux(creneaux) {
+  return [
+    { nom: 'Matin', liste: creneaux.filter((c) => c.start < MINUTES_MIDI) },
+    { nom: 'Après-midi', liste: creneaux.filter((c) => c.start >= MINUTES_MIDI) },
+  ].filter((g) => g.liste.length > 0);
 }
 
 /**
- * Remplit la liste des heures d'un jour.
+ * Un creneau.
  *
- * Deux groupes, matin et apres-midi. Une journee de barbier ouverte de 8h30 a
- * 21h donne trente-trois creneaux : en une seule liste c'est un rouleau ou l'on
- * ne trouve pas « vers 18h » sans le parcourir en entier. `<optgroup>` est la
- * reponse native, et le selecteur du telephone l'affiche tout seul.
- *
- * LES CRENEAUX PRIS RESTENT DANS LA LISTE, eteints. Les retirer donnerait une
- * liste qui saute de 14h00 a 16h30 et laisserait croire a une erreur ; les
+ * LES CRENEAUX PRIS RESTENT AFFICHES, barres et eteints. Les retirer donnerait
+ * une liste qui saute de 14h00 a 16h30 et laisserait croire a une erreur ; les
  * montrer barres dit « c'est un jour charge », ce qui est l'information vraie.
  */
-async function chargerHeures(date) {
-  const liste = $('#tunnelHeure');
+function htmlCreneau(c) {
+  const etiquette = c.free ? c.label : `${c.label} — déjà pris`;
+  return `<button type="button" class="creneau" data-creneau="${c.start}"`
+    + ` aria-pressed="false" aria-label="${esc(etiquette)}"`
+    + (c.free ? '' : ' disabled')
+    + `>${esc(c.label)}</button>`;
+}
+
+/** Les heures d'un jour, pour la prestation et la personne retenues. */
+async function chargerCreneaux(date) {
+  const bloc = $('#tunnelCreneaux');
+  const grille = $('#creneauxGroupes');
   const message = $('#creneauxMessage');
-  if (!liste || !RESERVATION.prestation) return;
+  if (!bloc || !grille || !RESERVATION.prestation) return;
 
   RESERVATION.date = date;
   RESERVATION.creneau = null;
 
-  verrouillerHeures('Recherche des heures libres…');
+  montrer(bloc, true);
+  poserTexte($('#creneauxTitre'), dateLongue(date));
+  afficherMessage(message, '');
+
+  for (const jour of $$('.calendrier-jour')) {
+    jour.setAttribute('aria-pressed', String(jour.dataset.date === date));
+  }
 
   let reponse;
   try {
     reponse = await lireCreneaux(date, RESERVATION.prestation.id, RESERVATION.staffId);
   } catch (erreur) {
-    verrouillerHeures('Indisponible pour le moment');
+    grille.innerHTML = '';
     afficherMessage(message, erreur.message);
     return;
   }
 
   const libres = reponse.slots.filter((c) => c.free);
 
+  if (!reponse.slots.length) {
+    grille.innerHTML = '';
+    afficherMessage(message, "Rien ce jour-là. Choisissez une autre date.");
+    return;
+  }
+
   if (!libres.length) {
-    verrouillerHeures('Complet ce jour-là');
+    grille.innerHTML = '';
     afficherMessage(message, RESERVATION.staffId
       ? "Cette personne est complète ce jour-là. Essayez « peu importe », ou un autre jour."
-      : "La journée est complète. Choisissez un autre jour.");
+      : "La journée est complète. Choisissez une autre date.");
     return;
   }
 
-  afficherMessage(message, '');
-
-  const groupe = (nom, creneaux) => creneaux.length
-    ? `<optgroup label="${esc(nom)}">`
-      + creneaux.map((c) => `<option value="${esc(c.start)}"${c.free ? '' : ' disabled'}>`
-        + `${esc(c.label)}${c.free ? '' : ' — déjà pris'}</option>`).join('')
-      + '</optgroup>'
-    : '';
-
-  liste.innerHTML = '<option value="">Choisissez une heure</option>'
-    + groupe('Matin', reponse.slots.filter((c) => c.start < MINUTES_MIDI))
-    + groupe('Après-midi', reponse.slots.filter((c) => c.start >= MINUTES_MIDI));
-
-  liste.disabled = false;
-  liste.value = '';
-
-  const valider = $('#validerCreneau');
-  if (valider) valider.disabled = true;
+  grille.innerHTML = grouperCreneaux(reponse.slots).map((g) =>
+    '<div class="creneaux-groupe">'
+      + `<h4 class="etiquette creneaux-moment">${esc(g.nom)}</h4>`
+      + `<div class="creneaux-grille donnee">${g.liste.map(htmlCreneau).join('')}</div>`
+    + '</div>'
+  ).join('');
 }
 
-/** L'heure choisie dans la liste. Rien ne se valide tant qu'elle est vide. */
-function choisirHeure(valeur) {
-  const valider = $('#validerCreneau');
-  const liste = $('#tunnelHeure');
+/** Un creneau choisi : on passe a l'etape 3. */
+function choisirCreneau(bouton) {
+  const start = Number(bouton.dataset.creneau);
 
-  if (!valeur) {
-    RESERVATION.creneau = null;
-    if (valider) valider.disabled = true;
-    return;
+  RESERVATION.creneau = { start, label: bouton.textContent.trim() };
+
+  for (const autre of $$('.creneau')) {
+    autre.setAttribute('aria-pressed', String(autre === bouton));
   }
-
-  const option = liste?.selectedOptions?.[0];
-  RESERVATION.creneau = {
-    start: Number(valeur),
-    // L'intitule affiche, debarrasse de la mention « deja pris » que seules les
-    // options eteintes portent — et qu'on ne peut donc pas choisir.
-    label: (option?.textContent || '').replace(' — déjà pris', '').trim(),
-  };
-
-  if (valider) valider.disabled = false;
-}
-
-/** Passe a l'etape 3 avec le creneau retenu. */
-function validerCreneau() {
-  if (!RESERVATION.creneau) return;
 
   // Le rendez-vous retenu, rappele en tete de l'etape 3 avec son chemin de
   // retour. C'etait l'etape sans porte de sortie : on y arrivait en cliquant
@@ -443,7 +452,7 @@ async function envoyerReservation(evenement) {
     // au depart.
     if (erreur.code === 409) {
       allerEtape(2);
-      await chargerHeures(RESERVATION.date);
+      await chargerCreneaux(RESERVATION.date);
       afficherMessage($('#creneauxMessage'), erreur.message);
     } else {
       afficherMessage(message, erreur.message);
@@ -524,19 +533,12 @@ async function demanderAnnulation() {
 function recommencer() {
   RESERVATION.prestation = null;
   RESERVATION.staffId = '';
-  RESERVATION.attenteStaffId = '';
   RESERVATION.date = '';
   RESERVATION.creneau = null;
   RESERVATION.confirmee = null;
 
   $('#formulaireReservation')?.reset();
-
-  const choix = $('#tunnelPrestation');
-  if (choix) choix.value = '';
-  const valider = $('#validerPrestation');
-  if (valider) valider.disabled = true;
-
-  verrouillerHeures('Choisissez d\'abord un jour');
+  montrer($('#tunnelCreneaux'), false);
   afficherMessage($('#messageReservation'), '');
   afficherMessage($('#creneauxMessage'), '');
 
@@ -555,18 +557,6 @@ function brancherTunnel() {
     if (ligne) choisirPrestation(ligne.dataset.id);
   });
 
-  // L'etape 1 : la liste deroulante groupee par rayon. « Continuer » reste
-  // eteint tant que rien n'est choisi — la meme regle qu'a l'etape 2.
-  $('#tunnelPrestation')?.addEventListener('change', (evenement) => {
-    const valider = $('#validerPrestation');
-    if (valider) valider.disabled = !evenement.target.value;
-  });
-
-  $('#validerPrestation')?.addEventListener('click', () => {
-    const id = $('#tunnelPrestation')?.value;
-    if (id) choisirPrestation(id);
-  });
-
   // Les retours en arriere, depuis n'importe quelle etape.
   document.addEventListener('click', (evenement) => {
     const retour = evenement.target.closest('[data-retour]');
@@ -574,44 +564,45 @@ function brancherTunnel() {
 
     const vers = Number(retour.dataset.retour);
 
-    // En revenant a l'etape 1, la liste retrouve la prestation deja choisie :
-    // on revient pour en CHANGER, pas pour tout resaisir, et « Continuer »
-    // reste actif si l'on se ravise.
-    if (vers === 1 && RESERVATION.prestation) {
-      const liste = $('#tunnelPrestation');
-      const valider = $('#validerPrestation');
-      if (liste) liste.value = RESERVATION.prestation.id;
-      if (valider) valider.disabled = false;
-    }
-
     allerEtape(vers);
   });
 
-  // « Reserver avec X », depuis la section Equipe. Meme motif que les lignes de
-  // prestation : un seul ecouteur pose sur le document, parce que la liste de
-  // l'equipe est repeinte a chaque enregistrement des reglages.
-  document.addEventListener('click', (evenement) => {
-    const bouton = evenement.target.closest('[data-reserver-avec]');
-    if (bouton) reserverAvec(bouton.dataset.reserverAvec);
-  });
 
-  // AVEC QUI : la liste des jours ET celle des heures changent, puisque les
-  // disponibilites ne sont plus les memes. `chargerJours()` recharge les deux —
-  // il appelle `chargerHeures()` sur le jour retenu.
-  $('#tunnelQui')?.addEventListener('change', (evenement) => {
+  // AVEC QUI : le CALENDRIER ET les creneaux changent, puisque les
+  // disponibilites ne sont plus les memes. `chargerMois()` fait les deux — il
+  // redessine le mois et recharge les creneaux du jour retenu, ou retombe sur
+  // le premier jour libre si cette personne ne travaille pas ce jour-la.
+  //
+  // C'est tout l'interet de poser la question APRES le jour : le resultat du
+  // choix est visible immediatement, sur le calendrier comme sur les heures.
+  $('#tunnelQuiChoix')?.addEventListener('change', (evenement) => {
+    if (evenement.target.name !== 'staff') return;
     RESERVATION.staffId = evenement.target.value;
-    chargerJours();
+    chargerMois();
   });
 
-  $('#tunnelJour')?.addEventListener('change', (evenement) => {
-    if (evenement.target.value) chargerHeures(evenement.target.value);
+  $('#moisPrecedent')?.addEventListener('click', () => {
+    RESERVATION.mois = moisSuivantDe(RESERVATION.mois, -1);
+    chargerMois();
   });
 
-  $('#tunnelHeure')?.addEventListener('change', (evenement) => {
-    choisirHeure(evenement.target.value);
+  $('#moisSuivant')?.addEventListener('click', () => {
+    RESERVATION.mois = moisSuivantDe(RESERVATION.mois, 1);
+    chargerMois();
   });
 
-  $('#validerCreneau')?.addEventListener('click', validerCreneau);
+  $('#calendrierGrille')?.addEventListener('click', (evenement) => {
+    const jour = evenement.target.closest('.calendrier-jour');
+    if (jour && !jour.disabled) chargerCreneaux(jour.dataset.date);
+  });
+
+  // Sur le conteneur des GROUPES, et non sur une grille : les grilles sont
+  // recreees a chaque changement de jour, un ecouteur pose sur l'une d'elles
+  // disparaitrait avec.
+  $('#creneauxGroupes')?.addEventListener('click', (evenement) => {
+    const creneau = evenement.target.closest('.creneau');
+    if (creneau && !creneau.disabled) choisirCreneau(creneau);
+  });
 
   $('#formulaireReservation')?.addEventListener('submit', envoyerReservation);
   $('#annulerReservation')?.addEventListener('click', demanderAnnulation);

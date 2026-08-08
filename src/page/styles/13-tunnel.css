@@ -78,65 +78,297 @@
   color: var(--bleu-travail);
 }
 
-/* --- LES TROIS LISTES DE L'ÉTAPE 2 -----------------------------------------
+/* --- ÉTAPE 1 : LES RAYONS DÉPLIABLES ---------------------------------------
 
-   Il y avait ici un calendrier de trente et une cases avec ses flèches de mois,
-   puis une grille de trente-trois créneaux : soixante-quatre cibles à l'écran
-   pour choisir deux choses, et rien qui dise par où commencer. Deux cents
-   lignes de style, aussi.
+   Un rayon par ligne, replié, avec ce qu'il contient et son premier prix :
+   « COUPE — 4 prestations · dès 13 € ». On ouvre celui qu'on cherche, on
+   choisit dedans.
 
-   Trois `<select>` natifs les remplacent. Ce n'est pas un renoncement de
-   dessin : c'est le composant que le visiteur sait déjà manipuler, celui que
-   son téléphone ouvre en plein écran avec sa propre molette, celui que son
-   clavier parcourt à la lettre, et celui qu'un lecteur d'écran annonce avec le
-   nombre d'options. Aucun composant écrit à la main n'égale ça, et surtout pas
-   à ce prix.
+   Avant, l'étape affichait les treize prestations d'un bloc — la section
+   « Prestations » recopiée, celle qu'on venait de faire défiler. Puis une
+   liste déroulante, qui réglait la longueur mais cachait tout : on ne voyait
+   plus ce que proposait le commerce sans ouvrir le menu.
 
-   Ils héritent du style des champs (05-contrôles.css) : même hauteur, même
-   filet, même rayon de 2 px. Ce qui reste ici est le peu qui leur est propre —
-   la flèche, que les navigateurs dessinent chacun à leur façon, et
-   l'espacement entre les trois.
+   Le dépliant garde les deux : quatre lignes qui montrent l'offre entière, et
+   le détail à un clic.
+
+   ⚠️ `<details>` / `<summary>`, PAS UNE MÉCANIQUE ÉCRITE À LA MAIN. L'ouverture
+      et la fermeture sont natives, le clavier fonctionne (Entrée, Espace), le
+      lecteur d'écran annonce « replié / déplié », et il n'y a aucun état à
+      tenir en JavaScript. Un accordéon écrit à la main coûte cinquante lignes
+      et rate l'un des trois.
 */
-.tunnel-choix { margin-bottom: var(--e4); }
+.rayons { margin-top: var(--e4); }
 
-.tunnel-choix .champ:last-child { margin-bottom: var(--e3); }
+.rayon { border-bottom: 1px solid var(--filet); }
 
-/* La flèche. `appearance: none` retire celle du système — qui va du triangle
-   bleu de Windows au chevron gris de macOS — et on la redessine en chevron
-   typographique, dans la couleur du texte. Aucune image, aucun pack d'icônes :
-   c'est un caractère, tourné et positionné.
+.rayon:first-child { border-top: 1px solid var(--filet); }
 
-   `padding-right` réserve sa place : sans lui, un intitulé long passerait
-   dessous. */
-.tunnel-choix select {
-  appearance: none;
-  -webkit-appearance: none;
-  padding-right: var(--e5);
-  background-image:
-    linear-gradient(45deg, transparent 50%, currentColor 50%, currentColor calc(50% + 1px), transparent calc(50% + 1px)),
-    linear-gradient(135deg, transparent calc(50% - 1px), currentColor calc(50% - 1px), currentColor 50%, transparent 50%);
-  background-position: calc(100% - var(--e3)) 55%, calc(100% - var(--e3) + 5px) 55%;
-  background-size: 6px 6px;
-  background-repeat: no-repeat;
+/* Le marqueur du navigateur est retiré — un triangle sur Chrome, une flèche sur
+   Safari — et remplacé par un signe écrit, « + » quand c'est fermé, « − » quand
+   c'est ouvert. Deux caractères présents dans toutes les polices depuis
+   toujours : aucun pack d'icônes, rien qui puisse dater. */
+.rayon-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--e1) var(--e2);
+  min-height: 56px;
+  padding: var(--e2) 0;
   cursor: pointer;
+  list-style: none;
+  transition: background-color var(--transition);
 }
 
-/* Une liste éteinte — « choisissez d'abord un jour », « complet ce jour-là ».
-   Elle reste LISIBLE : un contrôle désactivé qu'on ne peut pas lire ne dit pas
-   pourquoi il est désactivé, et c'est précisément le moment où on se le
-   demande. */
-.tunnel-choix select[disabled] {
+.rayon-tete::-webkit-details-marker { display: none; }
+
+.rayon-tete:hover { background: rgba(22, 25, 27, 0.04); }
+
+.rayon-tete::before {
+  content: '+';
+  flex: none;
+  width: 2ch;
+  font-family: var(--f-donnee);
+  font-size: var(--t-intro);
+  line-height: 1.2;
+  color: var(--acier);
+}
+
+.rayon[open] > .rayon-tete::before { content: '−'; }
+
+.rayon-nom {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--f-titre);
+  font-size: var(--t-intro);
+  font-weight: var(--g-titre);
+  line-height: var(--lh-sous);
+  letter-spacing: var(--ls-section);
+  text-transform: uppercase;
+}
+
+/* Ce que contient le rayon et son premier prix. C'est l'information qui permet
+   de choisir SANS ouvrir : « dès 13 € » répond à la question qu'on se pose en
+   parcourant une liste de rayons. */
+.rayon-compte {
+  flex: none;
+  font-size: var(--t-petit);
+  color: var(--acier);
+}
+
+/* Les lignes tarifaires reprennent le style de la vitrine (09-prestations.css).
+   Un retrait à gauche les range sous leur rayon, à l'aplomb de son nom. */
+.rayon-liste {
+  margin: 0 0 var(--e2);
+  padding-left: calc(2ch + var(--e2));
+}
+
+.rayon-liste .tarif-ligne:last-child { border-bottom: 0; }
+
+/* --- ÉTAPE 2 : AVEC QUI ? --------------------------------------------------
+
+   Après le jour, jamais avant : c'est le jour qui décide de la plupart des
+   refus, et poser « avec qui » d'abord ferait choisir une personne pour
+   découvrir ensuite qu'elle ne travaille pas ce jour-là.
+
+   Les boutons sont de vrais `<input type="radio">` masqués à l'œil, en forme
+   d'onglets pleins (05-controles.css) : les flèches parcourent le groupe,
+   l'espace choisit, l'intitulé est annoncé.
+*/
+.tunnel-qui {
+  margin: 0 0 var(--e4);
+  padding: 0;
+  border: 0;
+}
+
+.tunnel-qui legend {
+  padding: 0;
+  margin-bottom: var(--e2);
+}
+
+.tunnel-qui .aide { margin-top: var(--e1); }
+
+/* --- LE CALENDRIER ---------------------------------------------------------
+
+   Sept colonnes, aucune bordure, les chiffres en chasse fixe : c'est
+   l'alignement des colonnes qui fait le calendrier, pas un quadrillage.
+*/
+.tunnel-calendrier { margin-bottom: var(--e4); }
+
+.calendrier-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e2);
+  padding-bottom: var(--e1);
+  border-bottom: 1px solid var(--filet);
+}
+
+.calendrier-mois {
+  margin: 0;
+  color: var(--encre);
+  text-align: center;
+  flex: 1;
+}
+
+.calendrier-fleche {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--filet);
+  background: none;
+  color: var(--encre);
+  font-family: var(--f-donnee);
+  font-size: var(--t-intro);
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color var(--transition), background-color var(--transition);
+}
+
+.calendrier-fleche:hover { border-color: var(--encre); }
+
+.calendrier-fleche[disabled] {
   color: var(--acier);
   border-color: var(--filet);
   cursor: not-allowed;
-  background-image: none;
 }
 
-/* Le bouton qui passe à l'étape suivante. Éteint tant qu'aucune heure n'est
-   choisie : c'est la règle du site pour un contrôle indisponible — il reste
-   visible et lisible, il ne disparaît pas. */
-#validerCreneau { margin-bottom: var(--e2); }
+.calendrier-jours,
+.calendrier-grille {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
 
+.calendrier-jours {
+  padding: var(--e1) 0;
+  text-align: center;
+}
+
+.calendrier-grille { gap: 2px; }
+
+/* Une case. 44 px de haut : la cible tactile minimale, sur une grille de sept
+   colonnes qui doit tenir dans 342 px de large sur un iPhone SE. */
+.calendrier-jour {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid transparent;
+  background: none;
+  color: var(--encre);
+  font-family: var(--f-donnee);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-texte);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition),
+              border-color var(--transition);
+}
+
+/* UN JOUR DISPONIBLE PORTE UN ENCADRÉ, AU REPOS. Sans lui, le calendrier était
+   trente chiffres identiques dont on ne savait pas lesquels étaient cliquables :
+   la différence entre un jour libre et un jour fermé tenait à une nuance de
+   gris, qui ne dit rien à personne et rien du tout à qui distingue mal les
+   couleurs. L'encadré est la même forme que celle des créneaux juste en
+   dessous — dans ce site, ce qui est encadré se clique. */
+.calendrier-jour:not([disabled]) { border-color: var(--filet); }
+
+.calendrier-jour:hover { border-color: var(--encre); }
+
+/* Fermé ou complet. Le jour reste LISIBLE (l'acier tient 5,95:1) et reste
+   annoncé aux lecteurs d'écran comme indisponible : on ne cache pas
+   l'information, on dit qu'elle ne mène nulle part. */
+.calendrier-jour[disabled] {
+  color: var(--acier);
+  cursor: not-allowed;
+  border-color: transparent;
+}
+
+.calendrier-jour[disabled]:hover { border-color: transparent; }
+
+/* Le jour choisi : aplat plein. Aucune pastille ronde, aucun contour de
+   couleur — un aplat carré, comme partout ailleurs sur ce site. */
+.calendrier-jour[aria-pressed="true"] {
+  background: var(--bleu-travail);
+  border-color: var(--bleu-travail);
+  color: var(--craie);
+}
+
+/* Aujourd'hui, quand ce n'est pas le jour choisi : un filet sous le chiffre.
+   Discret, mais suffisant pour se repérer dans le mois. */
+.calendrier-jour[data-aujourdhui]:not([aria-pressed="true"]) {
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.calendrier-legende {
+  margin: var(--e1) 0 0;
+  max-width: none;
+}
+
+/* --- LES CRÉNEAUX ----------------------------------------------------------
+
+   Rangés par demi-journée. Une journée ouverte de 8h30 à 21h en donne
+   trente-trois : en une seule grille, c'est un mur de chiffres où l'on ne
+   trouve pas « vers 18h » sans le chercher case par case.
+*/
+
+.tunnel-creneaux { margin-bottom: var(--e3); }
+
+.tunnel-creneaux h3 {
+  margin-bottom: var(--e3);
+  padding-bottom: var(--e1);
+  border-bottom: 1px solid var(--filet);
+  color: var(--encre);
+}
+
+.creneaux-groupe + .creneaux-groupe { margin-top: var(--e3); }
+
+.creneaux-moment { margin: 0 0 var(--e1); }
+
+.creneaux-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: var(--e1);
+}
+
+.creneau {
+  min-height: var(--hauteur-controle);
+  padding: 0 var(--e1);
+  border: 1px solid var(--acier);
+  background: none;
+  color: var(--encre);
+  font-family: var(--f-donnee);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-texte);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition),
+              border-color var(--transition);
+}
+
+.creneau:hover { border-color: var(--encre); }
+
+.creneau[aria-pressed="true"] {
+  background: var(--bleu-travail);
+  border-color: var(--bleu-travail);
+  color: var(--craie);
+}
+
+/* Un créneau déjà pris : barré, gris, non cliquable — et toujours affiché.
+
+   L'AFFICHER PLUTÔT QUE LE RETIRER RENSEIGNE MIEUX : une liste qui saute de
+   14h00 à 16h30 laisse croire à une erreur ; la même avec 14h45 et 15h30 barrés
+   dit « c'est un jour chargé », ce qui est l'information vraie. */
+.creneau[disabled] {
+  color: var(--acier);
+  border-color: var(--filet);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
 
 /* --- LES MESSAGES ----------------------------------------------------------
 

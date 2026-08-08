@@ -148,9 +148,29 @@ sortie. Cinq réglages l'ont corrigé, et ils forment un tout :
 - **On peut revenir de partout**, en toutes lettres : « Changer de prestation »,
   « Changer de créneau ».
 
-Et depuis la section Équipe, **« Réserver avec X »** ouvre le tunnel avec la
-personne déjà retenue — elle est mise de côté puis appliquée quand la prestation
-est connue, puisque c'est elle qui détermine qui peut la faire.
+**L'étape 1 est un rayon dépliable par ligne** (`<details>`/`<summary>`), avec
+son contenu et son premier prix : « COUPE — 4 prestations · dès 13 € ». Elle a
+eu trois formes. Le catalogue entier recopié, d'abord — c'est-à-dire la section
+« Prestations » qu'on venait de faire défiler, si bien que rien ne disait qu'on
+avait avancé. Une liste déroulante ensuite, plus courte mais qui cachait tout.
+Le dépliant garde les deux : quatre lignes qui montrent l'offre, le détail à un
+clic.
+
+**L'ordre de l'étape 2 est le sujet de l'étape 2** : le jour, puis la personne,
+puis l'heure. C'est le jour qui décide de la plupart des refus — un barbier
+ferme le lundi, une personne ne travaille que trois jours. Demander « avec
+qui ? » d'abord ferait choisir quelqu'un pour découvrir ensuite qu'il ne
+travaille pas le jour voulu. Changer de personne redessine le calendrier **et**
+recharge les créneaux : le résultat du choix est visible tout de suite.
+
+⚠️ **Le calendrier montre le mois entier, jours fermés compris.** Une liste
+déroulante des seuls jours ouverts a été essayée : plus courte, mais on ne
+voyait plus le rythme du commerce, et « il est fermé le lundi » est une
+information qu'on retient.
+
+⚠️ **Il n'y a plus de « Réserver avec X » dans la section Équipe.** « Avec
+qui ? » se pose une seule fois, dans le tunnel, après le jour. Poser la même
+question à deux endroits laisse croire qu'il y a deux chemins différents.
 
 ### Les indicateurs de confiance
 

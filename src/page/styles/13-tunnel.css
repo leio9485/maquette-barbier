@@ -4,7 +4,8 @@
 
 .tunnel { max-width: 42rem; }
 
-.tunnel h2 { margin-bottom: var(--e3); }
+/* L'écart sous le titre est celui de toutes les sections — il est posé une
+   seule fois dans 04-grille-et-rail.css. */
 
 .tunnel .intro { margin-bottom: var(--e4); }
 

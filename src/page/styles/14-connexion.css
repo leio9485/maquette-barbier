@@ -170,7 +170,12 @@
 
 .espace-onglet:hover { color: var(--craie); }
 
-.espace-onglet[aria-current] {
+/* ⚠️ `[aria-current="true"]` ET NON `[aria-current]`. Le JavaScript pose
+   l'attribut sur les DEUX onglets — « true » sur l'ouvert, « false » sur
+   l'autre — ce qui est correct côté ARIA. Un sélecteur qui teste la seule
+   présence de l'attribut souligne alors les deux, et plus rien ne dit où l'on
+   est. */
+.espace-onglet[aria-current="true"] {
   color: var(--craie);
   border-bottom-color: var(--craie);
 }

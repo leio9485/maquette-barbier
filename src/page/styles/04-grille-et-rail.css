@@ -54,6 +54,18 @@
 .sombre + .sombre .bloc-corps,
 .bleu + .bleu .bloc-corps { padding-top: 0; }
 
+/* LE TITRE DE SECTION RESPIRE SOUS LUI.
+
+   `h1`-`h4` ont leur marge remise a zero par la remise a zero generale
+   (03-fondations.css), et personne ne la redonnait aux titres de section : le
+   chapo commencait au pixel exact ou finissait le titre. Invisible tant que les
+   titres faisaient 36 px, franchement laid a 42 — « ANNONCES D'AVANCE » et
+   « Le reglement se fait sur place » se touchaient.
+
+   Une seule regle pour toutes les sections, tunnel compris : c'est le meme
+   titre, il doit avoir le meme air autour de lui partout. */
+.contenu h2 { margin-bottom: var(--e3); }
+
 /* --- LE RAIL, EN LIGNE (TELEPHONE) ---------------------------------------
 
    Sous 768 px, le rail n'est plus une colonne : c'est une ligne d'annonce

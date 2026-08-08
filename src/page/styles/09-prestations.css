@@ -100,7 +100,20 @@
   text-underline-offset: 0.2em;
 }
 
+/* `flex: 1` N'EST PAS DÉCORATIF : C'EST CE QUI MET LES PRIX EN COLONNE.
+
+   La ligne est en `space-between` avec trois enfants — le texte, les chiffres,
+   le bouton. Sans `flex: 1` sur le premier, l'espace libre se répartit ENTRE
+   les trois, et la position des chiffres dépend alors de la longueur de la
+   description : « 18 € » tombait à 889 px et « 22 € » à 912, sur la ligne
+   juste en dessous. Vingt-trois pixels d'écart, treize fois, dans la seule
+   colonne du site dont tout l'intérêt est d'être alignée.
+
+   Le défaut est apparu en ajoutant le bouton « Réserver » : à deux enfants,
+   `space-between` collait les chiffres à droite et la question ne se posait
+   pas. C'est le genre de régression qu'on ne voit pas dans le code. */
 .tarif-texte {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;

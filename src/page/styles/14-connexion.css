@@ -193,6 +193,50 @@
   padding: var(--e4) var(--marge) var(--e6);
 }
 
+/* --- LE BANDEAU DE DÉMONSTRATION -------------------------------------------
+
+   Sur aplat bleu de travail : c'est le seul endroit de l'espace qui ne parle
+   pas du commerce mais du produit, et l'aplat le dit mieux qu'un cadre. Il
+   n'existe que sur la démonstration.
+
+   Il porte la classe `bleu` (03-fondations.css), qui pose l'aplat ET rebascule
+   d'un coup le texte secondaire, les filets, le contour de focus et la couleur
+   des boutons. Sans elle, `.action-douce` serait resté encre sur bleu — un
+   contour presque invisible, exactement l'erreur que la règle de couleur des
+   boutons existe pour empêcher.
+
+   Le motif est dans parties/espace-commercant.html : il ne résout pas la
+   persistance, il la dit — et transforme une limite d'hébergement en
+   invitation à tout essayer.
+*/
+.demo-bandeau {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e2) var(--e3);
+  margin-bottom: var(--e4);
+  padding: var(--e3);
+}
+
+.demo-bandeau-texte {
+  margin: 0;
+  flex: 1;
+  min-width: 18rem;
+  font-size: var(--t-petit);
+  line-height: 1.5;
+}
+
+/* Sur aplat bleu, `.action-douce` est déjà inversé par la règle générale des
+   boutons (05-controles.css) : contour craie, texte craie. Rien à redire ici
+   sinon la taille — c'est un bouton secondaire dans un bandeau, pas l'action
+   principale d'un écran. */
+.demo-bandeau .action-douce {
+  flex: none;
+  min-height: 44px;
+  font-size: var(--t-etiq);
+}
+
 @media (min-width: 768px) {
   .espace-corps { padding-top: var(--e5); }
 }

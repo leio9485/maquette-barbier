@@ -136,7 +136,18 @@
    chasse fixe. Sans elles, chaque ligne cadrerait ses chiffres à sa manière et
    on perdrait la comparaison d'un coup d'œil.
 */
+/* CENTRÉS SUR LA HAUTEUR DE LA LIGNE, comme le bouton « Réserver ».
+
+   Ils étaient calés sur la ligne de base du nom de la prestation, donc collés
+   en haut : sur une ligne à deux lignes de texte — un nom et sa description —
+   la durée et le prix flottaient tout en haut à droite pendant que le bouton
+   se centrait juste à côté. Trois éléments, trois hauteurs.
+
+   Le nom garde sa place en haut : c'est lui qu'on lit en premier, et il doit
+   commencer à la même hauteur d'une ligne à l'autre. Ce sont les deux blocs de
+   droite qui se centrent. */
 .tarif-donnees {
+  align-self: center;
   display: flex;
   align-items: baseline;
   gap: var(--e2);

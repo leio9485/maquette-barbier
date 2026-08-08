@@ -170,6 +170,33 @@ apparaît dès qu'une note est saisie, ainsi que son rappel en tête de la secti
 `salon.links.google`, vide lui aussi). **Sur la démonstration, ces deux champs
 sont donc les deux lignes à remplir pour montrer la section complète.**
 
+### Ce que la démonstration ne peut pas enregistrer
+
+⚠️ **L'enregistrement fonctionne. C'est l'hébergement de la démonstration qui
+est jetable.** L'offre gratuite de Render n'a pas de disque persistant : la
+base vit dans le conteneur, l'instance s'endort après quinze minutes sans
+visite, et repart d'une base neuve reconstruite depuis `defaults.js`. Un
+prospect qui change un tarif, revient le lendemain et le retrouve à sa valeur
+d'origine en conclut que le produit ne sait pas enregistrer.
+
+**Studio Cassandre a exactement la même limite, et l'a réglée en la disant** :
+un bandeau en tête de l'espace invite à tout modifier sans crainte et porte un
+bouton « Remettre à zéro maintenant » (`POST /api/admin/demo/reset`). C'est
+repris ici. La limite devient un argument — « touchez à tout, rien n'est
+cassable » — et le bouton sert avant un rendez-vous, pour repartir d'une
+vitrine propre sans attendre la remise à zéro de 4 h.
+
+Le bandeau suit `CONFIG.demo` : chez un vrai client il n'existe pas, et la base
+vit sur un disque. **Pour que la démonstration retienne vraiment ce qu'on y
+saisit**, il faut un disque, donc un plan payant :
+
+```yaml
+    disk:
+      name: donnees
+      mountPath: /app/data
+      sizeGB: 1
+```
+
 ### L'espace commerçant
 
 **L'agenda est une liste, plus une grille.** Il dessinait une case cliquable

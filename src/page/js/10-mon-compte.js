@@ -26,7 +26,54 @@ async function ouvrirEspaceConnecte() {
   montrer($('#ecranConnexion'), false);
   montrer($('#ecranEspace'), true);
 
+  // Le bandeau de demonstration n'apparait que sur la demonstration : chez un
+  // vrai client, `CONFIG.demo` n'existe pas et rien ne s'affiche.
+  montrer($('#demoBandeau'), Boolean(CONFIG?.demo));
+
   await chargerAgenda();
+}
+
+/**
+ * Remet toute la demonstration a zero : reglages, rendez-vous d'exemple,
+ * photos.
+ *
+ * ON DEMANDE CONFIRMATION, parce que c'est destructeur et qu'on peut cliquer
+ * dessus en visant « Reglages » juste a cote. Le bouton dit ensuite ce qu'il
+ * fait pendant qu'il le fait — la remise a zero reconstruit une base entiere,
+ * ce n'est pas instantane.
+ */
+async function remettreDemoAZero() {
+  const bouton = $('#demoRemiseAZero');
+  const message = $('#messageDemo');
+
+  const seul = "Remettre la démonstration dans son état de départ ?\n\n"
+    + "Les réglages, les rendez-vous et les photos saisis depuis la dernière "
+    + "remise à zéro seront effacés.";
+  if (!window.confirm(seul)) return;
+
+  bouton.disabled = true;
+  poserTexte(bouton, 'Remise à zéro…');
+  afficherMessage(message, '');
+
+  try {
+    await reinitialiserDemo();
+
+    // Tout est reconstruit cote serveur : on relit, et on repeint les deux
+    // vues. Sans cela, l'agenda garderait les rendez-vous effaces a l'ecran.
+    CONFIG = await lireConfig();
+    peindreVitrine(CONFIG);
+    ESPACE.brouillon = null;
+    await chargerAgenda();
+    if (ESPACE.volet === 'reglages') await chargerReglages();
+
+    afficherMessage(message, 'La démonstration est repartie de son état de départ.', 'bon');
+  } catch (erreur) {
+    if (erreur.code === 401) return exigerConnexion();
+    afficherMessage(message, erreur.message);
+  } finally {
+    bouton.disabled = false;
+    poserTexte(bouton, 'Remettre à zéro maintenant');
+  }
 }
 
 /**
@@ -104,6 +151,7 @@ function ouvrirVolet(nom) {
 function brancherCompte() {
   $('#formulaireConnexion')?.addEventListener('submit', envoyerConnexion);
   $('#seDeconnecter')?.addEventListener('click', envoyerDeconnexion);
+  $('#demoRemiseAZero')?.addEventListener('click', remettreDemoAZero);
 
   for (const onglet of $$('.espace-onglet')) {
     onglet.addEventListener('click', () => ouvrirVolet(onglet.dataset.volet));

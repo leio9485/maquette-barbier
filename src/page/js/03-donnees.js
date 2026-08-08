@@ -134,6 +134,16 @@ function reinitialiser() {
   return api('/api/admin/settings/reset', { methode: 'POST' });
 }
 
+/**
+ * Remet TOUTE la demonstration dans son etat de depart : reglages, rendez-vous
+ * d'exemple, photos. `reinitialiser()` ci-dessus ne touche que les reglages.
+ *
+ * N'existe que sur la demonstration — chez un client, le serveur repond 404.
+ */
+function reinitialiserDemo() {
+  return api('/api/admin/demo/reset', { methode: 'POST' });
+}
+
 /** Les rendez-vous d'une periode, coordonnees comprises. Session exigee. */
 function lireRendezVous(du, au) {
   const p = new URLSearchParams({ from: du, to: au });

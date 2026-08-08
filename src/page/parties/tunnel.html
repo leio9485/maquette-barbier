@@ -60,17 +60,48 @@
         </li>
       </ol>
 
-      <!-- ÉTAPE 1 — la prestation ------------------------------------------- -->
+      <!-- ÉTAPE 1 — la prestation -------------------------------------------
+
+           ⚠️ UN MENU DÉROULANT, PLUS LA LISTE TARIFAIRE ENTIÈRE.
+
+           Cette étape reprenait les treize lignes de la section « Prestations »
+           — celle qu'on venait de faire défiler juste au-dessus. On arrivait
+           donc sur « Réserver » et on retrouvait exactement l'écran d'avant :
+           rien ne disait qu'on avait avancé, et il fallait relire treize lignes
+           pour choisir ce qu'on savait déjà.
+
+           Une liste déroulante groupée par rayon dit la même chose en une
+           ligne, dans la langue des deux étapes suivantes — trois menus, une
+           seule grammaire pour tout le tunnel. Le catalogue reste lisible en
+           entier plus haut, avec ses descriptions et ses boutons ; ici, on
+           choisit.
+
+           `<optgroup>` porte les rayons : c'est le regroupement natif, celui
+           que le sélecteur du téléphone affiche tout seul.
+      -->
       <div class="etape" data-etape="1">
         <h2>Que voulez-vous<br>faire faire ?</h2>
         <p class="intro">
-          Choisissez une ligne : c'est ce qui lance la réservation. Durées et
-          tarifs annoncés, réglés sur place, aucun acompte.
+          Durées et tarifs annoncés. Le règlement se fait sur place, aucun
+          acompte.
         </p>
 
-        <div class="tarifs" id="tunnelPrestations">
-          <p class="secondaire">Chargement des prestations…</p>
+        <div class="tunnel-choix">
+          <div class="champ">
+            <label for="tunnelPrestation">Quelle prestation ?</label>
+            <select id="tunnelPrestation">
+              <option value="">Chargement des prestations…</option>
+            </select>
+            <p class="aide">
+              La liste complète, avec le détail de chaque prestation, est
+              <a href="#prestations">plus haut sur la page</a>.
+            </p>
+          </div>
         </div>
+
+        <button type="button" class="action action-pleine" id="validerPrestation" disabled>
+          Continuer
+        </button>
       </div>
 
       <!-- ÉTAPE 2 — la date, l'heure, et avec qui ----------------------------

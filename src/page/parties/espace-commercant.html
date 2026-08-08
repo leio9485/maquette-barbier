@@ -79,6 +79,39 @@
 
     <main class="espace-corps">
 
+      <!--# LE BANDEAU DE DÉMONSTRATION — repris de Studio Cassandre.
+
+           ⚠️ IL NE RÉSOUT PAS LA PERSISTANCE, IL LA DIT. L'hébergement gratuit
+              n'a pas de disque : la base vit dans le conteneur, l'instance
+              s'endort après quinze minutes sans visite, et repart d'une base
+              neuve. Un prospect qui change un tarif, revient le lendemain et le
+              retrouve à sa valeur d'origine en conclut que le produit ne sait
+              pas enregistrer — alors que l'enregistrement fonctionne, et que
+              c'est l'hébergement de la démonstration qui est jetable.
+
+              Le dire retire le doute, et transforme une limite en argument :
+              « touchez à tout, rien n'est cassable ». Chez un vrai client, le
+              bandeau n'existe pas (il suit `CONFIG.demo`) et la base vit sur un
+              disque.
+
+           Il porte aussi le bouton de remise à zéro immédiate : avant de
+           montrer le site à quelqu'un, on repart d'une vitrine propre sans
+           attendre 4 h du matin. #-->
+      <div class="demo-bandeau bleu" id="demoBandeau" hidden>
+        <p class="demo-bandeau-texte">
+          <strong>Espace de démonstration.</strong>
+          Modifiez les tarifs, les horaires, l'équipe et les rendez-vous sans
+          crainte : rien n'est cassable. Tout revient à l'état de départ chaque
+          nuit, et à chaque redémarrage du serveur de démonstration.
+        </p>
+        <button type="button" class="action-douce" id="demoRemiseAZero">
+          Remettre à zéro maintenant
+        </button>
+      </div>
+
+      <p class="tunnel-message" id="messageDemo" hidden></p>
+
+
       <!-- VOLET AGENDA ------------------------------------------------------ -->
       <section data-volet="agenda">
 

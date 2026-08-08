@@ -342,9 +342,33 @@ function peindreEquipeReglages() {
             + `<option value="non"${p.active === false ? ' selected' : ''}>Non, en pause</option>`
           + '</select>'
         + '</div>'
+        // LE PORTRAIT : apercu, bouton, retrait — la meme forme que la galerie.
+        //
+        // C'etait un `<input type="file">` nu, sans apercu : on deposait une
+        // photo sans voir laquelle etait deja en place, ni ce que donnerait le
+        // cadrage carre de la vitrine. Et le champ sortait au dessin du
+        // navigateur, avec son « Aucun fichier selectionne » parfois en anglais.
+        //
+        // L'input est masque hors ecran et c'est son `<label>` qui fait le
+        // bouton : un vrai declencheur natif, que le clavier atteint et qu'un
+        // lecteur d'ecran annonce comme un champ de fichier.
         + '<div class="champ">'
-          + `<label for="stf-photo-${index}">Photo</label>`
-          + `<input type="file" id="stf-photo-${index}" accept="image/*" data-photo-personne="${index}">`
+          + `<span class="reglages-etiquette-champ">Portrait</span>`
+          + '<div class="reglages-portrait">'
+            + '<div class="reglages-portrait-apercu">'
+              + (p.photo
+                ? `<img src="${esc(p.photo)}" alt="">`
+                : `<span class="reglages-portrait-vide donnee" aria-hidden="true">${esc(initiales(p.name))}</span>`)
+            + '</div>'
+            + '<div class="reglages-portrait-actions">'
+              + `<input type="file" class="hors-ecran" id="stf-photo-${index}" accept="image/*" data-photo-personne="${index}">`
+              + `<label class="action-douce" for="stf-photo-${index}">`
+                + (p.photo ? 'Remplacer' : 'Choisir une photo')
+              + '</label>'
+              + (p.photo ? `<button type="button" class="lien-nu" data-retirer-portrait="${index}">Retirer</button>` : '')
+              + '<p class="aide">Carrée de préférence. Elle est recadrée au centre.</p>'
+            + '</div>'
+          + '</div>'
         + '</div>'
       + '</div>'
       + '<p class="etiquette">Prestations assurées</p>'
@@ -696,6 +720,19 @@ function brancherReglages() {
         peindrePhotos(CONFIG);
       } catch (erreur) {
         afficherMessage($('#messageReglages'), erreur.message);
+      }
+    }
+
+    // Retirer un portrait. Contrairement aux photos de la vitrine, il vit dans
+    // les reglages : on le vide dans le brouillon, et il ne partira qu'a
+    // l'enregistrement — comme le prenom ou le role juste a cote. On pouvait
+    // deposer un portrait, on ne pouvait pas en enlever un.
+    if (cible.dataset.retirerPortrait !== undefined) {
+      const personne = brouillon().staff[Number(cible.dataset.retirerPortrait)];
+      if (personne) {
+        personne.photo = '';
+        peindreEquipeReglages();
+        marquerModifie();
       }
     }
   });

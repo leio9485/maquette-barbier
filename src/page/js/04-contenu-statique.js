@@ -126,18 +126,41 @@ function peindrePrestations(config) {
   const vitrine = $('#tarifs');
   if (vitrine) vitrine.innerHTML = html;
 
-  // Le tunnel montre la meme liste : c'est la meme question posee au meme
-  // moment, il n'y a aucune raison qu'elle ait deux formes.
-  //
-  // Les identifiants des rayons y seraient en double avec ceux de la vitrine.
-  // On les retire de cette copie : un identifiant en double dans une page est
-  // une erreur de balisage, et les ancres de la vitrine cesseraient de
-  // fonctionner (le navigateur irait au premier des deux).
-  const tunnel = $('#tunnelPrestations');
-  if (tunnel) {
-    tunnel.innerHTML = html;
-    for (const rayon of $$('.tarif-rayon', tunnel)) rayon.removeAttribute('id');
-  }
+  peindreChoixPrestation(config);
+}
+
+/**
+ * La liste deroulante de l'etape 1 du tunnel, groupee par rayon.
+ *
+ * ELLE REMPLACE LA LISTE TARIFAIRE ENTIERE, qui etait recopiee ici. L'etape
+ * reprenait les treize lignes de la section « Prestations » — celle qu'on
+ * venait de faire defiler : rien ne disait qu'on avait avance.
+ *
+ * Le libelle porte le nom, la duree et le prix : c'est ce dont on a besoin pour
+ * choisir, et ca tient sur une ligne. La description reste dans le catalogue
+ * plus haut, ou on la lit avant de se decider.
+ */
+function peindreChoixPrestation(config) {
+  const liste = $('#tunnelPrestation');
+  if (!liste) return;
+
+  const options = grouperParRayon(config).map((g) => {
+    const dedans = g.services.map((s) =>
+      `<option value="${esc(s.id)}">${esc(s.name)} — ${fmtDuree(s.duration)}, ${fmtPrix(s.price)}</option>`
+    ).join('');
+
+    // Sans rayon nomme, on ne fabrique pas de groupe : un `<optgroup>` intitule
+    // « Autres » avec tout dedans n'apporte rien.
+    return g.cat && !g.seul
+      ? `<optgroup label="${esc(g.cat.name)}">${dedans}</optgroup>`
+      : dedans;
+  }).join('');
+
+  liste.innerHTML = '<option value="">Choisissez une prestation</option>' + options;
+  liste.value = '';
+
+  const valider = $('#validerPrestation');
+  if (valider) valider.disabled = true;
 }
 
 // --- LES INDICATEURS DE CONFIANCE -------------------------------------------
@@ -203,35 +226,6 @@ function initiales(nom) {
     .join('');
 }
 
-/**
- * Les jours travailles d'une personne, en une ligne.
- *
- * `hours: null` = elle suit le commerce, et il n'y a alors rien a dire : la
- * ligne serait la meme pour tout le monde. On ne l'ecrit que pour celles qui
- * ont des horaires propres — c'est-a-dire quand c'est une information.
- */
-function joursDe(personne) {
-  if (!personne.hours) return '';
-
-  const ouverts = SEMAINE
-    .filter((jour) => personne.hours[jour])
-    .map((jour) => JOURS_COURTS[jour].replace('.', ''));
-
-  if (!ouverts.length) return '';
-  return ouverts.join(' ');
-}
-
-/** Ce qu'une personne assure, quand ce n'est pas tout. */
-function prestationsDe(personne, config) {
-  if (!personne.services.length) return '';
-
-  const noms = personne.services
-    .map((id) => config.services.find((s) => s.id === id)?.name)
-    .filter(Boolean);
-
-  return noms.join(' · ');
-}
-
 function peindreEquipe(config) {
   const section = $('#equipe');
   const liste = $('#equipeListe');
@@ -259,14 +253,23 @@ function peindreEquipe(config) {
       ? `<img src="${esc(p.photo)}" alt="" width="112" height="112">`
       : `<span class="equipe-initiales" style="background:${esc(p.color || '#24405C')}" aria-hidden="true">${esc(initiales(p.name))}</span>`;
 
-    const detail = [prestationsDe(p, config), joursDe(p)].filter(Boolean);
-
+    // LA PHOTO, LE PRENOM, LE POSTE. RIEN D'AUTRE.
+    //
+    // La ligne portait en plus, en chasse fixe, la liste des prestations
+    // assurees et les jours travailles : « Rasage traditionnel au coupe-chou ·
+    // Coupe + rasage traditionnel », « mer jeu ven sam ». Deux informations
+    // vraies, mais qui ne servent a personne a cet endroit — celui qui veut
+    // savoir si Remi est libre jeudi ne lit pas une liste de jours, il ouvre le
+    // tunnel, et celui-ci ne propose de toute facon que les creneaux reels.
+    // Elles alourdissaient trois lignes qui doivent se lire d'un coup d'oeil.
+    //
+    // Ce qui reste est ce qu'on regarde vraiment sur une page d'equipe : un
+    // visage, un prenom, ce que la personne fait.
     return '<li class="equipe-personne">'
       + `<div class="equipe-portrait">${portrait}</div>`
       + '<div class="equipe-texte">'
         + `<p class="equipe-nom">${esc(p.name)}</p>`
         + (p.role ? `<p class="equipe-role">${esc(p.role)}</p>` : '')
-        + (detail.length ? `<p class="equipe-detail">${detail.map(esc).join(' <span aria-hidden="true">·</span> ')}</p>` : '')
       + '</div>'
       // Le bouton qui ouvre le tunnel avec cette personne deja retenue. Il
       // manquait : on presentait trois personnes, puis il fallait descendre au

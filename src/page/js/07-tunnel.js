@@ -530,6 +530,12 @@ function recommencer() {
   RESERVATION.confirmee = null;
 
   $('#formulaireReservation')?.reset();
+
+  const choix = $('#tunnelPrestation');
+  if (choix) choix.value = '';
+  const valider = $('#validerPrestation');
+  if (valider) valider.disabled = true;
+
   verrouillerHeures('Choisissez d\'abord un jour');
   afficherMessage($('#messageReservation'), '');
   afficherMessage($('#creneauxMessage'), '');
@@ -549,10 +555,36 @@ function brancherTunnel() {
     if (ligne) choisirPrestation(ligne.dataset.id);
   });
 
+  // L'etape 1 : la liste deroulante groupee par rayon. « Continuer » reste
+  // eteint tant que rien n'est choisi — la meme regle qu'a l'etape 2.
+  $('#tunnelPrestation')?.addEventListener('change', (evenement) => {
+    const valider = $('#validerPrestation');
+    if (valider) valider.disabled = !evenement.target.value;
+  });
+
+  $('#validerPrestation')?.addEventListener('click', () => {
+    const id = $('#tunnelPrestation')?.value;
+    if (id) choisirPrestation(id);
+  });
+
   // Les retours en arriere, depuis n'importe quelle etape.
   document.addEventListener('click', (evenement) => {
     const retour = evenement.target.closest('[data-retour]');
-    if (retour) allerEtape(Number(retour.dataset.retour));
+    if (!retour) return;
+
+    const vers = Number(retour.dataset.retour);
+
+    // En revenant a l'etape 1, la liste retrouve la prestation deja choisie :
+    // on revient pour en CHANGER, pas pour tout resaisir, et « Continuer »
+    // reste actif si l'on se ravise.
+    if (vers === 1 && RESERVATION.prestation) {
+      const liste = $('#tunnelPrestation');
+      const valider = $('#validerPrestation');
+      if (liste) liste.value = RESERVATION.prestation.id;
+      if (valider) valider.disabled = false;
+    }
+
+    allerEtape(vers);
   });
 
   // « Reserver avec X », depuis la section Equipe. Meme motif que les lignes de

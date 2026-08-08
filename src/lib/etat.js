@@ -26,6 +26,7 @@
 // ---------------------------------------------------------------------------
 
 import { prisma } from '../db.js';
+import { OCCUPENT } from './annulation.js';
 import {
   computeSlots, hasDayBlock, loadOpeningHours, loadSettings, loadStaff, eligibleStaff, plagesDe,
 } from './availability.js';
@@ -146,7 +147,7 @@ export async function etatDuMoment(maintenant = new Date()) {
     ]);
 
     const reservations = await prisma.booking.findMany({
-      where: { date: { gte: aujourdhui, lte: addDaysIso(aujourdhui, HORIZON_JOURS) } },
+      where: { date: { gte: aujourdhui, lte: addDaysIso(aujourdhui, HORIZON_JOURS) }, ...OCCUPENT },
     });
 
     const parJour = new Map();

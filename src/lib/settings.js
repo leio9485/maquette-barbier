@@ -18,6 +18,7 @@
 // ---------------------------------------------------------------------------
 
 import { prisma } from '../db.js';
+import { OCCUPENT } from './annulation.js';
 import { toMin, toHHMM, todayIso } from './time.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 
@@ -646,7 +647,7 @@ export async function findRemovalsWithBookings(idsConserves) {
 
   for (const prestation of supprimees) {
     const nombre = await prisma.booking.count({
-      where: { serviceId: prestation.id, kind: 'appt', date: { gte: aujourdhui } },
+      where: { serviceId: prestation.id, kind: 'appt', date: { gte: aujourdhui }, ...OCCUPENT },
     });
     if (nombre > 0) menacees.push({ id: prestation.id, name: prestation.name, upcoming: nombre });
   }
@@ -674,7 +675,7 @@ export async function findStaffRemovalsWithBookings(idsConserves) {
 
   for (const personne of supprimees) {
     const nombre = await prisma.booking.count({
-      where: { staffId: personne.id, kind: 'appt', date: { gte: aujourdhui } },
+      where: { staffId: personne.id, kind: 'appt', date: { gte: aujourdhui }, ...OCCUPENT },
     });
     if (nombre > 0) menacees.push({ id: personne.id, name: personne.name, upcoming: nombre });
   }

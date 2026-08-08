@@ -16,6 +16,7 @@
 
 import express from 'express';
 import { prisma } from '../db.js';
+import { OCCUPENT } from '../lib/annulation.js';
 import { DEMO_MODE } from '../config.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { todayIso } from '../lib/time.js';
@@ -44,7 +45,7 @@ export const settingsRouter = express.Router();
  */
 async function comptesAVenir() {
   const aujourdhui = todayIso();
-  const encours = { kind: 'appt', date: { gte: aujourdhui } };
+  const encours = { kind: 'appt', date: { gte: aujourdhui }, ...OCCUPENT };
 
   const [parService, parPersonne] = await Promise.all([
     prisma.booking.groupBy({ by: ['serviceId'], where: encours, _count: { _all: true } }),

@@ -209,6 +209,43 @@ model Booking {
   /// glisser un lien d'annulation dans le SMS de confirmation.
   cancelToken String? @unique
 
+  /// La reference courte que le client note, lit au telephone et ressaisit sur
+  /// /annuler : six caracteres, « MQJYBK ».
+  ///
+  /// UNE COLONNE A ELLE, ET NON UN MORCEAU DU JETON. Elle l'etait — le site
+  /// prenait les six premiers caracteres du `cancelToken` et les mettait en
+  /// capitales. Cette capitalisation la rendait NON INVERSIBLE : « FVLJ8U »
+  /// pouvait venir de trente-deux jetons differents, si bien qu'aucune requete
+  /// ne pouvait partir d'elle. La promesse ecrite sur l'ecran de confirmation —
+  /// « notez la reference : elle suffit a annuler » — etait donc intenable.
+  ///
+  /// Elle est tiree au sort independamment du jeton, dans un alphabet sans
+  /// caracteres jumeaux (ni O ni 0, ni I ni 1 ni L : voir src/lib/reference.js),
+  /// parce qu'elle se dicte a voix haute. `@unique` la fait indexer, ce dont la
+  /// recherche sur /annuler a besoin, et interdit deux rendez-vous portant la
+  /// meme.
+  ///
+  /// Vide pour les rendez-vous saisis par le commercant : personne n'a a les
+  /// annuler en ligne, et l'ecran ou la dicter n'existe pas.
+  reference String? @unique
+
+  /// L'instant ou le CLIENT a annule, ou vide s'il n'a rien annule.
+  ///
+  /// Une annulation par le client ne supprime pas la ligne, elle la marque.
+  /// C'est ce qui permet de repondre « ce rendez-vous a deja ete annule »
+  /// plutot que « introuvable » — et surtout, c'est un fait que le commercant
+  /// doit voir : un creneau s'est libere, et il n'y est pour rien. Une ligne
+  /// effacee ne le lui dirait jamais.
+  ///
+  /// Le commercant, lui, supprime pour de bon depuis son agenda : quand c'est
+  /// lui qui retire une ligne, il n'a personne a prevenir.
+  ///
+  /// ⚠️ UNE LIGNE ANNULEE N'OCCUPE PLUS RIEN. Toute requete qui sert a calculer
+  /// une disponibilite doit donc porter le filtre de `bookingsActifs()`
+  /// (src/lib/annulation.js). L'oublier rendrait un creneau annule
+  /// definitivement invendable.
+  annuleLe DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -216,6 +253,9 @@ model Booking {
   @@index([date, startMin])
   @@index([serviceId])
   @@index([date, staffId])
+  /// Le calcul des disponibilites lit une journee ET ecarte les annules : les
+  /// deux colonnes ensemble, donc, et non `date` seule.
+  @@index([date, annuleLe])
 }
 
 /// Un membre de l'equipe.

@@ -24,7 +24,10 @@
 //      hebergement gratuit, sans disque persistant.
 // ---------------------------------------------------------------------------
 
+import { randomBytes } from 'node:crypto';
+
 import { prisma } from '../db.js';
+import { tirerReference } from './reference.js';
 import { DEFAULT_CONFIG } from './defaults.js';
 import { normalizeConfig, validateConfig, saveConfig } from './settings.js';
 import { hashPassword } from './passwords.js';
@@ -221,8 +224,28 @@ export async function resetDemo() {
   const prestations = await prisma.service.findMany();
   const tarif = (serviceId) => prestations.find((p) => p.id === serviceId)?.priceCents ?? null;
 
+  // Les rendez-vous « pris en ligne » recoivent leur reference et leur jeton,
+  // comme s'ils venaient du tunnel. Sans eux, le prospect a qui l'on montre la
+  // page d'annulation n'aurait aucun rendez-vous a y essayer : il faudrait en
+  // reserver un devant lui, ce qui prend le temps qu'on n'a pas en rendez-vous
+  // commercial. La table vient d'etre videe, un simple ensemble suffit donc a
+  // garantir l'unicite.
+  const referencesPrises = new Set();
+  const referenceNeuve = () => {
+    let candidate = tirerReference();
+    while (referencesPrises.has(candidate)) candidate = tirerReference();
+    referencesPrises.add(candidate);
+    return candidate;
+  };
+
   const rdv = rendezVousDemo({ equipe: config.staff.map((p) => p.id) })
-    .map((r) => ({ ...r, priceCents: tarif(r.serviceId) }));
+    .map((r) => ({
+      ...r,
+      priceCents: tarif(r.serviceId),
+      ...(r.source === 'online'
+        ? { reference: referenceNeuve(), cancelToken: randomBytes(32).toString('base64url') }
+        : {}),
+    }));
 
   await prisma.booking.createMany({ data: rdv });
   await ensureDemoAccount();

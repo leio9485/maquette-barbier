@@ -17,6 +17,8 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 
 import { prisma } from '../db.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
+import { OCCUPENT } from '../lib/annulation.js';
+import { referenceLibre } from '../lib/reference.js';
 import { isValidIso, weekdayOf, todayIso, addDaysIso } from '../lib/time.js';
 import {
   loadSettings,
@@ -70,6 +72,15 @@ function toApiBooking(ligne, { avecJeton = false } = {}) {
     email: ligne.customerEmail,
     notes: ligne.notes,
     source: ligne.source,
+    // La reference courte. Elle n'est pas un secret — le client la dicte au
+    // telephone — et sa place est partout ou le rendez-vous apparait : sur
+    // l'ecran de confirmation, dans son courriel, et dans l'agenda du
+    // commercant, qui doit pouvoir la retrouver quand on la lui donne.
+    reference: ligne.reference ?? null,
+    // L'instant de l'annulation par le client, ou `null`. C'est ce qui permet a
+    // l'agenda d'afficher la ligne barree plutot que de la faire disparaitre
+    // sans explication (voir src/lib/annulation.js).
+    cancelledAt: ligne.annuleLe ? ligne.annuleLe.toISOString() : null,
   };
   if (avecJeton) sortie.cancelToken = ligne.cancelToken;
   return sortie;
@@ -203,7 +214,7 @@ bookingsRouter.get('/slots', async (req, res, next) => {
     const [settings, horaires, reservations] = await Promise.all([
       loadSettings(),
       loadOpeningHours(),
-      prisma.booking.findMany({ where: { date } }),
+      prisma.booking.findMany({ where: { date, ...OCCUPENT } }),
     ]);
 
     const creneaux = computeSlots({
@@ -263,7 +274,7 @@ bookingsRouter.get('/days', async (req, res, next) => {
     const [settings, horaires, reservations] = await Promise.all([
       loadSettings(),
       loadOpeningHours(),
-      prisma.booking.findMany({ where: { date: { gte: from, lte: to } } }),
+      prisma.booking.findMany({ where: { date: { gte: from, lte: to }, ...OCCUPENT } }),
     ]);
 
     // Un seul passage sur les reservations : les ranger par jour evite de
@@ -383,7 +394,7 @@ bookingsRouter.post('/bookings', async (req, res, next) => {
     // cliquant en meme temps passeraient toutes deux le controle, et se
     // verraient attribuer la meme coiffeuse avant que l'une n'ait enregistre.
     const cree = await prisma.$transaction(async (tx) => {
-      const dejaPris = await tx.booking.findMany({ where: { date } });
+      const dejaPris = await tx.booking.findMany({ where: { date, ...OCCUPENT } });
 
       const attribution = attribuer({
         eligibles: equipe.eligibles,
@@ -411,6 +422,10 @@ bookingsRouter.post('/bookings', async (req, res, next) => {
           // Remis a la cliente sur l'ecran de confirmation, et a elle seule :
           // c'est ce qui l'autorisera a annuler son propre rendez-vous.
           cancelToken: randomBytes(32).toString('base64url'),
+          // La reference courte, celle qu'elle note et qu'elle ressaisira sur
+          // /annuler. Tiree DANS la transaction, avec le meme client : c'est ce
+          // qui rend le controle d'unicite valable au moment de l'ecriture.
+          reference: await referenceLibre(tx),
         },
       });
     });
@@ -443,9 +458,18 @@ bookingsRouter.delete('/bookings/:id', async (req, res, next) => {
 
     const rendezVous = await prisma.booking.findUnique({ where: { id: req.params.id } });
 
-    // Rendez-vous inconnu et jeton faux renvoient la meme reponse : sans cela,
-    // on pourrait apprendre quels identifiants existent en les essayant.
-    if (!rendezVous || !rendezVous.cancelToken || !memeJeton(rendezVous.cancelToken, jeton)) {
+    // Rendez-vous inconnu, jeton faux et rendez-vous DEJA ANNULE renvoient la
+    // meme reponse : sans cela, on pourrait apprendre quels identifiants
+    // existent en les essayant.
+    //
+    // Cette adresse-ci reste donc muette sur l'annulation deja faite, alors que
+    // /api/rendez-vous/annuler, elle, le dit en toutes lettres. La difference
+    // n'est pas un oubli : celle-la se rejoue depuis un ecran ouvert, sans que
+    // personne n'ait rien saisi, et n'a aucun message a porter.
+    if (!rendezVous
+      || !rendezVous.cancelToken
+      || !memeJeton(rendezVous.cancelToken, jeton)
+      || rendezVous.annuleLe) {
       return refus(res, 404, 'Ce rendez-vous est introuvable.');
     }
 
@@ -457,7 +481,13 @@ bookingsRouter.delete('/bookings/:id', async (req, res, next) => {
       return refus(res, 409, 'Ce rendez-vous est déjà passé.');
     }
 
-    await prisma.booking.delete({ where: { id: rendezVous.id } });
+    // MARQUE, ET NON SUPPRIME. Le creneau se libere de la meme facon — tout ce
+    // qui calcule une disponibilite ecarte les lignes annulees — mais le
+    // commercant voit que quelqu'un s'est decommande. Voir src/lib/annulation.js.
+    await prisma.booking.update({
+      where: { id: rendezVous.id },
+      data: { annuleLe: new Date() },
+    });
     res.json({ ok: true, id: rendezVous.id });
   } catch (erreur) {
     next(erreur);
@@ -496,7 +526,7 @@ bookingsRouter.get('/admin/slots', requireAdmin, async (req, res, next) => {
     const [settings, horaires, reservations] = await Promise.all([
       loadSettings(),
       loadOpeningHours(),
-      prisma.booking.findMany({ where: { date } }),
+      prisma.booking.findMany({ where: { date, ...OCCUPENT } }),
     ]);
 
     const creneaux = computeSlots({
@@ -589,7 +619,7 @@ bookingsRouter.post('/admin/bookings', requireAdmin, async (req, res, next) => {
     if (!verdict.ok) return refus(res, 409, verdict.raison);
 
     const cree = await prisma.$transaction(async (tx) => {
-      const dejaPris = await tx.booking.findMany({ where: { date } });
+      const dejaPris = await tx.booking.findMany({ where: { date, ...OCCUPENT } });
 
       const attribution = attribuer({
         eligibles: equipe.eligibles,
@@ -681,7 +711,7 @@ bookingsRouter.patch('/admin/bookings/:id', requireAdmin, async (req, res, next)
         // Les orphelins restants continuent par ailleurs de bloquer la
         // reservation de nouveaux creneaux, tant qu'ils n'ont pas ete tries.
         const siens = await tx.booking.findMany({
-          where: { date: rendezVous.date, staffId, id: { not: rendezVous.id } },
+          where: { date: rendezVous.date, staffId, id: { not: rendezVous.id }, ...OCCUPENT },
         });
         if (!isFree(siens, rendezVous.startMin, rendezVous.durationMin)) return null;
       }

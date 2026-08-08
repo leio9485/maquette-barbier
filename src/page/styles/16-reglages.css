@@ -18,12 +18,16 @@
 
 .reglages-bloc { margin-bottom: var(--e5); }
 
+/* 22 px en Plex Sans Condensed, comme les têtes de rayon de la vitrine. À 18 px
+   elles se distinguaient à peine des intitulés de champ qu'elles surplombent,
+   et le formulaire — neuf sections, cent quatre-vingts champs — se lisait comme
+   une seule coulée. */
 .reglages-bloc h2 {
   margin-bottom: var(--e2);
   padding-bottom: var(--e1);
   border-bottom: 1px solid var(--filet);
-  font-size: var(--t-sous);
-  letter-spacing: 0;
+  font-size: var(--t-intro);
+  letter-spacing: var(--ls-section);
 }
 
 .reglages-bloc > .secondaire { margin-bottom: var(--e3); }
@@ -49,35 +53,63 @@
 
 .reglages-ligne:first-child { border-top: 1px solid var(--filet); }
 
+/* LA TÊTE DE LIGNE PORTE L'IDENTITÉ DE LA LIGNE, pas son rang.
+
+   Elle affichait « Rayon 3 », « Prestation 9 » : un intitulé qui ne dit que sa
+   position oblige à lire le champ juste en dessous pour savoir de quoi on
+   parle, et il y en a treize à la suite. Elle porte maintenant le numéro
+   d'ordre en chasse fixe (le repère du rail de la vitrine, appliqué au
+   formulaire), le nom réel, et la valeur qu'on vient vérifier — durée et tarif
+   pour une prestation, rôle pour une personne, nombre de prestations pour un
+   rayon. */
 .reglages-ligne-tete {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--e2);
+  gap: var(--e1) var(--e2);
   margin-bottom: var(--e2);
 }
 
-.reglages-ligne-titre {
-  font-family: var(--f-donnee);
+.reglages-ligne-numero {
+  flex: none;
   font-size: var(--t-etiq);
-  letter-spacing: var(--ls-etiq);
+  color: var(--acier);
+}
+
+.reglages-ligne-titre {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--f-titre);
+  font-size: var(--t-sous);
+  font-weight: var(--g-titre);
+  letter-spacing: 0;
   text-transform: uppercase;
+  color: var(--encre);
+}
+
+.reglages-ligne-appui {
+  flex: none;
+  font-size: var(--t-petit);
   color: var(--acier);
 }
 
 .reglages-ligne-actions {
+  flex: none;
   display: flex;
   align-items: center;
   gap: var(--e1);
 }
 
-/* Les boutons d'ordre et de suppression : carrés de 36 px, en chasse fixe.
-   Aucune icône — un pack d'icônes date une page, et « ↑ » « ↓ » « × » se lisent
-   dans toutes les polices depuis toujours. Le vrai libellé est dans
-   `aria-label`, pour les lecteurs d'écran. */
+/* Les boutons d'ordre : carrés de 44 px, en chasse fixe. Aucune icône — un pack
+   d'icônes date une page, et « ↑ » « ↓ » se lisent dans toutes les polices
+   depuis toujours. Le vrai libellé est dans `aria-label`.
+
+   44 et non 36 : c'est la cible tactile confortable, la même que tous les
+   autres contrôles du site. Un commerçant réordonne ses prestations depuis son
+   téléphone, au comptoir, entre deux clients. */
 .reglages-bouton {
-  width: 36px;
-  height: 36px;
+  min-width: 44px;
+  height: 44px;
   padding: 0;
   border: 1px solid var(--filet);
   background: none;
@@ -91,6 +123,26 @@
 
 .reglages-bouton:hover { border-color: var(--encre); }
 .reglages-bouton[disabled] { color: var(--acier); cursor: not-allowed; }
+
+/* Le seul bouton destructeur du formulaire prend un MOT. Il était une croix de
+   36 px posée à côté de deux flèches qui lui ressemblaient — la cible la plus
+   petite était aussi la seule irréversible. Le mot coûte trois centimètres et
+   supprime la classe entière des suppressions par erreur de visée. */
+.reglages-retirer {
+  padding: 0 var(--e2);
+  font-family: var(--f-titre);
+  font-size: var(--t-etiq);
+  font-weight: var(--g-titre);
+  letter-spacing: var(--ls-etiq);
+  text-transform: uppercase;
+  color: var(--acier);
+}
+
+.reglages-retirer:hover {
+  background: var(--encre);
+  border-color: var(--encre);
+  color: var(--craie);
+}
 
 /* Un élément mis en pause : il reste entièrement lisible, et le dit en toutes
    lettres. Baisser son opacité l'aurait fait passer sous le seuil de contraste,
@@ -120,6 +172,28 @@
   font-family: var(--f-donnee);
   font-size: var(--t-petit);
   min-width: 12ch;
+}
+
+/* La case « ouvert ce jour-là ». Elle sortait à sa taille native — 13 px, soit
+   la moitié des 24 que demande WCAG 2.2 (critère 2.5.8) — et c'est le premier
+   contrôle du volet des horaires : celui qu'on touche pour fermer un lundi.
+   Son intitulé est un `<label for>`, donc la cible réelle les couvre tous les
+   deux, mais la case elle-même doit rester visable. */
+.horaire-nom input[type="checkbox"] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--bleu-travail);
+  cursor: pointer;
+}
+
+/* L'intitulé du jour porte la cible sur toute sa hauteur. */
+.horaire-nom label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  cursor: pointer;
 }
 
 .horaire-plages {
@@ -152,6 +226,46 @@
   }
 }
 
+/* --- LES CASES À COCHER ----------------------------------------------------
+
+   Les prestations qu'une personne assure : treize cases par personne, trois
+   personnes. Elles n'avaient aucun style — la case native fait 13 px, soit la
+   moitié des 24 px que demande WCAG 2.2 (critère 2.5.8), et l'intitulé collé
+   contre elle n'était pas cliquable de façon évidente.
+
+   L'intitulé ENTIER devient la cible : c'est un `<label>` qui contient sa case,
+   donc le clic n'importe où dedans coche. La case reste la case native — un
+   carré de 18 px que le système dessine, coche et annonce ; la redessiner
+   coûterait vingt lignes pour perdre l'accessibilité au clavier.
+*/
+.reglages-cases {
+  display: grid;
+  gap: var(--e1);
+  margin: var(--e1) 0 var(--e2);
+}
+
+.reglages-case {
+  display: flex;
+  align-items: center;
+  gap: var(--e1);
+  min-height: 32px;
+  font-size: var(--t-petit);
+  cursor: pointer;
+}
+
+.reglages-case input {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--bleu-travail);
+  cursor: pointer;
+}
+
+@media (min-width: 640px) {
+  .reglages-cases { grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); }
+}
+
 /* --- LES PHOTOS ------------------------------------------------------------ */
 
 .reglages-photos {
@@ -161,11 +275,18 @@
 
 .reglages-photo-case { border: 1px solid var(--filet); }
 
+/* L'APERÇU EST AU RATIO DE L'EMPLACEMENT, pas à un ratio commun. La photo
+   d'accueil s'affiche large sur le site ; la montrer ici en 3:4, comme les
+   vignettes de la galerie, faisait juger un cadrage qui n'est pas celui qu'on
+   verra. L'aperçu doit dire la vérité sur ce qui sera publié — c'est tout son
+   rôle. */
 .reglages-photo-apercu {
   aspect-ratio: 3 / 4;
   background: var(--encre);
   overflow: hidden;
 }
+
+.reglages-photo-apercu[data-large] { aspect-ratio: 4 / 3; }
 
 .reglages-photo-apercu img {
   width: 100%;
@@ -176,8 +297,63 @@
 
 .reglages-photo-corps { padding: var(--e2); }
 
+.reglages-photo-nom {
+  margin: 0;
+  max-width: none;
+  font-family: var(--f-titre);
+  font-size: var(--t-sous);
+  font-weight: var(--g-titre);
+  text-transform: uppercase;
+  line-height: var(--lh-sous);
+}
+
+/* Où la photo va apparaître, en toutes lettres. L'emplacement s'appelait
+   « hero » et « galerie 1 » à l'écran : ce sont des identifiants de code, ils
+   ne disent rien à un barbier qui cherche laquelle de ses photos mettre où. */
+.reglages-photo-ou {
+  margin: 2px 0 var(--e2);
+  max-width: none;
+  font-size: var(--t-petit);
+  color: var(--acier);
+}
+
+.reglages-photo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e2);
+}
+
+/* Le déclencheur du sélecteur de fichier. C'est un `<label>` lié à un `<input
+   type="file">` masqué hors écran — donc un vrai déclencheur natif, que le
+   clavier atteint et qu'un lecteur d'écran annonce comme un champ de fichier.
+
+   Le `<input>` nu était le seul contrôle de la page dessiné par le navigateur
+   et non par le site : bouton gris système, et un « Aucun fichier sélectionné »
+   qui sort en anglais sur certaines machines. */
+.reglages-photo-actions label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 var(--e3);
+  font-size: var(--t-etiq);
+  cursor: pointer;
+}
+
+/* Le focus se voit sur le label, puisque le champ qu'il commande est hors
+   écran. Sans cette règle, une navigation au clavier passerait sur le bouton
+   sans rien allumer. */
+.reglages-photo-actions input:focus-visible + label {
+  outline: 2px solid var(--contour);
+  outline-offset: 2px;
+}
+
 @media (min-width: 640px) {
-  .reglages-photos { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  .reglages-photos { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  /* La photo d'accueil occupe deux colonnes : c'est la plus visible du site, et
+     son aperçu doit être le plus grand du volet. */
+  .reglages-photo-case[data-large] { grid-column: span 2; }
 }
 
 /* --- LE BROUILLON ----------------------------------------------------------

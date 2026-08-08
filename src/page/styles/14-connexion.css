@@ -96,6 +96,102 @@
   background: var(--craie);
 }
 
+/* --- LA BARRE DE L'ESPACE --------------------------------------------------
+
+   ⚠️ ELLE N'AVAIT AUCUN STYLE. Ni la barre, ni les deux onglets, ni le
+      conteneur du contenu : le balisage portait des classes que personne
+      n'avait écrites. L'espace commerçant s'affichait donc en HTML nu — deux
+      boutons de navigateur de 21 px collés en haut à gauche, le contenu au
+      ras du bord de l'écran. C'est la moitié de ce qu'on vend, et c'était la
+      seule partie du site à n'avoir jamais été dessinée.
+
+   Elle reprend la forme de l'en-tête de la vitrine : aplat encre, nom à
+   gauche, filet en bas. Le commerçant passe de l'un à l'autre par « Voir le
+   site » — les deux doivent se ressembler.
+*/
+.espace-barre {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--encre);
+  color: var(--craie);
+  border-bottom: 1px solid var(--filet-sombre);
+  --acier: var(--acier-clair);
+  --filet: var(--filet-sombre);
+  --contour: var(--craie);
+}
+
+.espace-barre-corps {
+  max-width: var(--largeur-max);
+  margin: 0 auto;
+  padding: var(--e2) var(--marge);
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e2) var(--e4);
+}
+
+.espace-marque { margin: 0; max-width: none; }
+
+.espace-marque .etiquette { display: block; }
+
+.espace-nom {
+  display: block;
+  font-family: var(--f-titre);
+  font-size: var(--t-sous);
+  font-weight: var(--g-titre);
+  text-transform: uppercase;
+  line-height: var(--lh-sous);
+}
+
+/* Les deux volets. Un filet épais sous celui qui est ouvert — la même écriture
+   que la frise du tunnel : c'est la couleur qui marque l'état, pas l'épaisseur,
+   pour que rien ne se décale d'un pixel au changement. */
+.espace-onglets {
+  display: flex;
+  gap: var(--e3);
+  margin-right: auto;
+}
+
+.espace-onglet {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--acier);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.espace-onglet:hover { color: var(--craie); }
+
+.espace-onglet[aria-current] {
+  color: var(--craie);
+  border-bottom-color: var(--craie);
+}
+
+.espace-barre-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e3);
+}
+
+.espace-corps {
+  max-width: var(--largeur-max);
+  margin: 0 auto;
+  padding: var(--e4) var(--marge) var(--e6);
+}
+
+@media (min-width: 768px) {
+  .espace-corps { padding-top: var(--e5); }
+}
+
 /* --- LA CONNEXION ---------------------------------------------------------- */
 
 .connexion {

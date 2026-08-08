@@ -170,6 +170,34 @@ apparaît dès qu'une note est saisie, ainsi que son rappel en tête de la secti
 `salon.links.google`, vide lui aussi). **Sur la démonstration, ces deux champs
 sont donc les deux lignes à remplir pour montrer la section complète.**
 
+### L'espace commerçant
+
+**L'agenda est une liste, plus une grille.** Il dessinait une case cliquable
+toutes les demi-heures, de l'ouverture à la fermeture, par personne : un samedi
+de 8h30 à 17h faisait cinquante et une cases pour trois rendez-vous. On ouvrait
+son agenda et on voyait du vide quadrillé. Il montre maintenant les rendez-vous
+du jour, dans l'ordre, dans la même forme que la liste tarifaire de la vitrine.
+La vue semaine est sept fois cette journée, en deux colonnes à partir de
+900 px — pas un second dessin à maintenir. « Noter un rendez-vous » est passé
+du clic dans une case vide à un bouton en tête, qui ouvre le même formulaire.
+
+⚠️ **L'ossature de l'espace n'avait aucun style.** Ni la barre, ni les onglets,
+ni le conteneur du contenu : le balisage portait des classes que personne
+n'avait écrites, et tout s'affichait en HTML nu. C'est la moitié de ce qu'on
+vend. Elle est aujourd'hui dans `14-connexion.css`, sur le même aplat encre que
+l'en-tête de la vitrine — le commerçant passe de l'un à l'autre, les deux
+doivent se ressembler.
+
+**Les têtes de ligne des réglages portent l'identité, pas le rang.** Elles
+disaient « Rayon 3 », « Prestation 9 » : il fallait lire le champ du dessous
+pour savoir de quoi on parlait, treize fois de suite. Elles portent maintenant
+le numéro d'ordre en chasse fixe, le nom réel, et la valeur qu'on vient
+vérifier — durée et tarif, rôle, nombre de prestations.
+
+**La suppression a pris un mot.** C'était une croix de 36 px entre deux flèches
+qui lui ressemblaient : la cible la plus petite du formulaire était aussi la
+seule irréversible.
+
 ### Le ton des textes
 
 Phrases courtes, voix active, minuscules après la première lettre. On dit ce que

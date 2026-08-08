@@ -162,16 +162,41 @@ function relireHoraire(jour) {
 
 // --- Les rayons -------------------------------------------------------------
 
-/** Les boutons d'ordre et de suppression d'une ligne. */
+/**
+ * Les boutons d'ordre et de suppression d'une ligne.
+ *
+ * LES DEUX FLECHES GARDENT LEUR SYMBOLE, LA SUPPRESSION PREND UN MOT.
+ *
+ * Monter et descendre sont sans equivoque et sans consequence : on se trompe,
+ * on reclique. La croix, elle, etait le seul bouton destructeur du formulaire
+ * et le plus petit — 36 px, un caractere, a cote de deux fleches qui lui
+ * ressemblaient. Le mot « Retirer » coute trois centimetres de largeur et
+ * supprime la classe entiere des suppressions par erreur de visee.
+ *
+ * (Le retrait n'est de toute facon jamais immediat : il faut encore
+ * enregistrer, et le serveur redemande confirmation quand des rendez-vous en
+ * dependent.)
+ */
 function boutonsLigne(type, index, total) {
   return '<div class="reglages-ligne-actions">'
     + `<button type="button" class="reglages-bouton" data-monter="${type}" data-index="${index}"`
       + `${index === 0 ? ' disabled' : ''} aria-label="Monter">↑</button>`
     + `<button type="button" class="reglages-bouton" data-descendre="${type}" data-index="${index}"`
       + `${index === total - 1 ? ' disabled' : ''} aria-label="Descendre">↓</button>`
-    + `<button type="button" class="reglages-bouton" data-supprimer="${type}" data-index="${index}"`
-      + ' aria-label="Supprimer">×</button>'
+    + `<button type="button" class="reglages-bouton reglages-retirer" data-supprimer="${type}" data-index="${index}">`
+      + 'Retirer</button>'
     + '</div>';
+}
+
+/**
+ * Le numero d'ordre d'une ligne, en chasse fixe.
+ *
+ * C'est le repere du rail de la vitrine, applique aux formulaires : sur une
+ * liste de treize prestations, savoir qu'on est a la neuvieme est ce qui permet
+ * de s'y retrouver apres avoir fait defiler.
+ */
+function numeroLigne(index) {
+  return `<span class="reglages-ligne-numero donnee">${String(index + 1).padStart(2, '0')}</span>`;
 }
 
 function peindreCategoriesReglages() {
@@ -180,9 +205,18 @@ function peindreCategoriesReglages() {
 
   const rayons = brouillon().categories;
 
-  cible.innerHTML = rayons.map((c, index) => '<div class="reglages-ligne">'
+  // Le titre de la ligne porte le NOM DU RAYON, pas « Rayon 3 ». Un intitule
+  // qui ne dit que sa position oblige a lire le champ juste en dessous pour
+  // savoir de quoi on parle — et il y en a quatre a la suite.
+  cible.innerHTML = rayons.map((c, index) => {
+    const dedans = brouillon().services.filter((s) => s.category === c.id).length;
+    const compte = dedans > 1 ? `${dedans} prestations` : `${dedans} prestation`;
+
+    return '<div class="reglages-ligne">'
     + '<div class="reglages-ligne-tete">'
-      + `<span class="reglages-ligne-titre">Rayon ${index + 1}</span>`
+      + numeroLigne(index)
+      + `<span class="reglages-ligne-titre">${esc(c.name || 'Nouveau rayon')}</span>`
+      + `<span class="reglages-ligne-appui donnee">${esc(compte)}</span>`
       + boutonsLigne('categorie', index, rayons.length)
     + '</div>'
     + '<div class="reglages-grille">'
@@ -195,7 +229,8 @@ function peindreCategoriesReglages() {
         + `<input type="text" id="cat-desc-${index}" data-liste="categories" data-index="${index}" data-cle="desc" value="${esc(c.desc || '')}">`
       + '</div>'
     + '</div>'
-    + '</div>').join('');
+    + '</div>';
+  }).join('');
 }
 
 // --- Les prestations --------------------------------------------------------
@@ -212,9 +247,15 @@ function peindrePrestationsReglages() {
       .concat(rayons.map((c) => `<option value="${esc(c.id)}"${c.id === s.category ? ' selected' : ''}>${esc(c.name)}</option>`))
       .join('');
 
+    // La tete rappelle la duree et le tarif : ce sont les deux valeurs qu'on
+    // vient verifier, et les relire dans la tete evite d'ouvrir les champs.
+    const appui = [fmtDuree(s.duration), fmtPrix(s.price)].join(' · ');
+
     return `<div class="reglages-ligne"${s.active === false ? ' data-pause' : ''}>`
       + '<div class="reglages-ligne-tete">'
-        + `<span class="reglages-ligne-titre">${esc(s.name || 'Prestation ' + (index + 1))}</span>`
+        + numeroLigne(index)
+        + `<span class="reglages-ligne-titre">${esc(s.name || 'Nouvelle prestation')}</span>`
+        + `<span class="reglages-ligne-appui donnee">${esc(appui)}</span>`
         + boutonsLigne('service', index, prestations.length)
       + '</div>'
       + '<div class="reglages-grille">'
@@ -286,7 +327,9 @@ function peindreEquipeReglages() {
 
     return `<div class="reglages-ligne"${p.active === false ? ' data-pause' : ''}>`
       + '<div class="reglages-ligne-tete">'
-        + `<span class="reglages-ligne-titre">${esc(p.name || 'Personne ' + (index + 1))}</span>`
+        + numeroLigne(index)
+        + `<span class="reglages-ligne-titre">${esc(p.name || 'Nouvelle personne')}</span>`
+        + (p.role ? `<span class="reglages-ligne-appui donnee">${esc(p.role)}</span>` : '')
         + boutonsLigne('staff', index, equipe.length)
       + '</div>'
       + '<div class="reglages-grille">'
@@ -354,20 +397,43 @@ async function peindrePhotosReglages() {
     // doit pas empecher de regler le reste.
   }
 
-  const emplacements = ['hero', 'galerie-1', 'galerie-2', 'galerie-3', 'galerie-4'];
+  // Chaque emplacement porte son NOM D'USAGE et son cadrage, pas son
+  // identifiant technique. « hero » et « galerie 1 » ne disent rien a un
+  // barbier ; « la grande photo du haut » lui dit ou elle va apparaitre, et
+  // c'est la seule chose qu'il a besoin de savoir pour choisir la bonne image.
+  const emplacements = [
+    { id: 'hero', nom: "Photo d'accueil", ou: 'La grande photo du haut, à côté du titre.', large: true },
+    { id: 'galerie-1', nom: 'Galerie — 1', ou: 'Première vignette de la planche.' },
+    { id: 'galerie-2', nom: 'Galerie — 2', ou: 'Deuxième vignette.' },
+    { id: 'galerie-3', nom: 'Galerie — 3', ou: 'Troisième vignette.' },
+    { id: 'galerie-4', nom: 'Galerie — 4', ou: 'Quatrième vignette.' },
+  ];
 
-  cible.innerHTML = emplacements.map((nom) => {
-    const photo = photos[nom];
+  cible.innerHTML = emplacements.map((e) => {
+    const photo = photos[e.id];
     const apercu = photo?.url
       ? `<img src="${esc(photo.url)}" alt="">`
       : '<p class="reserve">Aucune photo</p>';
 
-    return '<div class="reglages-photo-case">'
-      + `<div class="reglages-photo-apercu">${apercu}</div>`
+    // L'INPUT DE FICHIER EST MASQUE, SON LABEL FAIT LE BOUTON. Un
+    // `<input type="file">` nu est le seul controle de la page que le
+    // navigateur dessine a sa facon — bouton gris systeme, texte « Aucun
+    // fichier selectionne » en anglais sur certaines machines. Le label est un
+    // vrai declencheur natif : le clic ouvre le selecteur, le clavier aussi
+    // (l'input reste focusable, il est deplace hors ecran et non `hidden`), et
+    // le lecteur d'ecran annonce toujours un champ de fichier.
+    return `<div class="reglages-photo-case"${e.large ? ' data-large' : ''}>`
+      + `<div class="reglages-photo-apercu"${e.large ? ' data-large' : ''}>${apercu}</div>`
       + '<div class="reglages-photo-corps">'
-        + `<p class="etiquette">${esc(nom.replace('-', ' '))}</p>`
-        + `<input type="file" accept="image/*" data-photo-vitrine="${esc(nom)}" aria-label="${esc('Déposer une photo pour ' + nom)}">`
-        + (photo?.url ? `<button type="button" class="lien-nu" data-retirer-photo="${esc(nom)}">Retirer</button>` : '')
+        + `<p class="reglages-photo-nom">${esc(e.nom)}</p>`
+        + `<p class="reglages-photo-ou">${esc(e.ou)}</p>`
+        + '<div class="reglages-photo-actions">'
+          + `<input type="file" accept="image/*" class="hors-ecran" id="photo-${esc(e.id)}" data-photo-vitrine="${esc(e.id)}">`
+          + `<label class="action-douce" for="photo-${esc(e.id)}">`
+            + (photo?.url ? 'Remplacer' : 'Choisir une photo')
+          + '</label>'
+          + (photo?.url ? `<button type="button" class="lien-nu" data-retirer-photo="${esc(e.id)}">Retirer</button>` : '')
+        + '</div>'
       + '</div>'
       + '</div>';
   }).join('');

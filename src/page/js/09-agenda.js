@@ -1,31 +1,30 @@
 // ---------------------------------------------------------------------------
 // L'AGENDA
 //
-// L'ecran que le commercant ouvre vingt fois par jour. Vue jour ou semaine, une
-// colonne par personne des qu'il y en a deux d'actives.
+// L'ecran que le commercant ouvre vingt fois par jour.
 //
-// LA REGLE DE POSITION : une minute vaut `ECHELLE` pixels. Tout le reste en
-// decoule — la hauteur d'un rendez-vous, la place d'un blocage, la position
-// d'une case vide. Une seule constante a changer pour resserrer ou aerer.
+// ⚠️ UNE LISTE DE RENDEZ-VOUS, PLUS UNE GRILLE HORAIRE.
+//
+// C'etait une grille : une colonne par personne, une case cliquable toutes les
+// demi-heures de l'ouverture a la fermeture, les rendez-vous poses dessus en
+// position absolue. Un samedi de 8h30 a 17h faisait dix-sept cases par
+// personne, cinquante et une en tout — pour trois rendez-vous. Le commercant
+// ouvrait son agenda et voyait du vide quadrille.
+//
+// Une journee de barbier n'est pas un emploi du temps a remplir : c'est une
+// liste de gens qui passent. On affiche donc les rendez-vous, dans l'ordre, et
+// rien d'autre. Le vide ne se dessine pas — il se dit en une ligne.
+//
+// Ce qui a ete conserve : « Noter un rendez-vous » est un bouton en tete plutot
+// qu'un clic dans une case vide, et il ouvre le meme formulaire.
 // ---------------------------------------------------------------------------
-
-/** Hauteur d'une minute, en pixels. 32 px pour 30 minutes. */
-const ECHELLE = 32 / 30;
 
 /** Les rendez-vous de la periode affichee, ranges par jour. */
 let AGENDA = new Map();
 
-/** L'amplitude d'une journee : de la premiere ouverture a la derniere fermeture. */
-function amplitudeDuJour(iso) {
-  const plages = plagesDuJour(CONFIG?.hours[jourDeLaSemaine(iso)]);
-  if (!plages.length) return null;
-  return [plages[0][0], plages[plages.length - 1][1]];
-}
-
-/** Les personnes qui ont une colonne. Vide = un seul agenda, sans colonne. */
-function colonnesDe() {
-  const equipe = (CONFIG?.staff ?? []).filter((p) => p.active !== false);
-  return equipe.length >= 2 ? equipe : [];
+/** Les personnes actives, pour nommer qui prend le rendez-vous. */
+function equipeActive() {
+  return (CONFIG?.staff ?? []).filter((p) => p.active !== false);
 }
 
 /** Les jours affiches, selon la vue. */
@@ -71,144 +70,96 @@ function peindreAgenda() {
   const cible = $('#agenda');
   if (!cible || !CONFIG) return;
 
+  cible.dataset.vue = ESPACE.vue;
   cible.innerHTML = joursAffiches().map(peindreJour).join('');
 }
 
+/** Les rendez-vous d'un jour, dans l'ordre, blocages compris. */
+function rdvTriesDe(iso) {
+  return [...(AGENDA.get(iso) ?? [])].sort((a, b) => a.start - b.start);
+}
+
+/** « 3 rendez-vous », « 1 rendez-vous », « — ». */
+function compteDe(liste) {
+  const vrais = liste.filter((r) => r.type !== 'block').length;
+  if (!vrais) return '';
+  return vrais > 1 ? `${vrais} rendez-vous` : '1 rendez-vous';
+}
+
+/**
+ * Une journee.
+ *
+ * En vue jour comme en vue semaine : meme forme, meme balisage. C'est ce qui
+ * fait que la semaine n'est pas un second dessin a maintenir — c'est sept fois
+ * la journee, en plus resserre (voir 15-agenda.css).
+ */
 function peindreJour(iso) {
-  const amplitude = amplitudeDuJour(iso);
-  const colonnes = colonnesDe();
-  const rdvDuJour = AGENDA.get(iso) ?? [];
+  const liste = rdvTriesDe(iso);
+  const ouvert = plagesDuJour(CONFIG?.hours[jourDeLaSemaine(iso)]).length > 0;
 
-  const titre = `<p class="agenda-jour-titre"${iso === aujourdhui() ? ' data-aujourdhui' : ''}>`
-    + esc(dateLongue(iso)) + '</p>';
+  const nom = dateLongue(iso);
+  const compte = compteDe(liste);
 
-  // Jour de fermeture habituelle : on le dit, et on ne dessine pas de grille
-  // vide de douze heures pour rien.
-  if (!amplitude) {
-    return `<div class="agenda-jour">${titre}`
-      + '<p class="secondaire petit">Fermé.</p></div>';
-  }
-
-  const [ouverture, fermeture] = amplitude;
-  const hauteur = (fermeture - ouverture) * ECHELLE;
-
-  // La colonne des heures, une ligne par demi-heure.
-  const heures = [];
-  for (let t = ouverture; t < fermeture; t += 30) {
-    heures.push(`<div class="agenda-heure">${fmtHeure(t)}</div>`);
-  }
-
-  const pistes = colonnes.length
-    ? colonnes.map((p) => pisteDe(iso, p, ouverture, fermeture, rdvDuJour)).join('')
-    : pisteDe(iso, null, ouverture, fermeture, rdvDuJour);
-
-  return `<div class="agenda-jour">${titre}`
-    + `<div class="agenda-colonnes" style="--colonnes:${colonnes.length || 1}">`
-      + `<div class="agenda-heures">${heures.join('')}</div>`
-      + pistes
-    + '</div></div>';
-}
-
-/**
- * Une colonne : son en-tete, ses rendez-vous, ses zones inaccessibles.
- *
- * `personne` a `null` quand le commerce n'a pas d'equipe : il y a alors une
- * seule piste, et l'en-tete disparait — un agenda a une colonne n'a pas besoin
- * qu'on lui dise de qui elle est.
- */
-function pisteDe(iso, personne, ouverture, fermeture, rdvDuJour) {
-  const hauteur = (fermeture - ouverture) * ECHELLE;
-  const haut = (minutes) => (minutes - ouverture) * ECHELLE;
-
-  const tete = personne
-    ? `<div class="agenda-colonne-tete" data-couleur style="border-bottom-color:${esc(personne.color || '#24405C')}">${esc(personne.name)}</div>`
-    : '';
-
-  const elements = [];
-
-  // Ce qui n'appartient a personne — la pause du midi, et les heures hors des
-  // horaires propres de cette personne. Dessine AVANT les rendez-vous : c'est
-  // le fond, pas le contenu.
-  for (const [debut, fin] of creuxDe(iso, personne, ouverture, fermeture)) {
-    elements.push(`<div class="agenda-hors" style="top:${haut(debut)}px;height:${(fin - debut) * ECHELLE}px"></div>`);
-  }
-
-  // Les cases cliquables, toutes les 30 minutes. Cliquer ouvre le formulaire
-  // avec la date, l'heure et la personne deja remplies : c'est le geste le plus
-  // frequent de la journee, un client au telephone qu'on cale tout de suite.
-  for (let t = ouverture; t < fermeture; t += 30) {
-    elements.push(`<button type="button" class="agenda-creux"`
-      + ` style="top:${haut(t)}px;height:${30 * ECHELLE}px"`
-      + ` data-caler="${esc(iso)}" data-heure="${t}"`
-      + (personne ? ` data-qui="${esc(personne.id)}"` : '')
-      + ` aria-label="Noter un rendez-vous le ${esc(dateLongue(iso))} à ${fmtHeure(t)}"></button>`);
-  }
-
-  for (const rdv of rdvDuJour) {
-    // Un rendez-vous sans personne attribuee occupe TOUT LE MONDE : c'est la
-    // regle du serveur, et l'agenda doit la montrer telle quelle. Il apparait
-    // donc dans chaque colonne.
-    if (personne && rdv.staffId && rdv.staffId !== personne.id) continue;
-
-    if (rdv.type === 'block') {
-      elements.push(`<div class="agenda-bloc" style="top:${haut(rdv.start)}px;height:${rdv.duration * ECHELLE}px">`
-        + esc(rdv.notes || 'Bloqué') + '</div>');
-      continue;
-    }
-
-    const prestation = CONFIG.services.find((s) => s.id === rdv.serviceId);
-
-    elements.push(`<button type="button" class="agenda-rdv"`
-      + ` style="top:${haut(rdv.start)}px;height:${rdv.duration * ECHELLE}px;border-left-color:${esc(couleurDe(rdv))}"`
-      + ` data-rdv="${esc(rdv.id)}" data-source="${esc(rdv.source || '')}"`
-      + ` title="${esc(`${fmtHeure(rdv.start)} — ${rdv.name}${rdv.phone ? ' · ' + rdv.phone : ''}`)}">`
-      + `<span class="agenda-rdv-heure">${fmtHeure(rdv.start)}</span>`
-      + `<span class="agenda-rdv-nom">${esc(rdv.name)}</span>`
-      + `<span class="agenda-rdv-quoi">${esc(prestation?.name ?? '')}</span>`
-      + '</button>');
-  }
-
-  return `<div class="agenda-colonne">${tete}`
-    + `<div class="agenda-piste" style="height:${hauteur}px">${elements.join('')}</div>`
+  const tete = `<div class="agenda-jour-tete"${iso === aujourdhui() ? ' data-aujourdhui' : ''}>`
+    + `<p class="agenda-jour-nom">${esc(nom.charAt(0).toUpperCase() + nom.slice(1))}`
+      + (iso === aujourdhui() ? ' <span class="agenda-marque">Aujourd\'hui</span>' : '')
+    + '</p>'
+    + `<p class="agenda-jour-compte donnee">${esc(compte || (ouvert ? 'Rien de prévu' : 'Fermé'))}</p>`
     + '</div>';
-}
 
-/** La couleur de la personne qui assure ce rendez-vous. */
-function couleurDe(rdv) {
-  return CONFIG?.staff.find((s) => s.id === rdv.staffId)?.color || '#16191B';
+  // Un jour ferme SANS rendez-vous ne montre rien de plus. Un jour ferme AVEC
+  // un rendez-vous, si : c'est une exception qu'il faut voir, pas cacher.
+  if (!liste.length) {
+    return `<section class="agenda-jour">${tete}</section>`;
+  }
+
+  return `<section class="agenda-jour">${tete}`
+    + `<ul class="agenda-liste">${liste.map((r) => ligneRdv(r, iso)).join('')}</ul>`
+    + '</section>';
 }
 
 /**
- * Les moments ou cette colonne ne peut rien recevoir : la pause du commerce, et
- * les heures hors des horaires propres de la personne.
+ * Une ligne de rendez-vous, dans la langue du site : l'heure en chasse fixe a
+ * gauche, le nom, la prestation, la personne.
  *
- * Calcule par difference entre l'amplitude affichee et les plages reellement
- * travaillees — la meme lecture que `plagesTravaillees()` cote serveur.
+ * La couleur de la personne tient dans un filet de 3 px a gauche, et son PRENOM
+ * est ecrit a cote : une information portee par la seule couleur est une
+ * information perdue pour qui ne la distingue pas — et le commercant qui
+ * imprime sa journee en noir et blanc est dans ce cas.
  */
-function creuxDe(iso, personne, ouverture, fermeture) {
-  const jour = jourDeLaSemaine(iso);
+function ligneRdv(rdv, iso) {
+  const fin = fmtHeure(rdv.start + rdv.duration);
 
-  const duCommerce = plagesDuJour(CONFIG.hours[jour]);
-  const siennes = personne?.hours ? plagesDuJour(personne.hours[jour]) : null;
-
-  // L'intersection : les horaires d'une personne ne peuvent que REDUIRE ceux du
-  // commerce, jamais les etendre.
-  const travaillees = siennes
-    ? duCommerce.flatMap(([o1, f1]) => siennes
-      .map(([o2, f2]) => [Math.max(o1, o2), Math.min(f1, f2)])
-      .filter(([o, f]) => f > o))
-    : duCommerce;
-
-  const creux = [];
-  let curseur = ouverture;
-
-  for (const [debut, fin] of travaillees.sort((a, b) => a[0] - b[0])) {
-    if (debut > curseur) creux.push([curseur, debut]);
-    curseur = Math.max(curseur, fin);
+  if (rdv.type === 'block') {
+    return '<li class="agenda-ligne agenda-ligne-bloc">'
+      + `<span class="agenda-heure donnee">${fmtHeure(rdv.start)}<span class="agenda-fin"> → ${fin}</span></span>`
+      + '<span class="agenda-corps">'
+        + `<span class="agenda-nom">${esc(rdv.notes || 'Bloqué')}</span>`
+        + '<span class="agenda-quoi">Période bloquée</span>'
+      + '</span>'
+      + '</li>';
   }
-  if (curseur < fermeture) creux.push([curseur, fermeture]);
 
-  return creux;
+  const prestation = CONFIG.services.find((s) => s.id === rdv.serviceId);
+  const personne = CONFIG.staff.find((s) => s.id === rdv.staffId);
+
+  const detail = [prestation?.name, fmtDuree(rdv.duration)].filter(Boolean).join(' · ');
+
+  return '<li class="agenda-ligne">'
+    + `<button type="button" class="agenda-rdv" data-rdv="${esc(rdv.id)}" data-source="${esc(rdv.source || '')}"`
+      + (personne ? ` style="--teinte:${esc(personne.color || '#24405C')}"` : '')
+      + `>`
+      + `<span class="agenda-heure donnee">${fmtHeure(rdv.start)}<span class="agenda-fin"> → ${fin}</span></span>`
+      + '<span class="agenda-corps">'
+        + `<span class="agenda-nom">${esc(rdv.name)}</span>`
+        + `<span class="agenda-quoi">${esc(detail)}</span>`
+      + '</span>'
+      + '<span class="agenda-cote donnee">'
+        + (personne ? `<span class="agenda-qui">${esc(personne.name)}</span>` : '')
+        + (rdv.phone ? `<span class="agenda-tel">${esc(rdv.phone)}</span>` : '')
+      + '</span>'
+    + '</button>'
+    + '</li>';
 }
 
 // --- Les actions ------------------------------------------------------------
@@ -222,7 +173,7 @@ function ouvrirAjout({ date = ESPACE.date, heure = null, qui = '' } = {}) {
       .join('');
   }
 
-  const colonnes = colonnesDe();
+  const colonnes = equipeActive();
   const choixQui = $('#rdvQui');
   montrer($('#champRdvQui'), colonnes.length > 0);
   if (choixQui && colonnes.length) {
@@ -347,7 +298,7 @@ async function envoyerBlocage(evenement) {
 }
 
 function ouvrirBlocage() {
-  const colonnes = colonnesDe();
+  const colonnes = equipeActive();
   const choix = $('#blocageQui');
 
   montrer($('#champBlocageQui'), colonnes.length > 0);
@@ -393,16 +344,9 @@ function brancherAgenda() {
   $('#ouvrirAjoutRdv')?.addEventListener('click', () => ouvrirAjout());
   $('#ouvrirBlocage')?.addEventListener('click', ouvrirBlocage);
 
+  // Les cases vides cliquables ont disparu avec la grille : on note un
+  // rendez-vous par le bouton en tete, qui ouvre le meme formulaire.
   $('#agenda')?.addEventListener('click', (evenement) => {
-    const creux = evenement.target.closest('[data-caler]');
-    if (creux) {
-      return ouvrirAjout({
-        date: creux.dataset.caler,
-        heure: Number(creux.dataset.heure),
-        qui: creux.dataset.qui || '',
-      });
-    }
-
     const rdv = evenement.target.closest('[data-rdv]');
     if (rdv) retirerRdv(rdv.dataset.rdv);
   });

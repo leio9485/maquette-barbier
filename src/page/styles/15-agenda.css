@@ -1,102 +1,28 @@
 /* ---------------------------------------------------------------------------
-   L'AGENDA
+   L'AGENDA DU COMMERÇANT
 
-   Une colonne par personne dès qu'il y en a deux d'actives, une grille horaire
-   à gauche, les rendez-vous posés dessus. C'est l'écran que le commerçant ouvre
-   vingt fois par jour : il doit se lire d'un coup d'œil, sans une seule
-   décoration.
+   ⚠️ UNE LISTE, PLUS UNE GRILLE. Le motif complet est en tête de
+      js/09-agenda.js : un samedi de 8h30 à 17h dessinait cinquante et une
+      cases vides pour trois rendez-vous. Le commerçant ouvrait son agenda et
+      voyait du vide quadrillé.
+
+   La forme est celle de tout le site — une ligne pleine largeur, un filet
+   entre chaque, l'heure en chasse fixe à gauche. La même que la liste
+   tarifaire de la vitrine, appliquée à un autre contenu. C'est ce qui fait que
+   l'espace commerçant n'a pas l'air d'un second site.
    --------------------------------------------------------------------------- */
 
-.espace-barre {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: var(--encre);
-  color: var(--craie);
-  border-bottom: 1px solid var(--filet-sombre);
-}
-
-.espace-barre-corps {
-  max-width: var(--largeur-max);
-  margin: 0 auto;
-  padding: var(--e2) var(--marge);
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--e2) var(--e3);
-}
-
-.espace-marque { margin: 0; max-width: none; }
-.espace-marque .etiquette { display: block; color: var(--acier-clair); }
-
-.espace-nom {
-  font-family: var(--f-titre);
-  font-weight: var(--g-titre);
-  text-transform: uppercase;
-  font-size: var(--t-sous);
-}
-
-.espace-onglets {
-  display: flex;
-  gap: var(--e1);
-  margin-left: auto;
-}
-
-.espace-onglet {
-  min-height: 40px;
-  padding: 0 var(--e2);
-  border: 1px solid var(--filet-sombre);
-  background: none;
-  color: var(--acier-clair);
-  font: inherit;
-  letter-spacing: var(--ls-etiq);
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background-color var(--transition), color var(--transition),
-              border-color var(--transition);
-}
-
-.espace-onglet:hover { color: var(--craie); border-color: var(--craie); }
-
-/* L'onglet ouvert : aplat craie, texte encre. `aria-current` porte
-   l'information plutôt qu'une classe — c'est ce que lit un lecteur d'écran, et
-   ça évite d'avoir à tenir les deux à jour. */
-.espace-onglet[aria-current="true"] {
-  background: var(--craie);
-  border-color: var(--craie);
-  color: var(--encre);
-}
-
-.espace-barre-actions {
-  display: flex;
-  gap: var(--e2);
-}
-
-.espace-barre-actions .lien-nu {
-  font-family: var(--f-donnee);
-  font-size: var(--t-etiq);
-  letter-spacing: var(--ls-etiq);
-  text-transform: uppercase;
-  color: var(--acier-clair);
-}
-
-.espace-barre-actions .lien-nu:hover { color: var(--craie); }
-
-.espace-corps {
-  max-width: var(--largeur-max);
-  margin: 0 auto;
-  padding: var(--e4) var(--marge) var(--e6);
-}
-
-/* --- LA TÊTE DE L'AGENDA --------------------------------------------------- */
+/* --- L'EN-TÊTE : période, navigation, vue ---------------------------------- */
 
 .agenda-tete {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--e2);
+  gap: var(--e2) var(--e3);
   margin-bottom: var(--e3);
+  padding-bottom: var(--e2);
+  border-bottom: 1px solid var(--filet);
 }
 
 .agenda-navigation {
@@ -107,196 +33,188 @@
 
 .agenda-periode {
   margin: 0;
-  color: var(--encre);
   min-width: 14ch;
+  color: var(--encre);
 }
 
-.agenda-navigation .lien-nu {
+/* Les deux flèches de période. Elles vivaient dans le style du tunnel, où le
+   calendrier a disparu : elles sont ici parce que c'est ici qu'elles servent. */
+.agenda-fleche {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  padding: 0;
+  border: 1px solid var(--filet);
+  background: none;
+  color: var(--encre);
   font-family: var(--f-donnee);
-  font-size: var(--t-etiq);
-  letter-spacing: var(--ls-etiq);
-  text-transform: uppercase;
-  color: var(--bleu-travail);
+  font-size: var(--t-intro);
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color var(--transition), background-color var(--transition);
 }
+
+.agenda-fleche:hover { border-color: var(--encre); }
 
 .agenda-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--e2);
-  margin-bottom: var(--e3);
+  margin-bottom: var(--e4);
 }
 
-/* --- LA GRILLE ------------------------------------------------------------- */
-
-.agenda {
-  border-top: 1px solid var(--filet);
-  /* La grille peut être plus large que l'écran quand il y a trois personnes sur
-     un téléphone : elle défile DANS SON PROPRE CADRE, jamais la page entière.
-     C'est la seule façon d'avoir un agenda multi-colonnes sur petit écran sans
-     casser la règle « aucun défilement horizontal de la page ». */
-  overflow-x: auto;
-}
+/* --- UNE JOURNÉE ----------------------------------------------------------- */
 
 .agenda-jour + .agenda-jour { margin-top: var(--e4); }
 
-.agenda-jour-titre {
-  position: sticky;
-  left: 0;
-  padding: var(--e2) 0 var(--e1);
-  font-family: var(--f-donnee);
-  font-size: var(--t-etiq);
-  letter-spacing: var(--ls-etiq);
-  text-transform: uppercase;
-  color: var(--acier);
-}
-
-.agenda-jour-titre[data-aujourdhui] { color: var(--encre); }
-
-/* Une journée : la colonne des heures, puis une colonne par personne. */
-.agenda-colonnes {
-  display: grid;
-  grid-template-columns: 5.5ch repeat(var(--colonnes, 1), minmax(120px, 1fr));
-  gap: 1px;
-  background: var(--filet);
-  border: 1px solid var(--filet);
-}
-
-.agenda-colonne { background: var(--craie); }
-
-.agenda-colonne-tete {
-  position: sticky;
-  top: 0;
-  padding: var(--e1);
-  background: var(--craie);
+.agenda-jour-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--e1) var(--e2);
+  padding-bottom: var(--e1);
   border-bottom: 1px solid var(--filet);
-  font-family: var(--f-donnee);
-  font-size: var(--t-etiq);
-  letter-spacing: var(--ls-etiq);
-  text-transform: uppercase;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-/* La couleur de la personne, réduite à un filet de 3 px sous son nom. Pas de
-   pastille, pas de fond teinté : la couleur repère la colonne, elle ne la
-   décore pas. */
-.agenda-colonne-tete[data-couleur] { border-bottom-width: 3px; }
+.agenda-jour-nom {
+  margin: 0;
+  max-width: none;
+  font-family: var(--f-titre);
+  font-size: var(--t-sous);
+  font-weight: var(--g-titre);
+  text-transform: uppercase;
+  line-height: var(--lh-sous);
+}
 
-.agenda-heures {
-  background: var(--craie);
+/* Aujourd'hui, marqué par un mot et pas seulement par une graisse : le
+   commerçant qui parcourt sa semaine doit trouver le jour en cours du regard,
+   et un mot se lit aussi à voix haute. */
+.agenda-marque {
   font-family: var(--f-donnee);
   font-size: var(--t-etiq);
+  font-weight: 400;
+  letter-spacing: var(--ls-etiq);
+  color: var(--vert-signal);
+}
+
+.agenda-jour-compte {
+  margin: 0;
+  max-width: none;
+  font-size: var(--t-petit);
   color: var(--acier);
 }
+
+/* --- UNE LIGNE DE RENDEZ-VOUS ---------------------------------------------- */
+
+.agenda-liste { margin: 0; }
+
+.agenda-ligne { border-bottom: 1px solid var(--filet); }
+
+/* Le rendez-vous est un bouton pleine largeur : on vise la ligne, pas un mot
+   dedans. Le filet de gauche porte la couleur de la personne — et son prénom
+   est écrit à côté, parce qu'une information portée par la seule couleur est
+   une information perdue pour qui ne la distingue pas, et pour la journée
+   imprimée en noir et blanc. */
+.agenda-rdv {
+  display: flex;
+  align-items: baseline;
+  gap: var(--e2);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--e2) 0 var(--e2) var(--e2);
+
+  background: none;
+  border: 0;
+  border-left: 3px solid var(--teinte, var(--filet));
+  border-radius: 0;
+
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  transition: background-color var(--transition);
+}
+
+.agenda-rdv:hover { background: rgba(22, 25, 27, 0.04); }
 
 .agenda-heure {
-  height: 32px;
-  padding-right: var(--e1);
-  text-align: right;
-  border-bottom: 1px solid var(--filet);
-  white-space: nowrap;
+  flex: none;
+  min-width: 7ch;
+  font-size: var(--t-texte);
 }
 
-.agenda-piste {
-  position: relative;
-  /* La hauteur est posée par le JavaScript : elle dépend de l'amplitude
-     d'ouverture du jour, qui varie (nocturne le vendredi, journée continue le
-     samedi). */
+/* L'heure de fin ne s'affiche qu'à partir de la tablette : sur téléphone, la
+   colonne des heures mangerait la moitié de la ligne pour une information
+   qu'on déduit de la durée écrite juste en dessous. */
+.agenda-fin { display: none; color: var(--acier); }
+
+.agenda-corps {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
-/* Une case vide, cliquable : elle ouvre le formulaire avec l'heure déjà
-   remplie. C'est le geste le plus fréquent de la journée — un client au
-   téléphone, on cale tout de suite. */
-.agenda-creux {
-  position: absolute;
-  left: 0;
-  right: 0;
-  border-bottom: 1px solid var(--filet);
-  background: none;
-  padding: 0;
-  cursor: pointer;
-}
+.agenda-nom { font-weight: 500; }
 
-.agenda-creux:hover { background: rgba(36, 64, 92, 0.08); }
-
-/* --- UN RENDEZ-VOUS -------------------------------------------------------- */
-
-.agenda-rdv {
-  position: absolute;
-  left: 2px;
-  right: 2px;
-  overflow: hidden;
-
-  display: block;
-  padding: 4px var(--e1);
-  border: 0;
-  border-left: 3px solid var(--encre);
-  background: var(--craie);
-  color: var(--encre);
-  text-align: left;
-  font: inherit;
+.agenda-quoi {
   font-size: var(--t-petit);
-  line-height: 1.3;
-  cursor: pointer;
-}
-
-.agenda-rdv:hover { background: rgba(22, 25, 27, 0.06); }
-
-.agenda-rdv-heure {
-  font-family: var(--f-donnee);
-  font-size: var(--t-etiq);
   color: var(--acier);
 }
 
-.agenda-rdv-nom {
-  display: block;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.agenda-cote {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: var(--t-petit);
+  text-align: right;
 }
 
-.agenda-rdv-quoi {
-  display: block;
-  color: var(--acier);
-  font-size: var(--t-etiq);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+.agenda-qui { color: var(--encre); }
+.agenda-tel { color: var(--acier); }
 
-/* Pris par téléphone : un point médian devant l'heure suffit à distinguer les
-   deux sources. Le mot complet est dans le titre au survol et pour les lecteurs
-   d'écran. */
-.agenda-rdv[data-source="phone"] .agenda-rdv-heure::before { content: '· '; }
-
-/* Une journée bloquée : hachures obliques en encre sur craie, plus le motif
-   écrit. Les hachures ne portent jamais l'information seules. */
-.agenda-bloc {
-  position: absolute;
-  left: 0;
-  right: 0;
-  padding: var(--e1);
-  background: repeating-linear-gradient(
-    45deg,
-    transparent, transparent 6px,
-    rgba(22, 25, 27, 0.10) 6px, rgba(22, 25, 27, 0.10) 12px
-  );
-  font-family: var(--f-donnee);
-  font-size: var(--t-etiq);
-  letter-spacing: var(--ls-etiq);
-  text-transform: uppercase;
+/* Une période bloquée. Ce n'est pas un client : pas de bouton, pas de
+   téléphone, et l'intitulé en gris — c'est du temps retiré, pas du travail. */
+.agenda-ligne-bloc {
+  display: flex;
+  align-items: baseline;
+  gap: var(--e2);
+  min-height: 44px;
+  padding: var(--e2) 0 var(--e2) var(--e2);
+  border-left: 3px solid var(--filet);
   color: var(--acier);
 }
 
-/* Hors des horaires de la personne (son jour de repos, ou avant son arrivée) :
-   aplat neutre, sans hachure. Ce n'est pas un blocage, c'est simplement du
-   temps qui n'existe pas pour elle. */
-.agenda-hors {
-  position: absolute;
-  left: 0;
-  right: 0;
-  background: rgba(110, 118, 121, 0.10);
+.agenda-ligne-bloc .agenda-nom { font-weight: 400; }
+
+@media (min-width: 560px) {
+  .agenda-fin { display: inline; }
+  .agenda-heure { min-width: 13ch; }
+}
+
+/* --- LA VUE SEMAINE --------------------------------------------------------
+
+   Les mêmes journées, en plus resserré : c'est sept fois la vue jour, pas un
+   second dessin à maintenir. Sur grand écran, deux colonnes — une semaine
+   entière tient alors sur un écran et demi au lieu de quatre, et c'est
+   précisément ce qu'on demande à une vue semaine : voir la semaine.
+*/
+@media (min-width: 900px) {
+  .agenda[data-vue="semaine"] {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--e4) var(--e5);
+    align-items: start;
+  }
+
+  .agenda[data-vue="semaine"] .agenda-jour + .agenda-jour { margin-top: 0; }
 }

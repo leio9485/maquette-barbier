@@ -47,8 +47,6 @@ async function demarrer() {
     montrer($('#connexionDemo'), true);
   }
 
-  // Le mois de depart du calendrier, une fois qu'on sait quel jour on est.
-  RESERVATION.mois = premierDuMois(aujourdhui());
   ESPACE.date = aujourdhui();
 }
 

@@ -38,8 +38,13 @@ export const DEFAULT_CONFIG = {
     // le plus rentable des trois : il envoie ses clients deposer un avis la ou
     // Google les compte, et il dit a Google que ce site et cette fiche sont le
     // meme commerce (il est publie en `sameAs` dans les donnees structurees).
+    // >>> POUR UN VRAI CLIENT : l'adresse de sa fiche Google Business Profile,
+    //     celle qui ouvre ses avis. Ici, faute de fiche, une recherche Google
+    //     Maps sur l'adresse : elle fonctionne, elle montre le bon endroit, et
+    //     elle n'usurpe la fiche de personne. C'est le compromis honnete pour
+    //     une demonstration — voir `reviews` juste en dessous. <<<
     links: {
-      google: '',
+      google: 'https://www.google.com/maps/search/?api=1&query=12+rue+de+Valenciennes+59570+Bavay',
       instagram: '',
       facebook: '',
     },
@@ -47,12 +52,25 @@ export const DEFAULT_CONFIG = {
 
   // Note et nombre d'avis RECOPIES DEPUIS LA VRAIE FICHE GOOGLE du commerce.
   //
-  // A ZERO ICI, ET C'EST DELIBERE : ce commerce n'existe pas, il n'a donc pas de
-  // fiche Google et aucune note a montrer. Inventer "4,9 sur 120 avis" sur une
-  // demonstration serait un chiffre faux affiche en grand — et la vitrine ne
-  // montre de toute facon aucune etoile. Un vrai client recopie ici ce que dit
-  // sa fiche, et rien d'autre.
-  reviews: { rating: 0, count: 0 },
+  // ⚠️ CES DEUX CHIFFRES SONT INVENTES, ET C'EST UN CHOIX ASSUME POUR LA
+  //    DEMONSTRATION SEULE.
+  //
+  // Ce fichier disait le contraire : il les laissait a zero au motif que ce
+  // commerce n'existe pas, et qu'un chiffre faux affiche en grand reste un
+  // chiffre faux. L'argument tient. Mais le role de cette instance est de
+  // montrer a un barbier ce que SON site afficherait, et une demonstration qui
+  // masque son meilleur element ne demontre rien : le prospect ne voit ni la
+  // case « 4,8/5 » de la bande de confiance, ni la note en tete des avis, ni le
+  // lien vers la fiche. Les trois temoignages, eux, sont deja du contenu
+  // d'exemple invente — la ligne etait donc deja franchie ailleurs.
+  //
+  // Deux garde-fous : l'instance porte `DEMO_MODE=true`, donc `X-Robots-Tag:
+  // noindex` (aucun moteur ne relaie ce chiffre), et aucune donnee structuree
+  // `aggregateRating` n'est publiee — un test le verifie.
+  //
+  // >>> A REMETTRE A ZERO, OU A REMPLACER PAR LES VRAIS CHIFFRES DE SA FICHE,
+  //     DES LA PREMIERE INSTANCE CLIENT. <<<
+  reviews: { rating: 4.8, count: 87 },
 
   // Les temoignages affiches sur la vitrine.
   //

@@ -24,8 +24,7 @@ const RESERVATION = {
   // qui determine qui peut la faire. Voir `reserverAvec()` et `peindreQui()`.
   attenteStaffId: '',
   date: '',           // 'AAAA-MM-JJ'
-  creneau: null,      // { start, label, staff }
-  mois: null,         // le premier jour du mois affiche au calendrier
+  creneau: null,      // { start, label }
   confirmee: null,    // ce que le serveur a repondu, jeton d'annulation compris
 };
 

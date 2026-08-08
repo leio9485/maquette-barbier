@@ -76,6 +76,9 @@ function ligneTarif(s) {
       + `<span class="tarif-duree">${fmtDuree(s.duration)}</span>`
       + `<span class="tarif-prix">${fmtPrix(s.price)}</span>`
     + '</span>'
+    // Un <span> et non un <button> : la ligne entiere EST le bouton. Voir le
+    // raisonnement complet dans src/lib/catalogue.js.
+    + '<span class="tarif-action" aria-hidden="true">Réserver</span>'
     + '</button></li>';
 }
 
@@ -104,7 +107,7 @@ function htmlPrestations(config) {
     const ancre = 'rayon-' + (g.cat ? g.cat.id : 'autres');
 
     const entete = g.cat && !g.seul
-      ? `<h3 class="tarif-rayon-titre etiquette">${esc(g.cat.name)}</h3>`
+      ? `<h3 class="tarif-rayon-titre">${esc(g.cat.name)}</h3>`
         + (g.cat.desc ? `<p class="tarif-rayon-desc">${esc(g.cat.desc)}</p>` : '')
       : '';
 

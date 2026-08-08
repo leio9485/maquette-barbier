@@ -73,12 +73,32 @@
         </div>
       </div>
 
-      <!-- ÉTAPE 2 — la date, l'heure, et avec qui ---------------------------- -->
+      <!-- ÉTAPE 2 — la date, l'heure, et avec qui ----------------------------
+
+           ⚠️ TROIS MENUS DÉROULANTS, PLUS UN CALENDRIER.
+
+           Il y avait ici un calendrier de trente et une cases avec ses flèches
+           de mois, puis une grille de trente-trois créneaux. C'est-à-dire
+           soixante-quatre cibles à l'écran pour choisir deux choses. Un client
+           qui arrive là ne sait pas par où commencer : rien ne dit que les
+           cases claires sont les jours ouverts, ni qu'il faut en cliquer une
+           pour faire apparaître des heures.
+
+           Trois listes déroulantes disent la même chose en trois lignes : avec
+           qui, quel jour, à quelle heure. Elles ne montrent QUE ce qui est
+           réellement disponible — un jour fermé ou complet n'y figure pas, il
+           n'y a donc plus rien à deviner. Et sur téléphone, un `<select>` natif
+           ouvre le sélecteur du système : c'est le composant que le visiteur
+           sait déjà manipuler, et il n'a coûté ni code ni pixel.
+
+           Les jours sont écrits en toutes lettres — « samedi 9 août » — et pas
+           en numéros de case : c'est ainsi qu'on se donne rendez-vous.
+      -->
       <div class="etape" data-etape="2" hidden>
         <h2>Quand<br>passez-vous ?</h2>
         <p class="intro">
-          Le premier jour disponible est déjà ouvert. Choisissez une heure, ou
-          un autre jour dans le calendrier.
+          Trois choix, et c'est fait. Seuls les jours et les heures réellement
+          libres sont proposés.
         </p>
 
         <!--# Le choix fait à l'étape précédente, rappelé en fiche de travail.
@@ -94,46 +114,40 @@
           </div>
         </dl>
 
-        <!--# « AVEC QUI ? » — masqué quand le commerce travaille seul. Le site
-             d'un barbier seul ne pose jamais cette question. #-->
-        <fieldset class="tunnel-qui" id="tunnelQui" hidden>
-          <legend class="etiquette">Avec qui ?</legend>
-          <div class="choix" id="tunnelQuiChoix">
-            <input type="radio" name="staff" id="staff-peu-importe" value="" checked>
-            <label for="staff-peu-importe">Peu importe</label>
-          </div>
-          <p class="aide petit secondaire">« Peu importe » donne le plus de créneaux.</p>
-        </fieldset>
+        <div class="tunnel-choix">
 
-        <!-- Le calendrier -->
-        <div class="tunnel-calendrier">
-          <div class="calendrier-tete">
-            <button type="button" class="calendrier-fleche" id="moisPrecedent" aria-label="Mois précédent">‹</button>
-            <p class="etiquette calendrier-mois" id="calendrierMois" aria-live="polite">—</p>
-            <button type="button" class="calendrier-fleche" id="moisSuivant" aria-label="Mois suivant">›</button>
+          <!--# « AVEC QUI ? » — masqué quand le commerce travaille seul, ou
+               quand une seule personne assure la prestation choisie : la
+               question n'aurait alors qu'une réponse possible. #-->
+          <div class="champ" id="champQui" hidden>
+            <label for="tunnelQui">Avec qui ?</label>
+            <select id="tunnelQui">
+              <option value="">Peu importe</option>
+            </select>
+            <p class="aide">« Peu importe » donne le plus de créneaux.</p>
           </div>
 
-          <div class="calendrier-jours etiquette" aria-hidden="true">
-            <span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span>
+          <div class="champ">
+            <label for="tunnelJour">Quel jour ?</label>
+            <select id="tunnelJour">
+              <option value="">Recherche des jours ouverts…</option>
+            </select>
           </div>
 
-          <div class="calendrier-grille donnee" id="calendrierGrille"></div>
+          <div class="champ">
+            <label for="tunnelHeure">À quelle heure ?</label>
+            <select id="tunnelHeure" disabled>
+              <option value="">Choisissez d'abord un jour</option>
+            </select>
+          </div>
 
-          <!--# La légende du calendrier. Trois états à distinguer, et le gris
-               seul ne suffit pas à dire lequel est lequel : un jour barré peut
-               être fermé comme complet, et la différence compte — on revient un
-               autre jour dans un cas, jamais dans l'autre. #-->
-          <p class="calendrier-legende petit secondaire">
-            Les jours sans encadré sont fermés ou complets.
-          </p>
         </div>
 
-        <!-- Les créneaux du jour choisi, rangés par demi-journée -->
-        <div class="tunnel-creneaux" id="tunnelCreneaux" hidden>
-          <h3 class="etiquette" id="creneauxTitre">—</h3>
-          <div id="creneauxGroupes"></div>
-          <p class="tunnel-message" id="creneauxMessage" hidden></p>
-        </div>
+        <p class="tunnel-message" id="creneauxMessage" hidden></p>
+
+        <button type="button" class="action action-pleine" id="validerCreneau" disabled>
+          Continuer
+        </button>
       </div>
 
       <!-- ÉTAPE 3 — les coordonnées ----------------------------------------- -->

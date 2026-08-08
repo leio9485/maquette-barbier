@@ -15,18 +15,25 @@
    elle n'a ni carte, ni cadre, ni fond. */
 .tarif-rayon + .tarif-rayon { margin-top: var(--e5); }
 
-.tarif-rayon-titre {
-  /* L'intitulé de rayon reprend la voix des étiquettes : chasse fixe, capitales,
-     13 px. Il annonce, il ne raconte pas — et il ne dispute donc pas l'œil au
-     titre de section, qui est en Plex Sans Condensed.
+/* L'INTITULÉ DE RAYON EST UN TITRE, PLUS UNE ÉTIQUETTE.
 
-     En encre et non en acier : c'est une tête de chapitre, pas une mention
-     secondaire. En gris, elle avait le même poids que les descriptions qu'elle
-     surplombe, et le rayon ne se distinguait plus de son contenu. */
-  font-family: var(--f-donnee);
-  font-size: var(--t-etiq);
-  font-weight: 400;
-  letter-spacing: var(--ls-etiq);
+   Il était en chasse fixe, 13 px, interlettré, au même corps que les durées et
+   que les repères du rail. Le raisonnement d'origine — « il annonce, il ne
+   raconte pas » — traitait « COUPE », « BARBE », « FORFAITS » comme des
+   mentions de service. Ce sont les quatre chapitres de la liste la plus longue
+   du site, et sur 1800 px de tarifs ils étaient plus discrets que le prix
+   qu'ils surplombent : rien ne découpait la section.
+
+   En Plex Sans Condensed 600 à 22 px, ils se voient depuis l'autre bout de la
+   page et on trouve « Barbe » sans lire les treize lignes. Ils restent trois
+   fois plus petits que le titre de section (42 px), donc la hiérarchie tient. */
+.tarif-rayon-titre {
+  font-family: var(--f-titre);
+  font-size: var(--t-intro);
+  font-weight: var(--g-titre);
+  line-height: var(--lh-sous);
+  letter-spacing: var(--ls-section);
+  text-transform: uppercase;
   color: var(--encre);
   padding-bottom: var(--e1);
   border-bottom: 1px solid var(--filet);
@@ -136,13 +143,60 @@
   text-align: right;
 }
 
-@media (max-width: 479px) {
-  /* Sous 480 px, la description passe sous les chiffres plutôt que de les
+/* --- LE BOUTON « RÉSERVER » DE LA LIGNE ------------------------------------
+
+   Un `<span>`, pas un `<button>` : la ligne entière est déjà le bouton, et un
+   bouton dans un bouton est un balisage invalide. Il n'ajoute donc aucune
+   fonction — on cliquait déjà la ligne. Il ajoute la seule chose qui manquait :
+   dire qu'on peut le faire. Treize lignes de prix sans un libellé d'action se
+   lisent comme un tarif affiché en vitrine.
+
+   Il reste sobre — filet, pas d'aplat — parce qu'il est répété treize fois :
+   treize aplats bleus feraient une colonne de boutons, et c'est la liste qu'on
+   doit lire, pas eux. Il se remplit au survol de la ligne, où il redevient la
+   cible évidente.
+*/
+.tarif-action {
+  flex: none;
+  /* La ligne aligne ses enfants sur la ligne de base — c'est ce qui met le nom
+     de la prestation et son prix sur la même assise. Une boîte encadrée n'a pas
+     de ligne de base utile : elle se centre. */
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 var(--e2);
+  border: 1px solid var(--filet);
+  font-family: var(--f-titre);
+  font-size: var(--t-etiq);
+  font-weight: var(--g-titre);
+  letter-spacing: var(--ls-etiq);
+  text-transform: uppercase;
+  color: var(--acier);
+  transition: background-color var(--transition), color var(--transition),
+              border-color var(--transition);
+}
+
+.tarif-ligne:hover .tarif-action,
+.tarif-ligne:focus-visible .tarif-action {
+  background: var(--bleu-travail);
+  border-color: var(--bleu-travail);
+  color: var(--craie);
+}
+
+@media (max-width: 639px) {
+  /* Sous 640 px, la description passe sous les chiffres plutôt que de les
      comprimer : un prix qui passe à la ligne au milieu d'un « 22 € » est pire
-     que deux lignes de plus. */
+     que deux lignes de plus. Le bouton prend la troisième ligne, aligné à
+     droite — au pouce, c'est le coin le plus facile à atteindre.
+
+     Le seuil est passé de 480 à 640 px : avec le bouton en plus, trois blocs
+     ne tiennent plus côte à côte sur une tablette étroite, et la description
+     tombait à six mots par ligne. */
   .tarif-ligne { flex-wrap: wrap; }
   .tarif-texte { flex: 1 1 100%; order: 1; }
   .tarif-donnees { order: 0; flex: 1 1 100%; justify-content: flex-start; }
   .tarif-duree, .tarif-prix { min-width: 0; text-align: left; }
   .tarif-prix { order: -1; font-size: var(--t-intro); }
+  .tarif-action { order: 2; margin-top: var(--e1); margin-left: auto; }
 }

@@ -526,10 +526,24 @@ try {
     const refus = await salon.appel('PUT', '/api/admin/settings', piege);
     verifie('une adresse qui n\'est pas http(s) est refusee', refus.status === 400, refus.status);
 
-    await restaurer();
+    // Aucun lien saisi : la cle `sameAs` ne doit pas exister du tout, plutot
+    // que d'exister vide.
+    //
+    // ⚠️ L'ETAT EST POSE EXPLICITEMENT, pas obtenu par `restaurer()`. Ce test
+    //    reposait sur le fait que les reglages livres n'avaient aucun lien —
+    //    il verifiait donc une valeur de defaults.js autant que le
+    //    comportement du code, et il a casse le jour ou la demonstration s'est
+    //    vu attribuer une fiche Google. Ce qu'on veut savoir ici est « sans
+    //    lien, pas de sameAs » : autant le dire.
+    const sansLien = copie(ORIGINE);
+    sansLien.salon.links = { google: '', instagram: '', facebook: '' };
+    await salon.appel('PUT', '/api/admin/settings', sansLien);
+
     const revenue = donneesStructurees(await lirePage());
     verifie('sans aucun lien, la cle sameAs disparait',
       revenue?.sameAs === undefined, revenue?.sameAs);
+
+    await restaurer();
   }
   {
     // LE CATALOGUE DANS LA PAGE SERVIE.

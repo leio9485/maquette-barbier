@@ -135,6 +135,17 @@ function ligne(s) {
       + `<span class="tarif-duree">${fmtDuree(s.duration)}</span>`
       + `<span class="tarif-prix">${fmtPrix(s.price)}</span>`
     + '</span>'
+    // Le bouton « Reserver ». C'est un <span> et non un <button> : la ligne
+    // ENTIERE est deja le bouton, et un bouton dans un bouton est un balisage
+    // invalide que les navigateurs demelent chacun a leur facon.
+    //
+    // Il ne change donc rien au fonctionnement — on cliquait deja la ligne. Il
+    // change ce qu'on croit pouvoir faire : treize lignes de prix sans un seul
+    // libelle d'action se lisent comme un tarif affiche en vitrine, pas comme
+    // une liste ou l'on choisit. `aria-hidden` parce que le bouton qui
+    // l'englobe s'annonce deja par le nom de la prestation et son prix ;
+    // l'annoncer une seconde fois n'ajoute rien a l'oreille.
+    + '<span class="tarif-action" aria-hidden="true">Réserver</span>'
     + '</button></li>';
 }
 
@@ -142,8 +153,10 @@ function ligne(s) {
 function rayon(g) {
   const ancre = 'rayon-' + (g.cat ? g.cat.id : 'autres');
 
+  // L'intitule de rayon n'est plus une etiquette de 13 px : c'est un titre.
+  // Voir le raisonnement dans styles/09-prestations.css.
   const entete = g.cat && !g.seul
-    ? `<h3 class="tarif-rayon-titre etiquette">${esc(g.cat.name)}</h3>`
+    ? `<h3 class="tarif-rayon-titre">${esc(g.cat.name)}</h3>`
       + (g.cat.desc ? `<p class="tarif-rayon-desc">${esc(g.cat.desc)}</p>` : '')
     : '';
 

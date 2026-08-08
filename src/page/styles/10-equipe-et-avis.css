@@ -209,6 +209,14 @@
   max-width: none;
 }
 
+/* La cible tient 24 px de haut (WCAG 2.2, critère 2.5.8) : une ligne de 17 px
+   n'en fait que 22, et c'est un lien qu'on touche au pouce. Le padding l'y
+   porte sans déplacer le texte. */
+.avis-pied a {
+  display: inline-block;
+  padding: 4px 0;
+}
+
 @media (min-width: 900px) {
   /* Trois colonnes à partir de 900 px. Les citations sont courtes : en une
      seule colonne, la section ferait défiler un écran entier pour trois

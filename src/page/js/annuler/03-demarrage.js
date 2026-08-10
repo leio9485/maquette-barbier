@@ -1,0 +1,132 @@
+// ---------------------------------------------------------------------------
+// LE DEMARRAGE DE LA PAGE D'ANNULATION.
+//
+// Deux facons d'arriver ici, et elles ne demandent pas la meme chose :
+//
+//   /annuler                       le formulaire, en attente de saisie ;
+//   /annuler?ref=MQJYBK&jeton=...  le lien du courriel — le jeton prouve tout,
+//                                  on va droit au recapitulatif.
+//
+// ⚠️ LE LIEN N'ANNULE RIEN. Il authentifie, il montre, et il attend. Un lien
+//    qui annulerait en etant simplement ouvert s'executerait au premier apercu
+//    que fabrique une messagerie ou un antivirus de courrier, et le client
+//    verrait son rendez-vous disparaitre sans y avoir touche.
+//
+// ⚠️ L'ADRESSE EST NETTOYEE DES QU'ELLE EST LUE. Le jeton est un secret de 256
+//    bits ; le laisser dans la barre d'adresse, c'est le laisser dans
+//    l'historique, dans les onglets partages et dans une capture d'ecran
+//    envoyee au salon pour demander de l'aide. `replaceState` l'efface sans
+//    recharger la page ni ajouter une entree a l'historique.
+// ---------------------------------------------------------------------------
+
+/** Les coordonnees du commerce, pour les quelques champs de la page. */
+async function peindreCoordonnees() {
+  let config;
+  try {
+    const reponse = await fetch('/api/config', { credentials: 'same-origin' });
+    config = await reponse.json();
+  } catch {
+    // Le contenu de secours ecrit dans le balisage reste affiche : un nom de
+    // commerce un peu ancien vaut mieux qu'un trou dans la page.
+    return;
+  }
+
+  const salon = config?.salon;
+  if (!salon) return;
+
+  for (const element of $$('[data-champ="nom"]')) poserTexte(element, salon.name);
+
+  for (const element of $$('[data-champ="telephone"]')) {
+    poserTexte(element, salon.phone);
+    if (element.tagName === 'A') {
+      element.href = 'tel:' + salon.phone.replace(/[^\d+]/g, '');
+    }
+  }
+}
+
+/** Ce que l'adresse porte : la reference et, s'il vient du courriel, le jeton. */
+function lireAdresse() {
+  const parametres = new URLSearchParams(window.location.search);
+  return {
+    reference: parametres.get('ref') || '',
+    jeton: parametres.get('jeton') || '',
+  };
+}
+
+/** Efface la reference et le jeton de la barre d'adresse, sans recharger. */
+function nettoyerAdresse() {
+  try {
+    window.history.replaceState(null, '', window.location.pathname);
+  } catch {
+    // Un navigateur qui refuse : sans consequence, le jeton reste visible.
+  }
+}
+
+/** Le chemin du lien direct : le jeton se suffit a lui-meme. */
+async function ouvrirDepuisLeLien(reference, jeton) {
+  PREUVE.reference = reference;
+  PREUVE.telephone = '';
+  PREUVE.jeton = jeton;
+
+  try {
+    const reponse = await retrouverRendezVous();
+    montrerFiche(reponse.rendezVous);
+  } catch (erreur) {
+    // Le lien ne vaut plus rien : base remise a zero, rendez-vous supprime par
+    // le salon, lien tronque par une messagerie. On retombe sur le formulaire
+    // avec la reference deja remplie — c'est la seule chose du lien qui reste
+    // utilisable, et elle epargne au client de la rechercher.
+    const champ = $('#champReference');
+    if (champ) champ.value = reference;
+
+    afficherMessage($('#messageRecherche'), erreur.message);
+    montrerEcran('ecranSaisie');
+    $('#champTelephone')?.focus();
+  }
+}
+
+function brancher() {
+  $('#formulaireRecherche')?.addEventListener('submit', chercher);
+
+  $('#boutonVersAnnulation')?.addEventListener('click', () => {
+    peindreFiche($('#confirmationRendezVous'), RENDEZ_VOUS);
+    afficherMessage($('#messageConfirmation'), '');
+    montrerEcran('ecranConfirmation');
+  });
+
+  $('#boutonRenoncer')?.addEventListener('click', () => {
+    afficherMessage($('#messageFiche'), '');
+    montrerEcran('ecranFiche');
+  });
+
+  $('#boutonAnnulerVraiment')?.addEventListener('click', annulerVraiment);
+  $('#boutonDeplacer')?.addEventListener('click', partirDeplacer);
+}
+
+function demarrer() {
+  brancher();
+  peindreCoordonnees();
+
+  const { reference, jeton } = lireAdresse();
+
+  if (reference && jeton) {
+    nettoyerAdresse();
+    ouvrirDepuisLeLien(reference, jeton);
+    return;
+  }
+
+  // Une reference sans jeton : on la pose dans le champ et on demande les
+  // quatre chiffres. C'est le cas d'un lien recopie a la main, ou tronque.
+  if (reference) {
+    nettoyerAdresse();
+    const champ = $('#champReference');
+    if (champ) champ.value = reference;
+    $('#champTelephone')?.focus();
+  }
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', demarrer);
+} else {
+  demarrer();
+}

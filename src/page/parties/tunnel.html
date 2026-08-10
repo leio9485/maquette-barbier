@@ -173,8 +173,8 @@
 
       <!-- ÉTAPE 3 — les coordonnées ----------------------------------------- -->
       <div class="etape" data-etape="3" hidden>
-        <h2>À quel nom ?</h2>
-        <p class="intro">
+        <h2 id="titreEtape3">À quel nom ?</h2>
+        <p class="intro" id="introEtape3">
           Deux champs, et c'est réservé. Rien à payer maintenant.
         </p>
 
@@ -192,22 +192,28 @@
         </dl>
 
         <form id="formulaireReservation" novalidate>
-          <div class="champ">
-            <label for="clientNom">Prénom et nom</label>
-            <input type="text" id="clientNom" name="nom" autocomplete="name" required maxlength="80">
-            <p class="aide" id="aideNom" hidden></p>
-          </div>
+          <!--# LES COORDONNÉES DISPARAISSENT QUAND ON DÉPLACE un rendez-vous
+               existant : le salon les a déjà, et les redemander donnerait
+               l'impression de repartir de zéro — voire d'en prendre un second.
+               Le mode déplacement est décrit dans js/07-tunnel.js. #-->
+          <div id="tunnelCoordonnees">
+            <div class="champ">
+              <label for="clientNom">Prénom et nom</label>
+              <input type="text" id="clientNom" name="nom" autocomplete="name" required maxlength="80">
+              <p class="aide" id="aideNom" hidden></p>
+            </div>
 
-          <div class="champ">
-            <label for="clientTel">Téléphone</label>
-            <input type="tel" id="clientTel" name="telephone" autocomplete="tel" required maxlength="20" inputmode="tel">
-            <p class="aide" id="aideTel">Pour vous prévenir si quelque chose change.</p>
-          </div>
+            <div class="champ">
+              <label for="clientTel">Téléphone</label>
+              <input type="tel" id="clientTel" name="telephone" autocomplete="tel" required maxlength="20" inputmode="tel">
+              <p class="aide" id="aideTel">Pour vous prévenir si quelque chose change.</p>
+            </div>
 
-          <div class="champ">
-            <label for="clientEmail">Courriel <span class="secondaire">(facultatif)</span></label>
-            <input type="email" id="clientEmail" name="email" autocomplete="email" maxlength="120">
-            <p class="aide" id="aideEmail" hidden></p>
+            <div class="champ">
+              <label for="clientEmail">Courriel <span class="secondaire">(facultatif)</span></label>
+              <input type="email" id="clientEmail" name="email" autocomplete="email" maxlength="120">
+              <p class="aide" id="aideEmail" hidden></p>
+            </div>
           </div>
 
           <!--# Le récapitulatif complet, juste au-dessus du bouton : c'est le
@@ -238,8 +244,16 @@
         <h3 class="etiquette tunnel-fiche-titre">Fiche de travail</h3>
         <dl class="fiche tunnel-fiche" id="confirmationFiche"></dl>
 
+        <!--# ⚠️ CETTE PHRASE A ÉTÉ FAUSSE PENDANT TOUTE LA VIE DU SITE. Elle
+             disait « notez la référence : elle suffit à annuler », et rien
+             dans le produit ne savait repartir d'une référence — le jeton
+             mourait avec l'onglet. Elle est vraie depuis que /annuler existe.
+             Ne pas la remettre au conditionnel : ce qui est écrit ici doit
+             pouvoir être fait. #-->
         <p class="petit secondaire tunnel-mention" id="confirmationNote">
-          Notez la référence : elle suffit à annuler. Un empêchement ? Prévenez
+          Notez la référence : avec les quatre derniers chiffres de votre
+          téléphone, elle suffit à annuler ou déplacer sur
+          <a href="/annuler">la page d'annulation</a>. Un empêchement ? Prévenez
           la veille si vous pouvez, le créneau repart à quelqu'un d'autre.
         </p>
 

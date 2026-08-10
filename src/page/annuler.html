@@ -1,0 +1,78 @@
+<!--# --------------------------------------------------------------------------
+   LE SQUELETTE DE LA PAGE D'ANNULATION.
+
+   Le second document du site. Même mécanique que index.html — des `@inclure`
+   recollés à l'envoi, aucune étape de construction — mais un document à part,
+   et c'est délibéré :
+
+     • on y arrive depuis un courriel, sans être passé par la vitrine, souvent
+       des semaines après l'avoir vue ;
+     • on n'y fait qu'une chose, et elle tient en deux champs.
+
+   Lui servir la vitrine entière — la galerie, le tunnel, l'espace commerçant —
+   pour n'en montrer qu'un formulaire reviendrait à faire télécharger cent
+   cinquante kilo-octets pour en utiliser trois.
+
+   ⚠️ IL NE PARTAGE QUE DES MORCEAUX, jamais un résultat : chaque document a
+      son propre cache d'assemblage (src/lib/assemblage.js).
+
+   ⚠️ LES STYLES SONT CHOISIS, PAS RECOPIÉS. Cette page n'a ni rail, ni galerie,
+      ni agenda : leurs feuilles ne sont pas incluses. En ajouter une pour
+      « avoir tout sous la main » annulerait la raison d'être de ce fichier.
+   -------------------------------------------------------------------------- #-->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#16191B">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%2316191B'/%3E%3Crect x='10' y='14' width='6' height='36' fill='%2324405C'/%3E%3Crect x='26' y='14' width='28' height='6' fill='%23EFEEEA'/%3E%3Crect x='26' y='29' width='28' height='6' fill='%23EFEEEA'/%3E%3Crect x='26' y='44' width='20' height='6' fill='%23EFEEEA'/%3E%3C/svg%3E">
+
+<!--# CETTE PAGE NE S'INDEXE PAS, et l'en-tête `X-Robots-Tag` posé par le
+     serveur le dit aussi (src/server.js). Deux raisons : elle n'a aucun
+     contenu à offrir à un moteur de recherche, et une adresse d'annulation
+     qui remonte dans les résultats est une invitation à s'y perdre pour qui
+     cherchait simplement le salon. Elle reste parfaitement accessible : c'est
+     l'indexation qu'on refuse, pas la lecture. #-->
+<meta name="robots" content="noindex, follow">
+
+<!-- Remplacé par le serveur à chaque envoi (src/lib/page.js). Les valeurs
+     ci-dessous ne servent que de contenu de secours. -->
+<!--@annuler-entete-->
+<title>Annuler un rendez-vous — L'Établi</title>
+<meta name="description" content="Annulez ou déplacez votre rendez-vous avec votre référence.">
+<!--/@annuler-entete-->
+
+<link rel="preload" href="/fonts/plexcond-600.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/plexsans-400.woff2" as="font" type="font/woff2" crossorigin>
+
+<style>
+/*@inclure styles/01-polices.css*/
+/*@inclure styles/02-jetons.css*/
+/*@inclure styles/03-fondations.css*/
+/*@inclure styles/05-controles.css*/
+/*@inclure styles/18-annuler.css*/
+</style>
+</head>
+<body class="page-annuler">
+
+<a class="saut" href="#contenu">Aller au contenu</a>
+
+<!--@inclure parties/annuler.html-->
+
+<script>
+(function(){
+'use strict';
+
+/*@inclure js/00-trusted-types.js*/
+/*@inclure js/00-libelles.js*/
+/*@inclure js/00-memoire.js*/
+/*@inclure js/02-utilitaires.js*/
+/*@inclure js/annuler/01-appels.js*/
+/*@inclure js/annuler/02-ecrans.js*/
+/*@inclure js/annuler/03-demarrage.js*/
+})();
+</script>
+
+</body>
+</html>

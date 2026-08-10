@@ -24,7 +24,7 @@ import { PORT, ROOT_DIR, TIMEZONE, IS_PRODUCTION, DEMO_MODE, PUBLIC_URL } from '
 import { prisma } from './db.js';
 import { startDemo } from './lib/demo.js';
 import { rendreLlmsTxt } from './lib/llms.js';
-import { renderIndex } from './lib/page.js';
+import { renderIndex, renderAnnuler } from './lib/page.js';
 import { lirePhoto } from './lib/photos.js';
 import { lirePlan, planifierPlan } from './lib/plan.js';
 import { startRetention } from './lib/retention.js';
@@ -33,6 +33,7 @@ import { securityHeaders } from './middleware/securityHeaders.js';
 import { purgeExpiredSessions } from './lib/sessions.js';
 import { authRouter } from './routes/auth.js';
 import { bookingsRouter } from './routes/bookings.js';
+import { rendezVousRouter } from './routes/rendezvous.js';
 import { settingsRouter } from './routes/settings.js';
 
 const app = express();
@@ -103,6 +104,11 @@ app.use('/api', authRouter);
 // Les adresses de reservation (creneaux, prise de rendez-vous, agenda).
 app.use('/api', bookingsRouter);
 
+// Retrouver, annuler ou deplacer son propre rendez-vous, depuis /annuler.
+// A part des adresses de reservation : elles ont leur propre facon de prouver
+// qui l'on est, et leur propre compteur de tentatives.
+app.use('/api', rendezVousRouter);
+
 // Les adresses de reglages (coordonnees, horaires, prestations).
 app.use('/api', settingsRouter);
 
@@ -119,6 +125,28 @@ app.use('/api', (req, res) => {
 app.get(['/', '/index.html'], async (req, res, next) => {
   try {
     res.type('html').send(await renderIndex(res.locals.cspNonce));
+  } catch (erreur) {
+    next(erreur);
+  }
+});
+
+/**
+ * La page d'annulation.
+ *
+ * `/annulation` est un alias : c'est l'autre mot que les gens tapent, et le
+ * courriel de confirmation, lui, ne portera jamais que `/annuler`. Deux
+ * adresses pour une page ne genent personne — la page ne s'indexe pas, il n'y a
+ * donc pas de contenu duplique a redouter.
+ *
+ * `X-Robots-Tag` ici en plus de la balise dans la page, et sans dependre de
+ * `DEMO_MODE` : une adresse d'annulation n'a rien a faire dans les resultats de
+ * recherche, chez un vrai client comme sur la demonstration. Elle reste
+ * parfaitement lisible ; c'est l'indexation qu'on refuse.
+ */
+app.get(['/annuler', '/annulation'], async (req, res, next) => {
+  try {
+    res.setHeader('X-Robots-Tag', 'noindex, follow');
+    res.type('html').send(await renderAnnuler(res.locals.cspNonce));
   } catch (erreur) {
     next(erreur);
   }

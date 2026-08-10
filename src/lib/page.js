@@ -49,6 +49,10 @@ const ZONES = {
   prestations: ['<!--@prestations-->', '<!--/@prestations-->'],
   temoignages: ['<!--@temoignages-->', '<!--/@temoignages-->'],
   bandeau: ['<!--@bandeau-->', '<!--/@bandeau-->'],
+  // Le second document du site : /annuler. Son en-tete se resume au titre et a
+  // la description — ni donnees structurees ni og:image, cette page ne se
+  // partage pas et ne s'indexe pas.
+  annulerEntete: ['<!--@annuler-entete-->', '<!--/@annuler-entete-->'],
 };
 
 /**
@@ -89,8 +93,8 @@ const JOURS_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frida
  * le JavaScript sont alleges (src/lib/minify.js) : la source garde ses
  * commentaires et son indentation, la copie envoyee s'en passe.
  */
-function lireFichier() {
-  return assemblerPage(minifierPage);
+function lireFichier(nom = 'index') {
+  return assemblerPage(minifierPage, nom);
 }
 
 // --- Echappement -----------------------------------------------------------
@@ -435,4 +439,37 @@ export async function renderIndex(nonce) {
   html = remplacerZone(html, 'bandeau', bandeauEtat(await etatDuMoment()));
 
   return marquer(html);
+}
+
+/**
+ * La page d'annulation (/annuler), en-tete a jour.
+ *
+ * Beaucoup plus courte que celle de la vitrine, et c'est le sujet : cette page
+ * ne se partage pas, ne s'indexe pas, et n'a rien a dire a un moteur de
+ * recherche. Elle n'a donc ni og:*, ni adresse canonique, ni donnees
+ * structurees — seulement un titre qui porte le nom du commerce, pour que le
+ * client sache dans quel onglet il se trouve.
+ *
+ * Meme discipline que ci-dessus : la base illisible renvoie le fichier tel
+ * quel, avec son contenu de secours.
+ */
+export async function renderAnnuler(nonce) {
+  const fichier = await lireFichier('annuler');
+  const marquer = (html) => (nonce ? marquerScripts(html, nonce) : html);
+
+  let config;
+  try {
+    config = await loadConfig({ includeInactive: false });
+  } catch (erreur) {
+    console.error('Page d\'annulation non mise a jour (reglages illisibles) :', erreur.message);
+    return marquer(fichier);
+  }
+
+  const titre = `Annuler un rendez-vous — ${config.salon.name}`;
+  const entete = [
+    `<title>${texte(titre)}</title>`,
+    '<meta name="description" content="Annulez ou déplacez votre rendez-vous avec votre référence.">',
+  ].join('\n');
+
+  return marquer(remplacerZone(fichier, 'annulerEntete', entete));
 }

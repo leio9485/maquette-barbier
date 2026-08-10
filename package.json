@@ -19,7 +19,8 @@
     "test:auth": "node tests/auth.mjs",
     "test:staff": "node tests/staff.mjs",
     "test:categories": "node tests/categories.mjs",
-    "test": "node tests/run.mjs"
+    "test": "node tests/run.mjs",
+    "test:annulation": "node tests/annulation.mjs"
   },
   "engines": {
     "node": ">=20"

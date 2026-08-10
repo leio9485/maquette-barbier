@@ -1,0 +1,225 @@
+/* ---------------------------------------------------------------------------
+   LA PAGE D'ANNULATION.
+
+   Le second document du site (src/page/annuler.html). Il n'emprunte a la
+   vitrine que les jetons, les fondations et les controles : ni rail, ni grille,
+   ni bandeau d'etat. Ce qui manque est donc ecrit ici, et rien de plus.
+
+   MEME CHARTE, MOINS DE DEVANTURE. Un client qui arrive ici vient d'un
+   courriel, il a une chose a faire et il veut la faire vite. La page tient dans
+   une colonne de texte, sur fond craie, sans photo ni aplat sombre en dehors de
+   la barre du haut — laquelle existe surtout pour que la page ne ressemble pas
+   a une page d'erreur.
+   --------------------------------------------------------------------------- */
+
+/* --- LE GARDE-FOU HORIZONTAL -----------------------------------------------
+
+   `clip` et surtout pas `hidden`, pour la raison expliquee dans
+   styles/17-petits-ecrans.css : `hidden` ferait de la racine une boite de
+   defilement. Ce document n'a rien de colle en haut, mais la regle est la meme
+   partout — la difference entre les deux ne doit pas dependre du fichier ou
+   l'on regarde.
+*/
+html { overflow-x: clip; }
+
+/* La colonne unique. `--marge` de chaque cote, jamais plus large que la mesure
+   confortable : cette page n'a qu'une seule chose a montrer a la fois. */
+.annuler-largeur {
+  width: 100%;
+  max-width: 42rem;
+  margin: 0 auto;
+  padding-left: var(--marge);
+  padding-right: var(--marge);
+}
+
+/* --- LA BARRE DU HAUT ------------------------------------------------------
+
+   Le meme aplat encre que l'en-tete de la vitrine : le client vient d'un
+   courriel, et la premiere chose qu'il doit reconnaitre est qu'il est bien chez
+   le bon commerce.
+*/
+.annuler-entete {
+  background: var(--encre);
+  color: var(--craie);
+}
+
+.annuler-retour {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--e2);
+  min-height: var(--hauteur-controle);
+  padding: var(--e2) 0;
+  color: var(--craie);
+  text-decoration: none;
+  border: 0;
+}
+
+.annuler-marque {
+  font-family: var(--f-titre);
+  font-weight: var(--g-titre);
+  font-size: var(--t-sous);
+  letter-spacing: var(--ls-etiq);
+  text-transform: uppercase;
+}
+
+.annuler-retour-mot {
+  font-family: var(--f-donnee);
+  font-size: var(--t-etiq);
+  letter-spacing: var(--ls-etiq);
+  text-transform: uppercase;
+  color: var(--acier-clair);
+  /* Souligne au survol seulement : au repos, la barre entiere est le lien, et
+     un souligne permanent sur deux mots en capitales fait sale. Le lien reste
+     annonce par sa forme et par sa place. */
+  text-decoration: none;
+}
+.annuler-retour:hover .annuler-retour-mot,
+.annuler-retour:focus-visible .annuler-retour-mot {
+  color: var(--craie);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* --- LE CORPS -------------------------------------------------------------- */
+
+.annuler-corps {
+  padding-top: var(--e5);
+  padding-bottom: var(--e6);
+}
+
+/* Le titre reste un cran sous le display de la vitrine : c'est un formulaire,
+   pas une devanture. La taille de section suffit a le tenir. */
+.annuler-corps h1 {
+  font-size: var(--t-section);
+  line-height: var(--lh-section);
+  letter-spacing: var(--ls-section);
+  margin-bottom: var(--e3);
+}
+
+.annuler-corps h2 {
+  font-size: var(--t-sous);
+  margin-bottom: var(--e2);
+}
+
+.annuler-ecran > .intro { margin-bottom: var(--e4); }
+
+/* --- LA SAISIE DE LA REFERENCE ---------------------------------------------
+
+   En chasse fixe et en capitales, comme elle s'affiche partout ailleurs : le
+   client compare ce qu'il tape a ce qu'il lit sur son courriel, caractere par
+   caractere. Un `letter-spacing` genereux parce qu'on relit une reference, on
+   ne la lit pas.
+
+   ⚠️ `text-transform: uppercase` N'EST QU'UN AFFICHAGE : la valeur envoyee
+      reste ce qui a ete tape. C'est `normaliserReference()`, cote serveur, qui
+      fait foi — elle accepte les minuscules, les espaces et les tirets.
+*/
+.saisie-reference {
+  font-family: var(--f-donnee);
+  font-size: var(--t-intro);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* --- LES MESSAGES ----------------------------------------------------------
+
+   Repris a l'identique du tunnel (styles/13-tunnel.css) : dans le flux, sur
+   aplat plein, jamais une bulle flottante. Aucune couleur d'alarme — la charte
+   n'a pas de rouge, et ce site n'a rien a faire sonner.
+*/
+.annuler-message {
+  margin: var(--e3) 0;
+  padding: var(--e2);
+  max-width: none;
+  background: var(--encre);
+  color: var(--craie);
+  font-size: var(--t-petit);
+  line-height: 1.5;
+  border-left: 3px solid var(--craie);
+}
+
+.annuler-message[data-ton="bon"] { border-left-color: var(--vert-clair); }
+
+/* --- CE QUI PRECEDE L'IRREVERSIBLE ------------------------------------------
+
+   Pas d'aplat, pas de couleur : un filet epais a gauche et le texte. La charte
+   n'a pas de rouge, et une annulation de rendez-vous chez le barbier n'est pas
+   un evenement qu'il faut dramatiser — elle demande seulement qu'on la lise
+   avant de cliquer.
+*/
+.annuler-avertissement {
+  margin: var(--e3) 0 var(--e4);
+  padding-left: var(--e2);
+  border-left: 3px solid var(--filet);
+  color: var(--acier);
+  font-size: var(--t-petit);
+  line-height: 1.5;
+}
+
+/* --- LES BOUTONS EN PIED D'ECRAN --------------------------------------------
+
+   Empiles sur telephone, cote a cote des qu'il y a la place. L'action
+   principale d'abord dans le balisage : c'est l'ordre du clavier, et sur
+   telephone c'est le premier bouton sous le pouce.
+*/
+.annuler-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e2);
+  margin-top: var(--e4);
+}
+
+@media (min-width: 34rem) {
+  .annuler-actions { flex-direction: row; flex-wrap: wrap; }
+  .annuler-actions > * { flex: 1 1 14rem; }
+}
+
+/* Le numero de telephone est ce qu'on TOUCHE sur un telephone — c'est meme
+   tout l'interet de `tel:`. A 14 px de texte, la ligne fait 18 px de haut : en
+   dessous des 24 px qu'exige WCAG 2.2 (critere 2.5.8). Le padding l'y porte
+   sans deplacer quoi que ce soit autour. Meme correction que `.fiche dd a`
+   dans styles/05-controles.css, et pour la meme raison. */
+.annuler-secours a,
+.annuler-pied a {
+  display: inline-block;
+  padding: 4px 0;
+}
+
+/* La porte de sortie quand la reference est perdue. En retrait, mais presente :
+   c'est la seule reponse honnete a « je n'ai plus rien ». */
+.annuler-secours {
+  margin-top: var(--e5);
+  padding-top: var(--e3);
+  border-top: 1px solid var(--filet);
+  color: var(--acier);
+  font-size: var(--t-petit);
+}
+
+/* --- LE PIED ---------------------------------------------------------------- */
+
+.annuler-pied {
+  padding: var(--e3) 0;
+  border-top: 1px solid var(--filet);
+  color: var(--acier);
+  font-size: var(--t-petit);
+}
+
+.annuler-pied p { margin: 0; }
+
+/* --- L'IMPRESSION -----------------------------------------------------------
+
+   Un client imprime, ou enregistre en PDF, la page qui recapitule son
+   rendez-vous. On retire ce qui n'a aucun sens sur papier et on force le noir
+   sur blanc, comme le fait la vitrine.
+*/
+@media print {
+  .annuler-entete,
+  .annuler-actions,
+  .annuler-secours,
+  .saut { display: none !important; }
+
+  .annuler-corps { padding-top: var(--e3); }
+
+  body { background: #FFF; color: #000; }
+}

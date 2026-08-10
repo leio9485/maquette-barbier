@@ -146,3 +146,79 @@
 
   .entete-lieu { margin-top: 0; }
 }
+
+/* --- LE RAPPEL « VOTRE RENDEZ-VOUS » ---------------------------------------
+
+   Posé juste sous l'en-tête, et seulement pour quelqu'un qui a réservé depuis
+   ce navigateur et dont le rendez-vous tient encore (js/11-mon-rendez-vous.js).
+   Il n'existe pas dans le balisage : il est inséré au chargement, après
+   revalidation auprès du serveur.
+
+   SUR BLEU DE TRAVAIL, et c'est le seul endroit du site où cet aplat porte
+   autre chose qu'un bouton. La raison : il doit se distinguer à la fois de
+   l'encre au-dessus (le bandeau d'état, l'en-tête) et de la craie en dessous,
+   sans introduire une sixième couleur. Le texte y est craie — 9,2:1, mesuré.
+
+   ⚠️ L'ACIER ET LE VERT N'Y TIENNENT PAS (3,5:1 sur ce fond : voir CLAUDE.md).
+      Tout ce qui est écrit ici est donc en craie pleine, y compris ce qui
+      serait secondaire ailleurs.
+*/
+.rappel {
+  background: var(--bleu-travail);
+  color: var(--craie);
+  border-bottom: 1px solid var(--filet-sombre);
+}
+
+.rappel-corps {
+  max-width: var(--largeur-max);
+  margin: 0 auto;
+  padding: var(--e2) var(--marge);
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--e1) var(--e3);
+}
+
+.rappel-texte {
+  margin: 0;
+  max-width: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--e1) var(--e2);
+  font-size: var(--t-petit);
+}
+
+.rappel-titre {
+  font-family: var(--f-donnee);
+  font-size: var(--t-etiq);
+  letter-spacing: var(--ls-etiq);
+  text-transform: uppercase;
+}
+
+.rappel-quand { font-size: var(--t-petit); }
+
+.rappel-quoi { font-size: var(--t-petit); }
+
+/* Le lien tient les 24 px de cible tactile (WCAG 2.2, critère 2.5.8) : sur
+   téléphone, c'est ce qu'on touche pour déplacer ou annuler. */
+.rappel-lien {
+  display: inline-block;
+  padding: 4px 0;
+  color: var(--craie);
+  font-family: var(--f-donnee);
+  font-size: var(--t-etiq);
+  letter-spacing: var(--ls-etiq);
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.rappel-lien:hover { text-decoration-thickness: 2px; }
+
+/* À l'impression, il n'apprend rien : ce qu'il annonce est déjà sur la page
+   d'annulation, qui est celle qu'on imprime. */
+@media print {
+  .rappel { display: none; }
+}

@@ -1,0 +1,145 @@
+<!--# --------------------------------------------------------------------------
+   LA PAGE D'ANNULATION — tout son balisage.
+
+   QUATRE ÉCRANS, un seul visible à la fois, distingués par `hidden` :
+
+     ecranSaisie        référence + quatre derniers chiffres du téléphone
+     ecranFiche         le récapitulatif, puis le choix : annuler ou déplacer
+     ecranConfirmation  « c'est bien celui-là ? », avant l'irréversible
+     ecranFini          ce qui s'est passé
+
+   ⚠️ L'ANNULATION NE SE FAIT JAMAIS EN UN CLIC, y compris depuis le lien du
+      courriel : le lien authentifie, il ne décide pas. Un lien qui annule en
+      étant simplement ouvert s'exécute au premier aperçu que fabrique une
+      messagerie, et le client découvre son rendez-vous annulé sans y avoir
+      touché.
+
+   ⚠️ LE FORMULAIRE EST UN VRAI <form>, avec un vrai bouton `submit` : la touche
+      Entrée valide, le clavier des téléphones affiche « OK », et les
+      gestionnaires de mots de passe se tiennent tranquilles. Le JavaScript
+      intercepte l'envoi ; sans lui, la page recharge et ne casse rien.
+   -------------------------------------------------------------------------- #-->
+
+<header class="annuler-entete">
+  <div class="annuler-largeur">
+    <a class="annuler-retour" href="/">
+      <span class="annuler-marque" data-champ="nom">L'Établi</span>
+      <span class="annuler-retour-mot">Retour au site</span>
+    </a>
+  </div>
+</header>
+
+<main id="contenu" class="annuler-corps">
+  <div class="annuler-largeur">
+
+    <h1>Votre rendez-vous</h1>
+
+    <!-- ÉCRAN 1 — la saisie ------------------------------------------------ -->
+    <section id="ecranSaisie" class="annuler-ecran">
+      <p class="intro">
+        Retrouvez votre rendez-vous avec la référence qui vous a été remise, puis
+        annulez-le ou déplacez-le.
+      </p>
+
+      <form id="formulaireRecherche" novalidate>
+        <div class="champ">
+          <label for="champReference">Référence</label>
+          <!--# `autocapitalize` et `spellcheck` : sans eux, un téléphone met une
+               majuscule au premier caractère et souligne le reste en rouge.
+               `inputmode="text"` et non `numeric` : la référence mêle chiffres
+               et lettres. #-->
+          <input type="text" id="champReference" name="reference"
+                 class="saisie-reference"
+                 maxlength="12" autocomplete="off" autocapitalize="characters"
+                 spellcheck="false" required>
+          <p class="aide" id="aideReference">Six caractères, par exemple MQJYBK.</p>
+        </div>
+
+        <div class="champ">
+          <label for="champTelephone">Les 4 derniers chiffres de votre téléphone</label>
+          <input type="text" id="champTelephone" name="telephone"
+                 class="saisie-reference"
+                 inputmode="numeric" maxlength="4" autocomplete="off" required>
+          <p class="aide" id="aideTelephone">
+            Celui que vous avez laissé en réservant. Il évite qu'un inconnu
+            tombe sur votre rendez-vous en essayant des références au hasard.
+          </p>
+        </div>
+
+        <p class="annuler-message" id="messageRecherche" hidden></p>
+
+        <button type="submit" class="action action-pleine" id="boutonRecherche">
+          Retrouver mon rendez-vous
+        </button>
+      </form>
+
+      <p class="annuler-secours">
+        Vous n'avez plus la référence ? Appelez le
+        <a class="donnee" data-champ="telephone" href="tel:+33327399840">03 27 39 98 40</a>,
+        le salon annulera pour vous.
+      </p>
+    </section>
+
+    <!-- ÉCRAN 2 — le récapitulatif, et le choix ---------------------------- -->
+    <section id="ecranFiche" class="annuler-ecran" hidden>
+      <p class="intro" id="ficheIntro">Voici ce qui est réservé à votre nom.</p>
+
+      <dl class="fiche" id="ficheRendezVous"></dl>
+
+      <p class="annuler-message" id="messageFiche" hidden></p>
+
+      <div class="annuler-actions" id="ficheActions">
+        <button type="button" class="action" id="boutonDeplacer">
+          Déplacer ce rendez-vous
+        </button>
+        <button type="button" class="action-douce" id="boutonVersAnnulation">
+          Annuler ce rendez-vous
+        </button>
+      </div>
+    </section>
+
+    <!-- ÉCRAN 3 — la confirmation ------------------------------------------ -->
+    <section id="ecranConfirmation" class="annuler-ecran" hidden>
+      <p class="intro">Confirmez l'annulation.</p>
+
+      <dl class="fiche" id="confirmationRendezVous"></dl>
+
+      <p class="annuler-avertissement">
+        Le créneau repartira aussitôt à quelqu'un d'autre. Cette action ne se
+        défait pas.
+      </p>
+
+      <p class="annuler-message" id="messageConfirmation" hidden></p>
+
+      <div class="annuler-actions">
+        <button type="button" class="action" id="boutonAnnulerVraiment">
+          Oui, annuler ce rendez-vous
+        </button>
+        <button type="button" class="action-douce" id="boutonRenoncer">
+          Non, le garder
+        </button>
+      </div>
+    </section>
+
+    <!-- ÉCRAN 4 — ce qui s'est passé --------------------------------------- -->
+    <section id="ecranFini" class="annuler-ecran" hidden>
+      <h2 id="finiTitre">C'est annulé</h2>
+      <p class="intro" id="finiPhrase"></p>
+
+      <div class="annuler-actions">
+        <a class="action" href="/#reserver">Prendre un autre rendez-vous</a>
+        <a class="action-douce" href="/">Retour au site</a>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer class="annuler-pied">
+  <div class="annuler-largeur">
+    <p>
+      <span class="donnee" data-champ="nom">L'Établi</span> ·
+      <a class="donnee" data-champ="telephone" href="tel:+33327399840">03 27 39 98 40</a>
+    </p>
+  </div>
+</footer>

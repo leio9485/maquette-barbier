@@ -36,8 +36,22 @@ import { ROOT_DIR } from '../config.js';
 /** Le dossier des morceaux. Rien n'est jamais lu en dehors. */
 const DOSSIER = path.join(ROOT_DIR, 'src', 'page');
 
-/** Le squelette : l'ordre des morceaux, et rien d'autre. */
-const SQUELETTE = path.join(DOSSIER, 'index.html');
+/**
+ * Les squelettes : un par document que le serveur sait envoyer.
+ *
+ * Il n'y en avait qu'un, et le site n'envoyait qu'une page. `/annuler` en
+ * demande un second : c'est une page ou l'on arrive depuis un courriel, sans
+ * etre passe par la vitrine, et souvent des mois apres l'avoir vue. Lui servir
+ * le site entier pour n'en montrer qu'un formulaire de deux champs reviendrait
+ * a telecharger la galerie, le tunnel et l'espace commercant pour rien.
+ *
+ * CHAQUE DOCUMENT A SON PROPRE CACHE. Ils ne partagent que des morceaux —
+ * les memes fichiers de style, les memes utilitaires — jamais un resultat.
+ */
+const SQUELETTES = {
+  index: path.join(DOSSIER, 'index.html'),
+  annuler: path.join(DOSSIER, 'annuler.html'),
+};
 
 /**
  * Un appel a un morceau.
@@ -132,7 +146,13 @@ async function resoudre(texte, vus, profondeur = 0) {
 
 // --- Le fichier assemble, garde en memoire ---------------------------------
 
-let cache = { contenu: null, signature: '', fichiers: [] };
+const caches = new Map();
+
+/** Le cache d'un document, cree a la premiere demande. */
+function cacheDe(nom) {
+  if (!caches.has(nom)) caches.set(nom, { contenu: null, signature: '', fichiers: [] });
+  return caches.get(nom);
+}
 
 /**
  * La signature des morceaux : leurs dates de modification, mises bout a bout.
@@ -142,7 +162,7 @@ let cache = { contenu: null, signature: '', fichiers: [] };
  * une trentaine de fois par visite n'apprendrait rien. En developpement, au
  * contraire, c'est ce qui evite de redemarrer le serveur a chaque retouche.
  */
-async function signature(fichiers) {
+async function signature(cache, fichiers) {
   if (process.env.NODE_ENV === 'production') return cache.signature || 'production';
 
   const dates = await Promise.all(fichiers.map(async (f) => {
@@ -155,43 +175,49 @@ async function signature(fichiers) {
   return dates.join(',');
 }
 
+/** Le chemin d'un squelette connu. Un nom inconnu est une erreur de programme. */
+function squeletteDe(nom) {
+  const chemin = SQUELETTES[nom];
+  if (!chemin) throw new Error(`Document inconnu dans src/page/ : ${nom}`);
+  return chemin;
+}
+
 /**
- * La page complete, morceaux recolles et allegee.
+ * Un document complet, morceaux recolles et alleges.
  *
  * `minifier` est passe par l'appelant (src/lib/page.js) plutot qu'importe ici :
  * l'assemblage et l'allegement sont deux choses distinctes, et c'est ce qui
  * permet a un test de verifier l'assemblage seul.
  */
-export async function assemblerPage(minifier = (x) => x) {
-  const fichiers = cache.fichiers.length ? cache.fichiers : [SQUELETTE];
-  const empreinte = await signature(fichiers);
+export async function assemblerPage(minifier = (x) => x, nom = 'index') {
+  const squelette = squeletteDe(nom);
+  const cache = cacheDe(nom);
+
+  const fichiers = cache.fichiers.length ? cache.fichiers : [squelette];
+  const empreinte = await signature(cache, fichiers);
 
   if (cache.contenu !== null && empreinte === cache.signature) return cache.contenu;
 
-  const vus = new Set([SQUELETTE]);
-  const squelette = await readFile(SQUELETTE, 'utf8');
-  const page = await resoudre(squelette, vus);
+  const vus = new Set([squelette]);
+  const page = await resoudre(await readFile(squelette, 'utf8'), vus);
 
-  cache = {
-    contenu: minifier(page),
-    fichiers: [...vus],
-    signature: '',
-  };
+  cache.contenu = minifier(page);
+  cache.fichiers = [...vus];
   // La signature est calculee APRES coup : on ne connait la liste complete des
   // morceaux qu'une fois l'assemblage fait.
-  cache.signature = await signature(cache.fichiers);
+  cache.signature = await signature(cache, cache.fichiers);
 
   return cache.contenu;
 }
 
 /**
- * La page assemblee, sans allegement ni cache.
+ * Un document assemble, sans allegement ni cache.
  *
  * Reservee aux tests et au diagnostic : c'est ce qui permet de comparer le
  * resultat du recollage a ce qu'on attend, sans que l'allegement ne brouille la
  * comparaison.
  */
-export async function assemblerBrut() {
-  const squelette = await readFile(SQUELETTE, 'utf8');
-  return resoudre(squelette, new Set([SQUELETTE]));
+export async function assemblerBrut(nom = 'index') {
+  const squelette = squeletteDe(nom);
+  return resoudre(await readFile(squelette, 'utf8'), new Set([squelette]));
 }

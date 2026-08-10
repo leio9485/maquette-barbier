@@ -411,6 +411,10 @@ async function envoyerReservation(evenement) {
   const bouton = $('#validerReservation');
   const message = $('#messageReservation');
 
+  // On deplace un rendez-vous existant : le salon a deja les coordonnees, et
+  // il n'y a pas de seconde ligne a creer.
+  if (RESERVATION.deplacement) return envoyerDeplacement(bouton, message);
+
   const nom = $('#clientNom')?.value.trim() ?? '';
   const telephone = $('#clientTel')?.value.trim() ?? '';
   const courriel = $('#clientEmail')?.value.trim() ?? '';
@@ -439,6 +443,12 @@ async function envoyerReservation(evenement) {
     });
 
     RESERVATION.confirmee = reponse;
+
+    // Le rendez-vous est retenu dans le navigateur : le client qui reviendra
+    // sur le site le retrouvera sous l'en-tete, sans rien ressaisir
+    // (js/11-mon-rendez-vous.js).
+    retenirLaReservation(reponse);
+
     confirmer(reponse);
 
     // Le bandeau d'etat n'est plus a jour : le creneau qu'on vient de prendre
@@ -529,6 +539,194 @@ async function demanderAnnulation() {
   }
 }
 
+// --- LE DEPLACEMENT D'UN RENDEZ-VOUS EXISTANT -------------------------------
+//
+// On arrive ici depuis /annuler, bouton « Déplacer ce rendez-vous ». Le tunnel
+// se reouvre a l'etape 2, prestation et personne deja choisies, et l'etape 3
+// ne demande plus rien : elle ne fait que confirmer.
+//
+// >>> LE TUNNEL N'EST PAS RECOPIE. <<< C'est toute la raison de ce detour par
+// la vitrine plutot qu'un second calendrier sur /annuler : il n'y a qu'un
+// calendrier, qu'une liste de creneaux et qu'une facon de les grouper dans ce
+// projet, et un deplacement doit se choisir exactement comme une reservation.
+//
+// La preuve d'identite voyage par `sessionStorage`, jamais par l'adresse : voir
+// `partirDeplacer()` dans js/annuler/02-ecrans.js.
+
+const CLE_DEPLACEMENT = 'letabli.deplacement';
+
+/** La note de l'ecran de confirmation, telle qu'elle est ecrite dans la page. */
+const NOTE_CONFIRMATION = { html: null };
+
+/**
+ * Reprend un deplacement demande depuis /annuler, s'il y en a un.
+ *
+ * Appele au demarrage, apres que CONFIG est arrive — il faut la liste des
+ * prestations pour retrouver celle du rendez-vous.
+ *
+ * Ne leve jamais et ne dit rien en cas d'echec : le visiteur retombe alors sur
+ * la vitrine ordinaire, ce qui est un mauvais resultat mais pas une panne. Son
+ * rendez-vous, lui, n'a pas bouge.
+ */
+async function reprendreDeplacement() {
+  let demande = null;
+  try {
+    const brut = sessionStorage.getItem(CLE_DEPLACEMENT);
+    // Retire des la lecture : rafraichir la page ne doit pas relancer un
+    // deplacement que le client a peut-etre abandonne entre-temps.
+    sessionStorage.removeItem(CLE_DEPLACEMENT);
+    if (brut) demande = JSON.parse(brut);
+  } catch {
+    return;
+  }
+
+  if (!demande?.reference) return;
+
+  let rdv;
+  try {
+    const preuve = { reference: demande.reference };
+    if (demande.jeton) preuve.jeton = demande.jeton;
+    else preuve.telephone = demande.telephone;
+
+    rdv = (await retrouverRendezVous(preuve)).rendezVous;
+  } catch {
+    return;
+  }
+
+  if (!rdv || rdv.cancelledAt || rdv.past) return;
+
+  const prestation = CONFIG?.services.find((s) => s.id === rdv.serviceId);
+  if (!prestation) return;
+
+  RESERVATION.deplacement = { ...demande, ancien: rdv };
+  RESERVATION.prestation = prestation;
+  RESERVATION.date = '';
+  RESERVATION.creneau = null;
+
+  poserTexte($('#rappelPrestation'),
+    `${prestation.name} · ${fmtDuree(prestation.duration)} · ${fmtPrix(prestation.price)}`);
+
+  peindreQui();
+
+  // « Avec qui » est prerempli sur la personne du rendez-vous d'origine : c'est
+  // le plus souvent la reponse voulue, et elle reste changeable d'un clic.
+  if (rdv.staffId) {
+    const bouton = $(`#staff-${CSS.escape(rdv.staffId)}`);
+    if (bouton) {
+      bouton.checked = true;
+      RESERVATION.staffId = rdv.staffId;
+    }
+  }
+
+  peindreBandeauDeplacement(rdv);
+  habillerEtapeDeplacement();
+
+  RESERVATION.mois = premierDuMois(aujourdhui());
+  allerEtape(2);
+  chargerMois();
+}
+
+/** Le rappel de ce qu'on est en train de deplacer, en tete du tunnel. */
+function peindreBandeauDeplacement(rdv) {
+  const frise = $('#tunnelFrise');
+  if (!frise || $('#tunnelDeplacement')) return;
+
+  const avec = rdv.staffName ? ` avec ${rdv.staffName}` : '';
+
+  const bloc = document.createElement('p');
+  bloc.className = 'tunnel-message';
+  bloc.id = 'tunnelDeplacement';
+  poserTexte(bloc,
+    `Vous déplacez le rendez-vous ${rdv.reference} du ${dateLongue(rdv.date)} `
+    + `à ${fmtHeure(rdv.start)}${avec}. Choisissez le nouveau créneau : `
+    + "l'ancien ne sera libéré qu'une fois le nouveau confirmé.");
+
+  frise.parentNode.insertBefore(bloc, frise.nextSibling);
+}
+
+/** L'etape 3, quand elle ne sert qu'a confirmer un deplacement. */
+function habillerEtapeDeplacement() {
+  if (!RESERVATION.deplacement) return;
+
+  poserTexte($('#titreEtape3'), 'Confirmez le nouveau créneau');
+  poserTexte($('#introEtape3'),
+    "Rien d'autre à saisir : le salon a déjà vos coordonnées.");
+
+  montrer($('#tunnelCoordonnees'), false);
+  poserTexte($('#validerReservation'), 'Déplacer vers ce créneau');
+}
+
+async function envoyerDeplacement(bouton, message) {
+  bouton.disabled = true;
+  poserTexte(bouton, 'Déplacement…');
+  afficherMessage(message, '');
+
+  const demande = RESERVATION.deplacement;
+
+  try {
+    const corps = {
+      reference: demande.reference,
+      date: RESERVATION.date,
+      start: RESERVATION.creneau.start,
+      staffId: RESERVATION.staffId || undefined,
+    };
+    if (demande.jeton) corps.jeton = demande.jeton;
+    else corps.telephone = demande.telephone;
+
+    const rdv = (await deplacerRendezVous(corps)).rendezVous;
+
+    // La reference et le jeton ne changent pas — c'est le meme rendez-vous a
+    // une autre heure — mais la memoire du navigateur, elle, doit suivre.
+    retenirRendezVous({ ...rdv, jeton: demande.jeton });
+
+    confirmerDeplacement(rdv);
+    document.dispatchEvent(new CustomEvent('reservation-prise'));
+
+  } catch (erreur) {
+    // Meme traitement que pour une collision a la reservation : on revient a
+    // l'etape 2 avec la journee rechargee. L'ancien rendez-vous est intact —
+    // c'est la garantie de la transaction cote serveur.
+    if (erreur.code === 409) {
+      allerEtape(2);
+      await chargerCreneaux(RESERVATION.date);
+      afficherMessage($('#creneauxMessage'), erreur.message);
+    } else {
+      afficherMessage(message, erreur.message);
+    }
+  } finally {
+    bouton.disabled = false;
+    poserTexte(bouton, 'Déplacer vers ce créneau');
+  }
+}
+
+function confirmerDeplacement(rdv) {
+  poserTexte($('.tunnel-confirme'), "C'est déplacé");
+
+  const avec = rdv.staffName ? `, avec ${rdv.staffName}` : '';
+  poserTexte($('#confirmationPhrase'),
+    `${dateLongue(rdv.date)} à ${fmtHeure(rdv.start)}${avec}.`);
+
+  peindreFiche($('#confirmationFiche'), { reference: rdv.reference });
+
+  // La note porte un lien vers /annuler : on la remplace par du texte, donc on
+  // garde l'originale pour la remettre si le visiteur enchaine sur une nouvelle
+  // reservation (`recommencer()`).
+  const note = $('#confirmationNote');
+  if (note) {
+    if (NOTE_CONFIRMATION.html === null) NOTE_CONFIRMATION.html = note.innerHTML;
+    poserTexte(note,
+      `Même référence qu'avant : ${rdv.reference}. L'ancien créneau est libéré.`);
+  }
+
+  // Le bouton d'annulation de l'ecran de confirmation s'appuie sur le jeton
+  // remis a la reservation, que ce chemin-ci n'a pas. La page /annuler, elle,
+  // sait le faire avec la reference — et son lien est dans le rappel.
+  montrer($('#annulerReservation'), false);
+
+  RESERVATION.deplacement = null;
+  allerEtape(4);
+}
+
 /** Repart de l'etape 1, saisie effacee. */
 function recommencer() {
   RESERVATION.prestation = null;
@@ -536,6 +734,20 @@ function recommencer() {
   RESERVATION.date = '';
   RESERVATION.creneau = null;
   RESERVATION.confirmee = null;
+  RESERVATION.deplacement = null;
+
+  // L'etape 3 avait pu etre deshabillee pour un deplacement : elle redevient
+  // ce qu'elle est par defaut, sans quoi le rendez-vous suivant se prendrait
+  // sans nom ni telephone.
+  poserTexte($('#titreEtape3'), 'À quel nom ?');
+  poserTexte($('#introEtape3'), "Deux champs, et c'est réservé. Rien à payer maintenant.");
+  montrer($('#tunnelCoordonnees'), true);
+  poserTexte($('#validerReservation'), 'Réserver ce créneau');
+  poserTexte($('.tunnel-confirme'), "C'est réservé");
+  $('#tunnelDeplacement')?.remove();
+
+  const note = $('#confirmationNote');
+  if (note && NOTE_CONFIRMATION.html !== null) note.innerHTML = NOTE_CONFIRMATION.html;
 
   $('#formulaireReservation')?.reset();
   montrer($('#tunnelCreneaux'), false);

@@ -33,7 +33,12 @@ import { clientConnecte, supprimerCompteDeTest, mettreEquipeDeCote, reposerEquip
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
 
-const SUITES = ['api.mjs', 'settings.mjs', 'auth.mjs', 'categories.mjs', 'staff.mjs'];
+// `annulation.mjs` est en dernier, et ce n'est pas alphabetique non plus : sa
+// derniere section declenche VOLONTAIREMENT la limitation de debit de
+// /api/rendez-vous, qui porte sur l'adresse IP. Elle la leve avant de rendre la
+// main (voir le commentaire en tete du fichier), mais la placer avant une autre
+// suite ferait dependre celle-ci d'un deblocage.
+const SUITES = ['api.mjs', 'settings.mjs', 'auth.mjs', 'categories.mjs', 'staff.mjs', 'annulation.mjs'];
 
 /**
  * Lance une suite dans son propre processus, sortie affichee telle quelle.

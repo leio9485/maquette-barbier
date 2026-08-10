@@ -103,6 +103,22 @@ function annulerReservation(id, jeton) {
   });
 }
 
+/** Retrouve un rendez-vous depuis sa reference. Sert au rappel et au deplacement. */
+function retrouverRendezVous(preuve) {
+  return api('/api/rendez-vous/retrouver', { methode: 'POST', corps: preuve });
+}
+
+/**
+ * Deplace un rendez-vous existant.
+ *
+ * ⚠️ CE N'EST PAS « ANNULER PUIS RESERVER ». Le serveur fait les deux d'un seul
+ *    bloc : le client ne peut donc jamais se retrouver sans rien parce que la
+ *    seconde moitie a echoue. Voir src/routes/rendezvous.js.
+ */
+function deplacerRendezVous(corps) {
+  return api('/api/rendez-vous/deplacer', { methode: 'POST', corps });
+}
+
 // --- Ce que l'espace commercant demande -------------------------------------
 
 function seConnecter(identifiant, motDePasse) {

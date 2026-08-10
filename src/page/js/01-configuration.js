@@ -5,10 +5,10 @@
 // seul endroit : c'est ce qui evite les variables eparpillees dont on ne sait
 // plus, six mois plus tard, laquelle fait foi.
 //
-// Rien n'est ecrit dans le navigateur (ni localStorage, ni cookie) : les
-// donnees vivent sur le serveur, et une visite ne laisse aucune trace sur la
-// machine du visiteur. C'est la page de confidentialite qui le promet, et c'est
-// ici que la promesse se tient.
+// Une seule chose est ecrite dans le navigateur, et seulement apres une
+// reservation : le rappel du rendez-vous pris (js/11-mon-rendez-vous.js). Ni
+// cookie, ni mesure d'audience, ni identifiant de visite — la page de
+// confidentialite dit exactement ce qui est gardé et pourquoi.
 // ---------------------------------------------------------------------------
 
 /** Les reglages du commerce, tels que /api/config les renvoie. */
@@ -23,6 +23,12 @@ const RESERVATION = {
   creneau: null,      // { start, label }
   mois: null,         // le premier jour du mois affiche au calendrier
   confirmee: null,    // ce que le serveur a repondu, jeton d'annulation compris
+  // LE MODE DEPLACEMENT. `null` = on prend un nouveau rendez-vous, le cas
+  // normal. Rempli quand on arrive depuis /annuler avec un rendez-vous a
+  // decaler : le tunnel garde alors la meme prestation, saute les coordonnees,
+  // et enregistre par /api/rendez-vous/deplacer au lieu de creer une seconde
+  // ligne. Voir js/07-tunnel.js.
+  deplacement: null,  // { reference, telephone, jeton, ancien }
 };
 
 /** L'espace commercant. */
@@ -40,11 +46,8 @@ const ESPACE = {
 /** Le nombre de jours qu'un seul appel de disponibilites peut couvrir. */
 const FENETRE_JOURS = 42;
 
-/** Les noms de jours et de mois, ecrits une fois. */
-const JOURS_COURTS = ['dim.', 'lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.'];
-const JOURS_LONGS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
-const MOIS_LONGS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-  'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+// Les noms de jours et de mois sont dans js/00-libelles.js : la page
+// d'annulation s'en sert aussi, et elle ne charge pas ce fichier-ci.
 
 /**
  * L'ordre d'affichage de la semaine : lundi d'abord.

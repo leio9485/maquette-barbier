@@ -38,6 +38,16 @@ async function demarrer() {
 
   peindreVitrine(CONFIG);
 
+  // Un deplacement demande depuis /annuler : le tunnel se rouvre a l'etape 2,
+  // prestation et personne deja choisies (js/07-tunnel.js). Attendu, parce que
+  // la suite ne doit pas repeindre par-dessus.
+  await reprendreDeplacement();
+
+  // Le rappel « votre rendez-vous », sous l'en-tete. Pas attendu : il interroge
+  // le serveur, et rien de ce qui suit n'en depend. Il ne s'affiche que si le
+  // rendez-vous garde en memoire existe encore (js/11-mon-rendez-vous.js).
+  montrerMonRendezVous();
+
   // Les identifiants de la demonstration, sur l'ecran de connexion. Ce bloc
   // n'existe que sur la vitrine de demonstration : chez un vrai client, le
   // serveur n'envoie pas ce champ et rien ne s'affiche.

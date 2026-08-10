@@ -96,6 +96,28 @@ function retirerPhoto(emplacement) {
   return api(`/api/admin/photos/${encodeURIComponent(emplacement)}`, { methode: 'DELETE' });
 }
 
+/** La legende affichee SOUS une photo de la galerie. */
+function ecrireLegendePhoto(emplacement, texte) {
+  return api(`/api/admin/photos/${encodeURIComponent(emplacement)}/legende`, {
+    methode: 'PUT',
+    corps: { texte },
+  });
+}
+
+/**
+ * La description lue A LA PLACE d'une photo — l'attribut `alt`.
+ *
+ * Ce n'est pas la legende, et les deux adresses sont distinctes pour que la
+ * confusion soit impossible : celle-ci accepte le visuel d'accueil, qui refuse
+ * une legende.
+ */
+function ecrireDescriptionPhoto(emplacement, texte) {
+  return api(`/api/admin/photos/${encodeURIComponent(emplacement)}/description`, {
+    methode: 'PUT',
+    corps: { texte },
+  });
+}
+
 /** La liste des photos et de leurs legendes, cote vitrine comme cote reglages. */
 function lirePhotos() {
   return api('/api/admin/photos');

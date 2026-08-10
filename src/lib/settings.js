@@ -86,6 +86,10 @@ export function dbToConfig({ settings, hours, services, staff = [], categories =
       city: settings.city,
       phone: settings.phone,
       email: settings.email,
+      // Le type de commerce, tel que schema.org le nomme, et la position
+      // exacte : les deux ne servent qu'aux donnees structurees (lot 5).
+      type: settings.businessType ?? TYPES_DE_COMMERCE[0],
+      geo: { lat: settings.latitude, lon: settings.longitude },
       // Chaines vides plutot que `null` quand rien n'est renseigne : le site
       // compare des brouillons entiers pour savoir s'ils ont ete modifies, et
       // deux ecritures du vide s'y verraient comme une difference. Meme raison
@@ -273,6 +277,65 @@ function normaliserSemaine(recu) {
  * disparait sans un mot est le pire des deux mondes — le commercant croit
  * l'avoir enregistree.
  */
+/**
+ * Les types de commerce acceptes, tels que schema.org les nomme.
+ *
+ * >>> LISTE FERMEE, ET LE PREMIER EST LA VALEUR PAR DEFAUT. <<<
+ *
+ * C'est ce qui rend cette base reutilisable : le type etait ecrit en dur, et le
+ * changer pour une onglerie demandait de toucher au code. Ferme parce qu'un
+ * type invente ne produirait aucune erreur visible — seulement des donnees
+ * structurees que Google ignore en silence, ce qui est la pire espece de panne.
+ *
+ * Chacun est un sous-type de `LocalBusiness` chez schema.org, et chacun
+ * correspond a un commerce qu'on peut demarcher dans la meme rue.
+ */
+export const TYPES_DE_COMMERCE = [
+  'BarberShop',    // barbier
+  'HairSalon',     // salon de coiffure
+  'NailSalon',     // onglerie
+  'BeautySalon',   // institut de beaute
+  'DaySpa',        // spa
+  'HealthAndBeautyBusiness', // le fourre-tout, quand aucun des cinq ne convient
+];
+
+/**
+ * Une position.
+ *
+ * >>> TOUJOURS UN OBJET, JAMAIS `null`. <<< Ses deux valeurs, elles, peuvent
+ * etre nulles. La difference n'est pas cosmetique : le formulaire des reglages
+ * ecrit dans le brouillon par chemin (`salon.geo.lat`), et un `geo` a `null`
+ * ferait echouer cette ecriture sur « impossible d'affecter une propriete de
+ * null » — au premier caractere tape dans le champ, sans message.
+ *
+ * ⚠️ LES DEUX NOMBRES OU AUCUN. Une latitude sans longitude ne designe rien, et
+ *    la publier enverrait les clients au large du golfe de Guinee — le point
+ *    (0, 0), la panne classique des coordonnees a moitie remplies. Hors des
+ *    bornes physiques, on refuse aussi : c'est une faute de frappe, pas une
+ *    position.
+ */
+function coordonnees(brut) {
+  const vide = { lat: null, lon: null };
+  if (!brut || typeof brut !== 'object') return vide;
+
+  // La chaine vide se lit `0` avec `Number()` : elle doit etre ecartee AVANT,
+  // sans quoi vider un champ poserait le commerce a l'equateur.
+  const lu = (valeur) => {
+    if (valeur === null || valeur === undefined || valeur === '') return null;
+    const n = Number(valeur);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const lat = lu(brut.lat);
+  const lon = lu(brut.lon);
+
+  if (lat === null || lon === null) return vide;
+  if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return vide;
+
+  // Six decimales : une dizaine de centimetres. Au-dela, c'est du bruit.
+  return { lat: Math.round(lat * 1e6) / 1e6, lon: Math.round(lon * 1e6) / 1e6 };
+}
+
 function lien(valeur) {
   const brut = texte(valeur, 300);
   if (!brut) return '';
@@ -379,6 +442,8 @@ export function normalizeConfig(brut) {
       city: texte(salon.city, 100),
       phone: texte(salon.phone, 40),
       email: texte(salon.email, 160),
+      type: TYPES_DE_COMMERCE.includes(salon.type) ? salon.type : TYPES_DE_COMMERCE[0],
+      geo: coordonnees(salon.geo),
       links: {
         google: lien(liens.google),
         instagram: lien(liens.instagram),
@@ -713,6 +778,9 @@ export async function saveConfig(config) {
       city: config.salon.city,
       phone: config.salon.phone,
       email: config.salon.email,
+      businessType: config.salon.type,
+      latitude: config.salon.geo.lat,
+      longitude: config.salon.geo.lon,
       googleUrl: config.salon.links.google,
       instagramUrl: config.salon.links.instagram,
       facebookUrl: config.salon.links.facebook,

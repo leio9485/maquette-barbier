@@ -182,9 +182,18 @@ function offresStructurees(config) {
       '@type': 'Service',
       name: s.name,
       ...(s.desc ? { description: s.desc } : {}),
+      // LA DUREE, au format ISO 8601 : « PT25M » pour vingt-cinq minutes.
+      //
+      // Elle vient de la prestation, jamais d'une valeur ecrite ici : c'est la
+      // meme duree que celle qui reserve le creneau, et les deux ne peuvent
+      // donc pas diverger. `provider` est le commerce lui-meme, ce que
+      // schema.org attend sur un `Service` autonome.
+      ...(s.duration ? { estimatedDuration: `PT${s.duration}M` } : {}),
+      provider: { '@type': config.salon.type, name: config.salon.name },
     },
     price: s.price.toFixed(2),
     priceCurrency: 'EUR',
+    availability: 'https://schema.org/InStock',
   });
 
   if (!config.categories.length) {
@@ -218,7 +227,17 @@ function offresStructurees(config) {
 function donneesStructurees(config, photos) {
   const fiche = {
     '@context': 'https://schema.org',
-    '@type': 'HairSalon',
+    // LE TYPE VIENT DES REGLAGES, il n'est plus ecrit ici.
+    //
+    // Il valait `HairSalon` en dur, parce que la premiere instance etait un
+    // salon de coiffure. Pour un barbier, le type exact est `BarberShop`, et le
+    // mot juste n'est pas un detail : c'est lui qui dit a Google de quel
+    // commerce il s'agit, donc a quelles recherches ce site doit repondre.
+    //
+    // Une valeur dans les reglages (voir TYPES_DE_COMMERCE dans
+    // src/lib/settings.js), et la meme base sert une onglerie ou un institut
+    // sans qu'une ligne change ici.
+    '@type': config.salon.type,
     name: config.salon.name,
     email: config.salon.email,
     telephone: config.salon.phone,
@@ -232,6 +251,17 @@ function donneesStructurees(config, photos) {
     },
     openingHoursSpecification: horairesStructures(config.hours),
   };
+
+  // La position exacte, quand le commercant l'a saisie. Facultative : l'adresse
+  // postale ci-dessus est ce qui compte le plus pour un commerce local, et une
+  // latitude approximative est pire qu'aucune — elle envoie les clients a cote.
+  if (config.salon.geo?.lat !== null && config.salon.geo?.lon !== null) {
+    fiche.geo = {
+      '@type': 'GeoCoordinates',
+      latitude: config.salon.geo.lat,
+      longitude: config.salon.geo.lon,
+    };
+  }
 
   if (config.services.length) fiche.hasOfferCatalog = offresStructurees(config);
 
@@ -256,6 +286,38 @@ function donneesStructurees(config, photos) {
   // Adresse ABSOLUE obligatoire — cette fiche est lue ailleurs que sur le site —
   // d'ou la dependance a PUBLIC_URL, exactement comme og:image.
   if (PUBLIC_URL && photos?.hero?.url) fiche.image = PUBLIC_URL + photos.hero.url;
+
+  // LA RESERVATION, DECLAREE COMME UNE ACTION.
+  //
+  // C'est ce qui permet a un moteur — ou a un assistant — de savoir que ce site
+  // prend des rendez-vous, et ou. Sans elle, la page dit ce qu'elle vend et ses
+  // horaires, mais rien ne dit qu'on peut y reserver.
+  //
+  // ⚠️ ADRESSE ABSOLUE, donc conditionnee a PUBLIC_URL, comme og:image et
+  //    l'adresse canonique : cette fiche est lue ailleurs que sur le site, et
+  //    « #reserver » tout seul n'y designe rien.
+  //
+  // `EntryPoint` avec `actionPlatform` : la reservation se fait dans un
+  // navigateur, sur n'importe quel appareil. Les trois plateformes nommees sont
+  // celles que schema.org reconnait ; les omettre laisse l'action sans support
+  // declare.
+  if (PUBLIC_URL) {
+    fiche.potentialAction = {
+      '@type': 'ReserveAction',
+      name: 'Réserver un créneau',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${PUBLIC_URL}/#reserver`,
+        inLanguage: 'fr-FR',
+        actionPlatform: [
+          'https://schema.org/DesktopWebPlatform',
+          'https://schema.org/MobileWebPlatform',
+          'https://schema.org/IOSPlatform',
+        ],
+      },
+      result: { '@type': 'Reservation', name: 'Rendez-vous' },
+    };
+  }
 
   // PAS D'`aggregateRating` ICI, ET C'EST DELIBERE.
   //

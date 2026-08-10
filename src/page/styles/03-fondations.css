@@ -227,8 +227,34 @@ a:hover { color: var(--encre); }
       retrouve la fenêtre comme référence, et le garde-fou horizontal tient
       toujours. Posé sur `<html>` seul : sur `<body>`, la valeur remonterait à
       la fenêtre et emporterait aussi le défilement vertical.
+
+   ⚠️ >>> ET C'EST CETTE LIGNE QUI RENDAIT LES CAPTURES BLANCHES. <<<
+
+      Deuxième dégât de la même règle, découvert à l'audit. Un outil de capture
+      pleine page — Puppeteer, Playwright, Lighthouse, un robot qui rend la
+      page — ne fait pas défiler : il demande une image plus haute que la
+      fenêtre, SANS redimensionner la fenêtre. `clip` établit une région de
+      rognage aux dimensions du bloc conteneur initial, c'est-à-dire de la
+      fenêtre restée à sa taille : tout ce qui est en dessous était rogné et
+      sortait blanc — la couleur du `<body>`.
+
+      Le site était parfaitement normal à l'écran, ce qui est exactement
+      pourquoi personne ne l'a vu. Ce qui ne l'était pas : la bande de film de
+      Lighthouse, le rendu conservé par la Search Console, et toute capture
+      destinée à un prospect.
+
+      `overflow-clip-margin: 100vh` élargit la région de rognage vers le bas
+      sans rien laisser déborder sur les côtés — le garde-fou horizontal, la
+      seule raison d'être de la règle, est intact. Cent fois la hauteur de la
+      fenêtre couvre n'importe quelle page de ce site.
+
+      Ne pas remplacer par `overflow-x: visible` : le débordement horizontal
+      reviendrait. Ne pas revenir à `hidden` : le bandeau se décollerait.
 */
-html { overflow-x: clip; }
+html {
+  overflow-x: clip;
+  overflow-clip-margin: 100vh;
+}
 
 /* --- L'IMPRESSION, CE QUI VAUT PARTOUT -------------------------------------
 

@@ -230,13 +230,9 @@ function peindreConfiance(config) {
 }
 
 // --- L'EQUIPE ---------------------------------------------------------------
-
-/** « Rémi » -> « R ». Deux mots -> deux lettres. */
-function initiales(nom) {
-  return String(nom || '').trim().split(/\s+/).slice(0, 2)
-    .map((mot) => mot.charAt(0).toUpperCase())
-    .join('');
-}
+//
+// `initiales()` est dans js/02-utilitaires.js : les reglages s'en servent aussi,
+// et ils tournent dans un autre document depuis le lot 4.
 
 function peindreEquipe(config) {
   const section = $('#equipe');
@@ -335,6 +331,7 @@ function peindreAvis(config) {
 function peindrePhotos(config) {
   const photos = config.photos || {};
   const legendes = config.legendes || {};
+  const descriptions = config.descriptions || {};
 
   for (const case_ of $$('[data-photo]')) {
     const emplacement = case_.dataset.photo;
@@ -348,6 +345,14 @@ function peindrePhotos(config) {
 
     if (photo?.url && image) {
       image.setAttribute('src', photo.url);
+
+      // LA DESCRIPTION LUE A VOIX HAUTE, posee en meme temps que l'adresse.
+      // Les deux vont ensemble : une image sans `alt` est annoncee « image »
+      // et rien de plus. Le serveur ne peut pas l'ecrire dans le HTML — c'est
+      // ce meme code qui pose le `src` — donc elle arrive ici.
+      const description = descriptions[emplacement];
+      if (typeof description === 'string' && description) image.setAttribute('alt', description);
+
       montrer(image, true);
     } else {
       if (image) montrer(image, false);

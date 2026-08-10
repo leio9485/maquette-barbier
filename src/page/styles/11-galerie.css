@@ -20,6 +20,17 @@
   overflow: hidden;
 }
 
+/* Le `<figure>` intercalé entre la case et l'image (lot 5) : c'est lui qui lie
+   la photo à sa légende pour un lecteur d'écran. Il ne doit rien changer à la
+   mise en page — d'où la remise à zéro de sa marge, que les navigateurs lui
+   donnent par défaut, et la reprise des dimensions de la case. Sans cela, les
+   quatre photos rétrécissaient de 40 px de chaque côté. */
+.galerie-case figure {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .galerie-case img {
   width: 100%;
   height: 100%;

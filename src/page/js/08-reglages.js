@@ -112,7 +112,49 @@ function peindreCoordonnees() {
     }),
     champTexte('salon.links.instagram', 'Instagram', { type: 'url' }),
     champTexte('salon.links.facebook', 'Facebook', { type: 'url' }),
+
+    // --- CE QUE LISENT LES MOTEURS DE RECHERCHE ---------------------------
+    //
+    // Trois réglages qui ne s'affichent nulle part sur le site, et c'est
+    // pourquoi leur aide doit dire à quoi ils servent : personne ne remplit un
+    // champ dont il ne voit pas l'effet.
+    champChoix('salon.type', 'Type de commerce', TYPES_COMMERCE, {
+      aide: "Ce que ce commerce est, dans le vocabulaire des moteurs de "
+        + "recherche. C'est lui qui décide des recherches auxquelles ce site "
+        + "répond. Il ne s'affiche pas sur la page.",
+    }),
+    champTexte('salon.geo.lat', 'Latitude', {
+      type: 'number',
+      aide: "Facultatif. Précise votre position pour les cartes. Relevez-la sur "
+        + "votre fiche Google. Laissez vide plutôt qu'approximatif : une "
+        + "position fausse envoie les clients à côté.",
+    }),
+    champTexte('salon.geo.lon', 'Longitude', { type: 'number' }),
   ].join('');
+}
+
+/** Les types de commerce proposés, dans l'ordre où on les rencontre. */
+const TYPES_COMMERCE = [
+  ['BarberShop', 'Barbier'],
+  ['HairSalon', 'Salon de coiffure'],
+  ['NailSalon', 'Onglerie'],
+  ['BeautySalon', 'Institut de beauté'],
+  ['DaySpa', 'Spa'],
+  ['HealthAndBeautyBusiness', 'Autre (beauté et bien-être)'],
+];
+
+/** Une liste déroulante reliée à un chemin du brouillon. */
+function champChoix(chemin, intitule, options, { aide = '' } = {}) {
+  const valeur = chemin.split('.').reduce((objet, cle) => objet?.[cle], brouillon()) ?? '';
+
+  return '<div class="champ">'
+    + `<label for="reglage-${esc(chemin)}">${esc(intitule)}</label>`
+    + `<select id="reglage-${esc(chemin)}" data-chemin="${esc(chemin)}">`
+    + options.map(([cle, nom]) =>
+      `<option value="${esc(cle)}"${cle === valeur ? ' selected' : ''}>${esc(nom)}</option>`).join('')
+    + '</select>'
+    + (aide ? `<p class="aide">${esc(aide)}</p>` : '')
+    + '</div>';
 }
 
 // --- Demander un avis -------------------------------------------------------
@@ -469,9 +511,13 @@ async function peindrePhotosReglages() {
   if (!cible) return;
 
   let photos = {};
+  let legendes = {};
+  let descriptions = {};
   try {
     const reponse = await lirePhotos();
     photos = reponse.photos ?? reponse;
+    legendes = reponse.legendes ?? {};
+    descriptions = reponse.descriptions ?? {};
   } catch {
     // Les photos vivent sur le disque, pas dans le brouillon : leur absence ne
     // doit pas empecher de regler le reste.
@@ -513,6 +559,32 @@ async function peindrePhotosReglages() {
             + (photo?.url ? 'Remplacer' : 'Choisir une photo')
           + '</label>'
           + (photo?.url ? `<button type="button" class="lien-nu" data-retirer-photo="${esc(e.id)}">Retirer</button>` : '')
+        + '</div>'
+        // --- LES DEUX TEXTES DE LA PHOTO ---------------------------------
+        //
+        // Ils ne disent PAS la meme chose, et l'aide de chacun le rappelle :
+        // la legende s'affiche sous la vignette, la description la remplace
+        // pour qui ne voit pas l'image.
+        //
+        // ⚠️ ILS S'ENREGISTRENT TOUT DE SUITE, comme la photo, et non avec le
+        //    brouillon des reglages. Les trois se modifient dans le meme
+        //    geste ; il serait deroutant que la photo parte a l'instant et sa
+        //    legende au bouton « Enregistrer ».
+        + (e.id in legendes
+          ? '<div class="champ">'
+            + `<label for="legende-${esc(e.id)}">Légende</label>`
+            + `<input type="text" id="legende-${esc(e.id)}" maxlength="60"`
+              + ` data-legende-de="${esc(e.id)}" value="${esc(legendes[e.id] ?? '')}">`
+            + '<p class="aide">Le texte affiché sous la photo. Videz-le pour n\'en afficher aucun.</p>'
+            + '</div>'
+          : '')
+        + '<div class="champ">'
+          + `<label for="description-${esc(e.id)}">Description de l'image</label>`
+          + `<input type="text" id="description-${esc(e.id)}" maxlength="160"`
+            + ` data-description-de="${esc(e.id)}" value="${esc(descriptions[e.id] ?? '')}">`
+          + '<p class="aide">Lue à voix haute par les lecteurs d\'écran, et affichée '
+            + 'si la photo ne charge pas. Décrivez ce qu\'on voit, ne répétez pas la '
+            + 'légende. Vidée, elle revient au texte livré avec le site.</p>'
         + '</div>'
       + '</div>'
       + '</div>';
@@ -667,6 +739,36 @@ function brancherReglages() {
     }
   });
 
+  // --- LA LÉGENDE ET LA DESCRIPTION D'UNE PHOTO ----------------------------
+  //
+  // ⚠️ SUR `change`, PAS SUR `input`, ET SANS PASSER PAR LE BROUILLON. Ces deux
+  //    textes vivent à côté des photos, sur le disque, pas dans les réglages :
+  //    ils partent quand le champ est quitté, comme la photo part quand elle
+  //    est choisie. Les faire attendre « Enregistrer » mélangerait deux choses
+  //    qui n'ont pas le même cycle de vie — et un envoi à chaque frappe ferait
+  //    une écriture disque par caractère.
+  volet.addEventListener('change', async (evenement) => {
+    const champ = evenement.target;
+
+    const pourLegende = champ.dataset?.legendeDe;
+    const pourDescription = champ.dataset?.descriptionDe;
+    if (!pourLegende && !pourDescription) return;
+
+    try {
+      if (pourLegende) await ecrireLegendePhoto(pourLegende, champ.value);
+      else await ecrireDescriptionPhoto(pourDescription, champ.value);
+
+      // La description vidée revient à celle livrée : on relit pour que le
+      // champ montre ce qui fait foi, plutôt que le vide qu'on vient de taper.
+      if (pourDescription && !champ.value.trim()) await peindrePhotosReglages();
+
+      afficherMessage($('#messageReglages'), 'Enregistré.', 'bon');
+    } catch (erreur) {
+      if (erreur.code === 401) return exigerConnexion();
+      afficherMessage($('#messageReglages'), erreur.message);
+    }
+  });
+
   volet.addEventListener('change', async (evenement) => {
     const champ = evenement.target;
     if (!brouillon()) return;
@@ -734,8 +836,14 @@ function brancherReglages() {
         await envoyerPhoto(emplacement, image);
         await peindrePhotosReglages();
 
+        // ⚠️ PLUS DE `peindrePhotos()` ICI, meme raison que pour
+        //    `peindreVitrine()` : depuis le lot 4, ce fichier tourne dans un
+        //    document qui n'a pas de vitrine, et `peindrePhotos` vit dans
+        //    js/04-contenu-statique.js, que ce document ne charge pas.
+        //    L'appeler levait une ReferenceError APRES l'envoi — la photo
+        //    partait bien, et le commercant ne voyait jamais « Photo
+        //    enregistree ».
         CONFIG = await lireConfig();
-        peindrePhotos(CONFIG);
 
         afficherMessage($('#messageReglages'), 'Photo enregistrée.', 'bon');
       } catch (erreur) {
@@ -777,8 +885,9 @@ function brancherReglages() {
       try {
         await retirerPhoto(cible.dataset.retirerPhoto);
         await peindrePhotosReglages();
+        // Même remarque qu'au dépôt d'une photo : plus de `peindrePhotos()`,
+        // il n'y a pas de vitrine dans ce document (lot 4).
         CONFIG = await lireConfig();
-        peindrePhotos(CONFIG);
       } catch (erreur) {
         afficherMessage($('#messageReglages'), erreur.message);
       }

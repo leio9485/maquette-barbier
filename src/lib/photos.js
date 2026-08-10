@@ -51,6 +51,19 @@ export const EMPLACEMENTS = {
     // `null` = cet emplacement n'affiche pas de legende. C'est le cas du visuel
     // d'accueil, qui occupe toute la largeur et ne porte aucun texte.
     legende: null,
+    // LA DESCRIPTION LUE A VOIX HAUTE (l'attribut `alt`), qui n'est PAS la
+    // legende. Les cinq photos du site avaient `alt=""`, c'est-a-dire « cette
+    // image n'apporte rien » — ce qui est faux pour la devanture d'un commerce.
+    //
+    // ⚠️ ELLE DECRIT L'IMAGE, ELLE NE REPETE PAS LA LEGENDE. « La devanture »
+    //    sous la photo et « La devanture » dans l'attribut, c'est la meme
+    //    information dite deux fois : quelqu'un qui n'a pas l'image entend deux
+    //    fois trois mots et n'apprend rien.
+    //
+    // Volontairement GENERIQUE et sans nom de commerce : ce fichier sert toutes
+    // les instances. Le commercant ecrit la sienne depuis les reglages, et
+    // c'est elle qui l'emporte alors.
+    alt: "Un client dans le fauteuil du barbier, pendant une coupe aux ciseaux.",
     // Un 16:9, recadre a l'affichage : tres large sur grand ecran, presque
     // carre sur telephone (voir `object-fit: cover` dans 08-accueil.css). Le
     // sujet doit donc etre au centre — c'est ecrit dans public/photos/LISEZ-MOI.md.
@@ -59,10 +72,26 @@ export const EMPLACEMENTS = {
   },
   // La galerie est en portrait 3:4 : c'est le cadrage d'une personne assise au
   // fauteuil et d'une main au travail, les deux sujets de ce commerce.
-  'galerie-1': { titre: 'Galerie 1', format: 'Portrait', legende: 'La devanture', largeur: 700, hauteur: 933 },
-  'galerie-2': { titre: 'Galerie 2', format: 'Portrait', legende: 'Le poste', largeur: 700, hauteur: 933 },
-  'galerie-3': { titre: 'Galerie 3', format: 'Portrait', legende: 'La coupe', largeur: 700, hauteur: 933 },
-  'galerie-4': { titre: 'Galerie 4', format: 'Portrait', legende: 'Le rasage', largeur: 700, hauteur: 933 },
+  'galerie-1': {
+    titre: 'Galerie 1', format: 'Portrait', legende: 'La devanture',
+    alt: "La devanture du salon depuis la rue : vitrine sombre et enseigne.",
+    largeur: 700, hauteur: 933,
+  },
+  'galerie-2': {
+    titre: 'Galerie 2', format: 'Portrait', legende: 'Le poste',
+    alt: "Un poste de travail : fauteuil, miroir, tondeuses et ciseaux rangés.",
+    largeur: 700, hauteur: 933,
+  },
+  'galerie-3': {
+    titre: 'Galerie 3', format: 'Portrait', legende: 'La coupe',
+    alt: "Les mains du barbier taillant les cheveux d'un client aux ciseaux.",
+    largeur: 700, hauteur: 933,
+  },
+  'galerie-4': {
+    titre: 'Galerie 4', format: 'Portrait', legende: 'Le rasage',
+    alt: "Un rasage au coupe-chou, mousse chaude appliquée au blaireau.",
+    largeur: 700, hauteur: 933,
+  },
 };
 
 /**
@@ -88,16 +117,46 @@ function emplacementLegendable(nom) {
   return emplacementConnu(nom) && EMPLACEMENTS[nom].legende !== null;
 }
 
-/** Ce qui est reellement enregistre sur le disque, ou {} si rien. */
-async function legendesEnregistrees() {
+/**
+ * Une description tient en une phrase : c'est ce que lit un lecteur d'ecran
+ * a la place de l'image, et une phrase interminable y est pire que courte.
+ */
+const DESCRIPTION_MAX = 160;
+
+/**
+ * Ce qui est reellement enregistre sur le disque, ou {} si rien.
+ *
+ * ⚠️ DEUX FORMATS SE LISENT ICI, et le premier ne disparaitra pas de sitot.
+ *    Le fichier ne contenait qu'une legende par emplacement, en texte brut :
+ *
+ *        { "galerie-1": "Notre bac" }
+ *
+ *    Il porte desormais aussi la description lue a voix haute :
+ *
+ *        { "galerie-1": { "legende": "Notre bac", "alt": "Un bac …" } }
+ *
+ *    Une instance deja en ligne a le premier format sur son disque. On le lit
+ *    donc tel quel et on le convertit en memoire : personne n'a de migration a
+ *    lancer, et rien ne se perd au premier enregistrement.
+ */
+async function textesEnregistres() {
+  let brut;
   try {
-    const brut = JSON.parse(await readFile(FICHIER_LEGENDES, 'utf8'));
-    return brut && typeof brut === 'object' ? brut : {};
+    brut = JSON.parse(await readFile(FICHIER_LEGENDES, 'utf8'));
   } catch {
-    // Fichier absent (le cas normal) ou illisible : on retombe sur les legendes
-    // livrees. Une legende ne vaut pas de faire echouer l'affichage du site.
+    // Fichier absent (le cas normal) ou illisible : on retombe sur les textes
+    // livres. Une legende ne vaut pas de faire echouer l'affichage du site.
     return {};
   }
+
+  if (!brut || typeof brut !== 'object') return {};
+
+  const sortie = {};
+  for (const [nom, valeur] of Object.entries(brut)) {
+    if (typeof valeur === 'string') sortie[nom] = { legende: valeur };
+    else if (valeur && typeof valeur === 'object') sortie[nom] = valeur;
+  }
+  return sortie;
 }
 
 /** La legende de chaque emplacement de galerie, saisie ou livree. */
@@ -107,11 +166,41 @@ export async function listerLegendes() {
     if (e.legende !== null) sortie[nom] = e.legende;
   }
 
-  const saisies = await legendesEnregistrees();
-  for (const [nom, texte] of Object.entries(saisies)) {
-    if (emplacementLegendable(nom) && typeof texte === 'string') {
-      sortie[nom] = texte.slice(0, LEGENDE_MAX);
+  const saisies = await textesEnregistres();
+  for (const [nom, valeur] of Object.entries(saisies)) {
+    if (emplacementLegendable(nom) && typeof valeur.legende === 'string') {
+      sortie[nom] = valeur.legende.slice(0, LEGENDE_MAX);
     }
+  }
+
+  return sortie;
+}
+
+/**
+ * La description de chaque photo — l'attribut `alt`.
+ *
+ * TOUS les emplacements en ont une, le visuel d'accueil compris : lui n'a pas
+ * de legende, mais c'est la plus grande image du site et la premiere que
+ * rencontre quelqu'un qui l'ecoute.
+ *
+ * ⚠️ UNE DESCRIPTION N'EST JAMAIS VIDE ICI. La chaine vide saisie par le
+ *    commercant retombe sur celle livree, contrairement a la legende ou le vide
+ *    veut dire « pas de legende ». La raison : `alt=""` a un sens precis en
+ *    HTML — « cette image est purement decorative, ne l'annonce pas » — et ce
+ *    n'est vrai d'aucune photo de ce site. Laisser un champ vide effacer la
+ *    description reviendrait a rendre le site moins accessible d'un coup de
+ *    touche « suppr ».
+ */
+export async function listerDescriptions() {
+  const sortie = {};
+  for (const [nom, e] of Object.entries(EMPLACEMENTS)) {
+    sortie[nom] = e.alt ?? '';
+  }
+
+  const saisies = await textesEnregistres();
+  for (const [nom, valeur] of Object.entries(saisies)) {
+    const propre = typeof valeur.alt === 'string' ? valeur.alt.trim() : '';
+    if (emplacementConnu(nom) && propre) sortie[nom] = propre.slice(0, DESCRIPTION_MAX);
   }
 
   return sortie;
@@ -128,8 +217,32 @@ export async function ecrireLegende(emplacement, texte) {
   }
   if (typeof texte !== 'string') return { erreur: 'Légende attendue.' };
 
-  const saisies = await legendesEnregistrees();
-  saisies[emplacement] = texte.trim().slice(0, LEGENDE_MAX);
+  return ecrireTexte(emplacement, { legende: texte.trim().slice(0, LEGENDE_MAX) });
+}
+
+/**
+ * Enregistre la description lue a voix haute d'une photo.
+ *
+ * TOUS les emplacements l'acceptent, y compris le visuel d'accueil : il n'a pas
+ * de legende, mais il a besoin d'un `alt` plus que les autres.
+ */
+export async function ecrireDescription(emplacement, texte) {
+  if (!emplacementConnu(emplacement)) return { erreur: 'Emplacement inconnu.' };
+  if (typeof texte !== 'string') return { erreur: 'Description attendue.' };
+
+  return ecrireTexte(emplacement, { alt: texte.trim().slice(0, DESCRIPTION_MAX) });
+}
+
+/**
+ * Ecrit un ou plusieurs champs de texte d'un emplacement, les autres conserves.
+ *
+ * Un seul point d'ecriture pour les deux : sans lui, enregistrer une legende
+ * effacerait la description saisie a cote — le genre de perte qu'on ne
+ * remarque qu'en relisant son site des semaines plus tard.
+ */
+async function ecrireTexte(emplacement, champs) {
+  const saisies = await textesEnregistres();
+  saisies[emplacement] = { ...(saisies[emplacement] ?? {}), ...champs };
 
   await mkdir(PHOTOS_DIR, { recursive: true });
 

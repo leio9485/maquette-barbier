@@ -418,6 +418,35 @@ model Settings {
   /// VIDE = on retombe sur `googleUrl`, et a defaut sur une recherche Maps.
   reviewUrl String @default("")
 
+  /// LE TYPE DE COMMERCE, tel que schema.org le nomme.
+  ///
+  /// >>> C'EST CE QUI REND CETTE BASE REUTILISABLE SANS Y RETOUCHER. <<<
+  ///
+  /// Le type etait ecrit en dur — `HairSalon` — parce que la premiere instance
+  /// etait un salon de coiffure. Pour un barbier c'est `BarberShop`, et le mot
+  /// juste compte : c'est lui qui dit a Google de quel commerce il s'agit, et
+  /// donc a quelles recherches ce site doit repondre.
+  ///
+  /// Une valeur ici, propagee dans les donnees structurees (src/lib/page.js),
+  /// et la meme base sert une onglerie (`NailSalon`), un institut
+  /// (`BeautySalon`) ou un spa (`DaySpa`) sans qu'une ligne de code change.
+  ///
+  /// La liste des valeurs acceptees est fermee, cote validation : un type
+  /// invente ne serait pas une erreur visible, seulement des donnees
+  /// structurees silencieusement ignorees.
+  businessType String @default("BarberShop")
+
+  /// La position exacte du commerce, pour les donnees structurees.
+  ///
+  /// FACULTATIVE, et vide par defaut : une latitude approximative est pire
+  /// qu'aucune — elle envoie les clients a cote. Le commercant les releve sur
+  /// sa fiche Google ou sur une carte, et les saisit une fois pour toutes.
+  ///
+  /// L'adresse postale, elle, est toujours publiee : c'est elle qui compte le
+  /// plus pour un commerce local. Ces deux nombres ne font que la preciser.
+  latitude  Float?
+  longitude Float?
+
   /// Toutes les combien de minutes un creneau est propose (30 = 9h30, 10h00...).
   slotStepMin Int @default(30)
   /// Delai minimum entre l'instant present et un rendez-vous reservable en ligne.

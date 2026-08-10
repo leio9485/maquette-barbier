@@ -31,7 +31,8 @@ import {
   findStaffRemovalsWithBookings,
 } from '../lib/settings.js';
 import {
-  EMPLACEMENTS, listerPhotos, deposerPhoto, retirerPhoto, listerLegendes, ecrireLegende,
+  EMPLACEMENTS, listerPhotos, deposerPhoto, retirerPhoto,
+  listerLegendes, ecrireLegende, listerDescriptions, ecrireDescription,
 } from '../lib/photos.js';
 import { listerPlan, engendrerPlan, planifierPlan } from '../lib/plan.js';
 
@@ -84,7 +85,7 @@ function avecCompteurs(config, compte) {
  */
 settingsRouter.get('/config', async (req, res, next) => {
   try {
-    const [config, photos, legendes] = await Promise.all([
+    const [config, photos, legendes, descriptions] = await Promise.all([
       loadConfig({ includeInactive: false }),
       // Les photos ne vivent pas dans la base mais sur le disque : elles sont
       // ajoutees ici, ou le site les attend, plutot que dans `loadConfig()` qui
@@ -93,6 +94,9 @@ settingsRouter.get('/config', async (req, res, next) => {
       // aussi sa legende.
       listerPhotos(),
       listerLegendes(),
+      // Les descriptions lues a voix haute : la vitrine les pose en `alt` sur
+      // chaque photo (lot 5).
+      listerDescriptions(),
     ]);
 
     // Le plan du quartier, un fichier lui aussi — mais il a besoin de l'adresse :
@@ -101,7 +105,7 @@ settingsRouter.get('/config', async (req, res, next) => {
     // (voir src/lib/plan.js).
     const plan = await listerPlan(config.salon);
 
-    const complet = { ...config, photos, legendes, plan };
+    const complet = { ...config, photos, legendes, descriptions, plan };
     res.json(DEMO_MODE
       ? { ...complet, demo: { username: DEMO_USERNAME, password: DEMO_PASSWORD } }
       : complet);
@@ -194,8 +198,10 @@ settingsRouter.delete('/admin/photos/:emplacement', requireAdmin, async (req, re
  */
 settingsRouter.get('/admin/photos', requireAdmin, async (req, res, next) => {
   try {
-    const [photos, legendes] = await Promise.all([listerPhotos(), listerLegendes()]);
-    res.json({ emplacements: EMPLACEMENTS, photos, legendes });
+    const [photos, legendes, descriptions] = await Promise.all([
+      listerPhotos(), listerLegendes(), listerDescriptions(),
+    ]);
+    res.json({ emplacements: EMPLACEMENTS, photos, legendes, descriptions });
   } catch (erreur) {
     next(erreur);
   }
@@ -215,6 +221,32 @@ settingsRouter.put('/admin/photos/:emplacement/legende', requireAdmin, async (re
     if (resultat.erreur) return res.status(400).json({ error: resultat.erreur });
 
     res.json({ ok: true, legendes: await listerLegendes() });
+  } catch (erreur) {
+    next(erreur);
+  }
+});
+
+/**
+ * PUT /api/admin/photos/:emplacement/description  { texte: "La devanture …" }
+ *
+ * LA DESCRIPTION LUE A VOIX HAUTE — l'attribut `alt`. Ce n'est PAS la legende :
+ * celle-ci s'affiche sous la photo, celle-la la remplace pour qui ne la voit
+ * pas. Les cinq photos du site avaient `alt=""`, c'est-a-dire « cette image
+ * n'apporte rien », ce qui est faux de la devanture d'un commerce.
+ *
+ * Le visuel d'accueil l'accepte aussi, alors qu'il refuse une legende : il n'a
+ * pas de texte sous lui, mais c'est la plus grande image du site.
+ *
+ * ⚠️ UNE DESCRIPTION VIDEE RETOMBE SUR CELLE LIVREE, contrairement a la
+ *    legende. `alt=""` a un sens precis en HTML — « image decorative, ne
+ *    l'annonce pas » — et ce n'est vrai d'aucune photo d'ici.
+ */
+settingsRouter.put('/admin/photos/:emplacement/description', requireAdmin, async (req, res, next) => {
+  try {
+    const resultat = await ecrireDescription(req.params.emplacement, req.body?.texte);
+    if (resultat.erreur) return res.status(400).json({ error: resultat.erreur });
+
+    res.json({ ok: true, descriptions: await listerDescriptions() });
   } catch (erreur) {
     next(erreur);
   }

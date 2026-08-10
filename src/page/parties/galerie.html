@@ -19,22 +19,42 @@
     <div class="contenu">
       <h2>L'atelier</h2>
 
+      <!--# ⚠️ `<figure>` ET `<figcaption>`, PAS UN `<div>` ET UN `<p>`.
+           C'étaient des `<p>` posés à côté d'images sans `alt` : rien ne
+           disait que ce texte légendait CETTE image-là. Un lecteur d'écran
+           annonçait donc quatre images muettes, puis quatre bouts de phrase
+           sans objet. `<figure>` est exactement la balise qui lie les deux,
+           et elle ne coûte rien.
+
+           ⚠️ L'`alt` DÉCRIT L'IMAGE, IL NE REPREND PAS LA LÉGENDE. « La
+              devanture » sous la photo et « La devanture » dans l'attribut,
+              c'est la même information dite deux fois. Les valeurs livrées
+              sont dans src/lib/photos.js, et le commerçant écrit les siennes
+              depuis les réglages. #-->
       <ul class="galerie" id="galerie">
         <li class="galerie-case" data-photo="galerie-1">
-          <img alt="" width="700" height="933" loading="lazy" hidden>
-          <p class="galerie-legende etiquette" data-legende="galerie-1">La devanture</p>
+          <figure>
+            <img alt="" width="700" height="933" loading="lazy" hidden>
+            <figcaption class="galerie-legende etiquette" data-legende="galerie-1">La devanture</figcaption>
+          </figure>
         </li>
         <li class="galerie-case" data-photo="galerie-2">
-          <img alt="" width="700" height="933" loading="lazy" hidden>
-          <p class="galerie-legende etiquette" data-legende="galerie-2">Le poste</p>
+          <figure>
+            <img alt="" width="700" height="933" loading="lazy" hidden>
+            <figcaption class="galerie-legende etiquette" data-legende="galerie-2">Le poste</figcaption>
+          </figure>
         </li>
         <li class="galerie-case" data-photo="galerie-3">
-          <img alt="" width="700" height="933" loading="lazy" hidden>
-          <p class="galerie-legende etiquette" data-legende="galerie-3">La coupe</p>
+          <figure>
+            <img alt="" width="700" height="933" loading="lazy" hidden>
+            <figcaption class="galerie-legende etiquette" data-legende="galerie-3">La coupe</figcaption>
+          </figure>
         </li>
         <li class="galerie-case" data-photo="galerie-4">
-          <img alt="" width="700" height="933" loading="lazy" hidden>
-          <p class="galerie-legende etiquette" data-legende="galerie-4">Le rasage</p>
+          <figure>
+            <img alt="" width="700" height="933" loading="lazy" hidden>
+            <figcaption class="galerie-legende etiquette" data-legende="galerie-4">Le rasage</figcaption>
+          </figure>
         </li>
       </ul>
     </div>

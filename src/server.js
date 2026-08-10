@@ -302,6 +302,18 @@ app.get('/sitemap.xml', async (req, res, next) => {
       ? `\n    <lastmod>${reglages.updatedAt.toISOString().slice(0, 10)}</lastmod>`
       : '';
 
+    // UNE SEULE ADRESSE, ET C'EST DELIBERE.
+    //
+    // Le site compte trois documents, mais deux d'entre eux portent
+    // `noindex` : /espace-salon et /annuler (voir plus haut). Les inscrire ici
+    // reviendrait a demander a Google de passer sur des pages qu'on lui
+    // interdit de retenir — ce qui remonte en avertissement dans la Search
+    // Console, « URL envoyee comportant une balise noindex », et n'apporte
+    // rien.
+    //
+    // Les ancres de la page (#prestations, #reserver) n'y figurent pas non
+    // plus : un plan de site liste des DOCUMENTS. Une ancre n'est pas une
+    // adresse distincte, et Google la trouve en lisant la page.
     res.type('application/xml');
     res.setHeader('Cache-Control', 'public, max-age=3600');
     res.send(

@@ -103,6 +103,21 @@ function jourDeLaSemaine(iso) {
   return versDate(iso).getDay();
 }
 
+/**
+ * « Rémi » -> « R ». Deux mots -> deux lettres.
+ *
+ * Employee par la vitrine (la pastille d'une personne sans photo) ET par les
+ * reglages (le meme apercu, dans le formulaire de l'equipe). Elle vivait dans
+ * js/04-contenu-statique.js, que le document de l'espace ne charge pas depuis
+ * le lot 4 : la moitie du formulaire des reglages s'arretait dessus, sur une
+ * `ReferenceError` que rien n'affichait a l'ecran.
+ */
+function initiales(nom) {
+  return String(nom || '').trim().split(/\s+/).slice(0, 2)
+    .map((mot) => mot.charAt(0).toUpperCase())
+    .join('');
+}
+
 /** "jeudi 10 septembre". */
 function dateLongue(iso) {
   const d = versDate(iso);

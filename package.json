@@ -22,7 +22,9 @@
     "test": "node tests/run.mjs",
     "test:annulation": "node tests/annulation.mjs",
     "test:chiffres": "node tests/chiffres.mjs",
-    "test:espace": "node tests/espace.mjs"
+    "test:espace": "node tests/espace.mjs",
+    "test:seo": "node tests/seo.mjs",
+    "test:portees": "node tests/portees.mjs"
   },
   "engines": {
     "node": ">=20"

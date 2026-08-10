@@ -29,6 +29,22 @@ export const DEFAULT_CONFIG = {
     phone: '03 27 39 98 40',
     email: 'contact@letabli-bavay.fr',
 
+    // LE TYPE DE COMMERCE, tel que schema.org le nomme. C'est la ligne a
+    // changer pour un autre metier — et la seule (voir TYPES_DE_COMMERCE dans
+    // src/lib/settings.js). Studio Cassandre est un `HairSalon` ; ici, un
+    // barbier, et le mot juste decide des recherches auxquelles ce site
+    // repond.
+    type: 'BarberShop',
+
+    // La position exacte, pour les donnees structurees.
+    //
+    // ⚠️ CELLES-CI SONT CELLES DE LA MAIRIE DE BAVAY, pas d'un commerce : le
+    //    12 rue de Valenciennes est une adresse plausible, ce salon n'existe
+    //    pas, et on ne va pas pointer la porte de quelqu'un. Chez un vrai
+    //    client, elles se relevent sur sa fiche Google. Les laisser a `null`
+    //    est parfaitement valable — l'adresse postale suffit.
+    geo: { lat: 50.297, lon: 3.7935 },
+
     // Les adresses du commerce ailleurs sur le web. VIDES = AUCUN LIEN NE
     // S'AFFICHE : un commerce sans Instagram ne montre jamais d'icone morte.
     //

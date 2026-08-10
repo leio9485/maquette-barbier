@@ -247,3 +247,151 @@
   display: inline-block;
   padding: 4px 0;
 }
+
+/* ===========================================================================
+   CE QUE LES DEUX DOCUMENTS PARTAGENT
+
+   Ces trois blocs vivaient ailleurs — la surimpression dans 14-connexion.css,
+   le lien nu dans 12-contact-et-pied.css, le message dans 13-tunnel.css. Ils
+   ont été remontés ici quand l'espace commerçant est sorti de la vitrine
+   (lot 4) : chacun est employé par la vitrine ET par l'espace, et les laisser
+   dans une feuille propre à l'un des deux obligeait à embarquer cette feuille
+   entière dans l'autre document.
+
+   Rien n'a changé dans leur écriture. Le seul renommage est `.tunnel-message`
+   qui devient `.message` : il n'a jamais eu quoi que ce soit de propre au
+   tunnel, et il servait déjà à l'agenda, aux réglages et à la connexion.
+   =========================================================================== */
+
+/* --- LA SURIMPRESSION ------------------------------------------------------
+
+   Sert aux mentions légales et aux deux formulaires de l'agenda.
+
+   Le voile est un aplat encre à 88 % — pas un flou d'arrière-plan. Le flou
+   (`backdrop-filter`) est le tic visuel qui date le plus vite, il coûte cher à
+   dessiner sur un téléphone d'entrée de gamme, et il rend le texte du dessous
+   plus difficile à ignorer, pas moins.
+*/
+.surimpression {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+
+  background: rgba(22, 25, 27, 0.88);
+}
+
+.surimpression-boite {
+  width: 100%;
+  max-width: 40rem;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--craie);
+  color: var(--encre);
+  /* Aucune ombre, aucun arrondi : la boîte se détache du voile par son aplat
+     clair, ce qui suffit largement. */
+}
+
+.surimpression-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e2);
+  padding: var(--e3) var(--e3) var(--e2);
+  border-bottom: 1px solid var(--filet);
+}
+
+.surimpression-titre {
+  font-size: var(--t-sous);
+  letter-spacing: 0;
+}
+
+.surimpression-fermer {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid var(--filet);
+  background: none;
+  color: var(--encre);
+  font-family: var(--f-donnee);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color var(--transition), background-color var(--transition);
+}
+
+.surimpression-fermer:hover { border-color: var(--encre); }
+
+.surimpression-corps {
+  padding: var(--e3);
+  overflow-y: auto;
+}
+
+.surimpression-corps h3 {
+  margin: var(--e3) 0 var(--e1);
+  font-size: var(--t-petit);
+  letter-spacing: var(--ls-etiq);
+  color: var(--acier);
+}
+
+.surimpression-corps h3:first-child { margin-top: 0; }
+
+@media (min-width: 560px) {
+  /* Centrée verticalement à partir des écrans où il y a la place. Collée en bas
+     sur téléphone : c'est là que le pouce atteint le bouton de fermeture. */
+  .surimpression { align-items: center; padding: var(--e3); }
+}
+
+/* --- LE LIEN NU ------------------------------------------------------------
+
+   Un bouton qui a l'air d'un lien. Employé partout où l'action ouvre quelque
+   chose par-dessus la page plutôt que d'emmener ailleurs.
+*/
+.lien-nu {
+  /* Meme raison que les liens de l'en-tete : une ligne de 13 px ne fait que
+     16 px de haut, WCAG 2.2 en demande 24 (critere 2.5.8). Le padding vertical
+     porte la cible a 30 px sans deplacer le texte. */
+  display: inline-block;
+  padding: 7px 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.lien-nu:hover { color: var(--acier-clair); }
+
+/* --- LES MESSAGES ----------------------------------------------------------
+
+   Dans le flux, sur aplat plein, pleine largeur. Jamais une bulle flottante :
+   une bulle a besoin d'une ombre pour se détacher, elle disparaît souvent avant
+   d'être lue, et sur téléphone elle recouvre ce qu'on vient de saisir.
+
+   Aucune couleur d'alarme — la charte n'a pas de rouge, et un site de barbier
+   n'a rien à faire sonner. C'est la place du message et son aplat qui le
+   distinguent, et son texte qui dit quoi faire.
+*/
+.message {
+  margin: var(--e3) 0;
+  padding: var(--e2);
+  max-width: none;
+  background: var(--encre);
+  color: var(--craie);
+  font-size: var(--t-petit);
+  line-height: 1.5;
+  border-left: 3px solid var(--craie);
+}
+
+/* Le message qui annonce une bonne nouvelle prend le vert, du côté du filet
+   seulement : le fond reste encre, donc le contraste du texte ne change pas. */
+.message[data-ton="bon"] { border-left-color: var(--vert-clair); }

@@ -15,6 +15,23 @@
 // retour au depart.
 // ---------------------------------------------------------------------------
 
+/** Le rendez-vous en cours de prise. */
+const RESERVATION = {
+  etape: 1,
+  prestation: null,   // l'objet prestation complet
+  staffId: '',        // '' = peu importe
+  date: '',           // 'AAAA-MM-JJ'
+  creneau: null,      // { start, label }
+  mois: null,         // le premier jour du mois affiche au calendrier
+  confirmee: null,    // ce que le serveur a repondu, jeton d'annulation compris
+  // LE MODE DEPLACEMENT. `null` = on prend un nouveau rendez-vous, le cas
+  // normal. Rempli quand on arrive depuis /annuler avec un rendez-vous a
+  // decaler : le tunnel garde alors la meme prestation, saute les coordonnees,
+  // et enregistre par /api/rendez-vous/deplacer au lieu de creer une seconde
+  // ligne. Voir js/07-tunnel.js.
+  deplacement: null,  // { reference, telephone, jeton, ancien }
+};
+
 const NOMS_ETAPES = { 1: 'Prestation', 2: 'Date et heure', 3: 'Coordonnées', 4: "C'est réservé" };
 
 // --- Le passage d'une etape a l'autre ---------------------------------------
@@ -387,21 +404,6 @@ function peindreFiche(cible, { reference = '' } = {}) {
   }).join('');
 }
 
-// --- LES MESSAGES -----------------------------------------------------------
-
-/**
- * Un message dans le flux, sur aplat plein.
- *
- * Jamais une bulle flottante : elle a besoin d'une ombre pour se detacher, elle
- * disparait souvent avant d'etre lue, et sur telephone elle recouvre ce qu'on
- * vient de saisir.
- */
-function afficherMessage(element, texte, ton = '') {
-  if (!element) return;
-  poserTexte(element, texte);
-  if (ton) element.dataset.ton = ton; else delete element.dataset.ton;
-  montrer(element, Boolean(texte));
-}
 
 // --- ETAPE 3 : la reservation -----------------------------------------------
 
@@ -634,7 +636,7 @@ function peindreBandeauDeplacement(rdv) {
   const avec = rdv.staffName ? ` avec ${rdv.staffName}` : '';
 
   const bloc = document.createElement('p');
-  bloc.className = 'tunnel-message';
+  bloc.className = 'message';
   bloc.id = 'tunnelDeplacement';
   poserTexte(bloc,
     `Vous déplacez le rendez-vous ${rdv.reference} du ${dateLongue(rdv.date)} `

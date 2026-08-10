@@ -16,7 +16,22 @@
     <nav class="pied-liens etiquette" aria-label="Informations légales">
       <button type="button" class="lien-nu" data-legal="mentions">Mentions légales</button>
       <button type="button" class="lien-nu" data-legal="confidentialite">Confidentialité</button>
-      <button type="button" class="lien-nu" id="ouvrirEspace">Espace commerçant</button>
+      <!--# ⚠️ CE LIEN N'EXISTE QUE SUR LA DÉMONSTRATION. Il est retiré du
+           document par le serveur quand DEMO_MODE est absent (src/lib/page.js),
+           et pas seulement masqué : un bouton caché reste dans la source.
+
+           Chez un vrai client, le commerçant arrive par l'adresse directe
+           `/espace-salon`, mise en raccourci sur son écran d'accueil. Il ne la
+           tape presque jamais — la session se renouvelle à l'usage. Afficher
+           l'entrée de son agenda en bas de sa vitrine n'apporte rien à ses
+           clients et donne une porte à essayer à tous les autres.
+
+           C'est un vrai lien, pas un bouton : il emmène quelque part. Le
+           « précédent » du navigateur fonctionne, on peut l'ouvrir dans un
+           onglet, et le mettre en favori. #-->
+      <!--@espace-lien-->
+      <a class="lien-nu" id="lienEspace" href="/espace-salon">Espace commerçant</a>
+      <!--/@espace-lien-->
     </nav>
 
   </div>

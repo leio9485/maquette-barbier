@@ -196,3 +196,66 @@ a:hover { color: var(--encre); }
 .saut:focus { top: var(--e1); }
 
 [hidden] { display: none !important; }
+
+/* ===========================================================================
+   CE QUE LES TROIS DOCUMENTS PARTAGENT
+
+   La vitrine, l'espace commerçant et la page d'annulation chargent tous cette
+   feuille. Ces deux blocs y sont descendus au lot 4 : ils vivaient dans
+   styles/18-petits-ecrans.css, que seule la vitrine charge encore, et dans
+   styles/20-annuler.css, qui les recopiait mot pour mot.
+   =========================================================================== */
+
+/* --- LE DÉFILEMENT HORIZONTAL ---------------------------------------------
+
+   Un critère d'acceptation le dit : une réservation doit se faire depuis un
+   téléphone sans zoom ni défilement horizontal.
+
+   Cette règle est la ceinture. La bretelle, c'est que rien n'a de largeur fixe :
+   les grilles sont en `minmax(0, 1fr)`, les images en `max-width: 100%`, et les
+   deux seuls éléments qui peuvent dépasser (l'agenda multi-colonnes et une
+   longue ligne de données) défilent dans leur propre cadre.
+
+   ⚠️ `clip`, ET SURTOUT PAS `hidden`. C'était `html, body { overflow-x: hidden }`,
+      et cette ligne à elle seule décollait le bandeau d'état : `hidden` fait de
+      l'élément une BOÎTE DE DÉFILEMENT, et `position: sticky` se cale alors sur
+      cette boîte — qui ne défile jamais, puisque c'est la page entière qui
+      défile. Le bandeau restait donc en haut du document au lieu de rester en
+      haut de l'écran, c'est-à-dire qu'il ne collait à rien.
+
+      `clip` coupe le débordement sans créer de boîte de défilement. Le bandeau
+      retrouve la fenêtre comme référence, et le garde-fou horizontal tient
+      toujours. Posé sur `<html>` seul : sur `<body>`, la valeur remonterait à
+      la fenêtre et emporterait aussi le défilement vertical.
+*/
+html { overflow-x: clip; }
+
+/* --- L'IMPRESSION, CE QUI VAUT PARTOUT -------------------------------------
+
+   Un client imprime sa confirmation, ou le commerçant imprime sa journée. Ce
+   n'est pas une hypothèse d'école dans un commerce de quartier : l'agenda du
+   jour finit souvent scotché près de la caisse.
+
+   On retire ce qui n'a aucun sens sur papier — un bouton, un voile — et on
+   force le noir sur blanc : la craie et l'encre sortiraient en aplats gris qui
+   vident une cartouche.
+*/
+@media print {
+  .surimpression,
+  .action,
+  .action-douce,
+  .lien-nu { display: none !important; }
+
+  body { background: #fff; color: #000; }
+
+  .sombre, .bleu {
+    background: #fff !important;
+    color: #000 !important;
+    --acier: #444;
+    --filet: #999;
+  }
+
+  /* Une adresse de lien imprimée entre parenthèses ne sert à rien ici : les
+     liens internes du site sont des ancres. */
+  a { text-decoration: none; color: #000; }
+}

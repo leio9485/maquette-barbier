@@ -6,42 +6,19 @@
 // plus, six mois plus tard, laquelle fait foi.
 //
 // Une seule chose est ecrite dans le navigateur, et seulement apres une
-// reservation : le rappel du rendez-vous pris (js/11-mon-rendez-vous.js). Ni
+// reservation : le rappel du rendez-vous pris (js/12-mon-rendez-vous.js). Ni
 // cookie, ni mesure d'audience, ni identifiant de visite — la page de
 // confidentialite dit exactement ce qui est gardé et pourquoi.
+//
+// ⚠️ CE FICHIER EST CHARGE PAR LA VITRINE ET PAR L'ESPACE COMMERCANT : il ne
+//    doit contenir que ce que les deux partagent. L'etat d'une reservation est
+//    parti dans js/07-tunnel.js, celui de l'espace dans js/espace/etat.js — le
+//    premier n'a rien a faire dans l'espace, le second n'avait rien a faire
+//    dans la vitrine, ou il partait chez chaque visiteur (lot 4).
 // ---------------------------------------------------------------------------
 
 /** Les reglages du commerce, tels que /api/config les renvoie. */
 let CONFIG = null;
-
-/** Le rendez-vous en cours de prise. */
-const RESERVATION = {
-  etape: 1,
-  prestation: null,   // l'objet prestation complet
-  staffId: '',        // '' = peu importe
-  date: '',           // 'AAAA-MM-JJ'
-  creneau: null,      // { start, label }
-  mois: null,         // le premier jour du mois affiche au calendrier
-  confirmee: null,    // ce que le serveur a repondu, jeton d'annulation compris
-  // LE MODE DEPLACEMENT. `null` = on prend un nouveau rendez-vous, le cas
-  // normal. Rempli quand on arrive depuis /annuler avec un rendez-vous a
-  // decaler : le tunnel garde alors la meme prestation, saute les coordonnees,
-  // et enregistre par /api/rendez-vous/deplacer au lieu de creer une seconde
-  // ligne. Voir js/07-tunnel.js.
-  deplacement: null,  // { reference, telephone, jeton, ancien }
-};
-
-/** L'espace commercant. */
-const ESPACE = {
-  connecte: false,
-  volet: 'agenda',
-  vue: 'jour',        // 'jour' ou 'semaine'
-  date: '',           // le jour affiche
-  // Les reglages en cours de modification. `null` tant qu'on n'a rien touche :
-  // c'est ce qui distingue « aucun brouillon » de « brouillon identique a
-  // l'enregistre ».
-  brouillon: null,
-};
 
 /** Le nombre de jours qu'un seul appel de disponibilites peut couvrir. */
 const FENETRE_JOURS = 42;

@@ -51,6 +51,7 @@ const DOSSIER = path.join(ROOT_DIR, 'src', 'page');
 const SQUELETTES = {
   index: path.join(DOSSIER, 'index.html'),
   annuler: path.join(DOSSIER, 'annuler.html'),
+  espace: path.join(DOSSIER, 'espace.html'),
 };
 
 /**

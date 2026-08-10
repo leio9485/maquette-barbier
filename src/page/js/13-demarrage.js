@@ -22,9 +22,6 @@ async function demarrer() {
   brancherNavigation();
   brancherBandeau();
   brancherTunnel();
-  brancherAgenda();
-  brancherReglages();
-  brancherCompte();
 
   try {
     CONFIG = await lireConfig();
@@ -48,16 +45,6 @@ async function demarrer() {
   // rendez-vous garde en memoire existe encore (js/11-mon-rendez-vous.js).
   montrerMonRendezVous();
 
-  // Les identifiants de la demonstration, sur l'ecran de connexion. Ce bloc
-  // n'existe que sur la vitrine de demonstration : chez un vrai client, le
-  // serveur n'envoie pas ce champ et rien ne s'affiche.
-  if (CONFIG.demo) {
-    poserTexte($('#demoIdentifiant'), CONFIG.demo.username);
-    poserTexte($('#demoMotDePasse'), CONFIG.demo.password);
-    montrer($('#connexionDemo'), true);
-  }
-
-  ESPACE.date = aujourdhui();
 }
 
 // `DOMContentLoaded` plutot qu'un appel direct : le script est en fin de body,

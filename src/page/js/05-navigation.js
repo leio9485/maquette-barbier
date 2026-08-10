@@ -103,22 +103,23 @@ function ouvrirLegal(vue) {
 }
 
 // --- LA VITRINE ET L'ESPACE -------------------------------------------------
-
-/**
- * Bascule entre les deux vues du site.
- *
- * Elles ne coexistent jamais a l'ecran : afficher l'une masque l'autre. C'est ce
- * qui permet a l'espace commercant d'avoir son propre <main> sans qu'un document
- * n'en porte deux.
- */
-function afficherEspace(visible) {
-  montrer($('#vueEspace'), visible);
-  montrer($('#vueSite'), !visible);
-
-  // Le defilement repart du haut : on vient de changer de vue entiere, garder
-  // la position de l'autre n'aurait aucun sens.
-  window.scrollTo(0, 0);
-}
+//
+// >>> IL N'Y A PLUS DE BASCULE. <<<
+//
+// Ce fichier portait `afficherEspace(visible)`, qui masquait la vitrine pour
+// montrer l'agenda dans le MEME document. C'est ce qui obligeait a servir le
+// balisage, le style et le JavaScript de l'espace commercant a chaque visiteur
+// — 35 % du poids de la page (lot 4).
+//
+// L'espace est desormais un document a part, servi par /espace-salon. Passer de
+// l'un a l'autre est une vraie navigation : le « precedent » du navigateur
+// fonctionne, l'adresse se met en favori, et rien de l'agenda ne voyage avec la
+// vitrine.
+//
+// Ce fichier est partage par les DEUX documents : il ne contient plus que les
+// surimpressions, dont les deux se servent. Les `?.` font le reste — la vitrine
+// n'a pas de formulaire de rendez-vous, l'espace n'a pas de mentions legales,
+// et chacun ne branche que ce qu'il possede.
 
 function brancherNavigation() {
   brancherClavierSurimpression();
@@ -143,15 +144,4 @@ function brancherNavigation() {
   for (const bouton of $$('[data-fermer]')) {
     bouton.addEventListener('click', () => fermerSurimpression(bouton.dataset.fermer));
   }
-
-  // L'espace commercant.
-  $('#ouvrirEspace')?.addEventListener('click', () => {
-    afficherEspace(true);
-    // Un compte deja connecte (session encore valide) ouvre directement
-    // l'agenda ; sinon, l'ecran de connexion.
-    verifierSession();
-  });
-
-  $('#retourVitrine')?.addEventListener('click', () => afficherEspace(false));
-  $('#voirLeSite')?.addEventListener('click', () => afficherEspace(false));
 }

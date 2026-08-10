@@ -129,25 +129,6 @@
    part, ils ouvrent quelque chose par-dessus la page. Un lecteur d'écran
    annonce « bouton », ce qui est exact, et le clavier n'a rien de particulier à
    apprendre. */
-.lien-nu {
-  /* Meme raison que les liens de l'en-tete : une ligne de 13 px ne fait que
-     16 px de haut, WCAG 2.2 en demande 24 (critere 2.5.8). Le padding vertical
-     porte la cible a 30 px sans deplacer le texte. */
-  display: inline-block;
-  padding: 7px 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-  text-decoration: underline;
-  text-underline-offset: 0.2em;
-  cursor: pointer;
-}
-
-.lien-nu:hover { color: var(--acier-clair); }
-
 @media (min-width: 768px) {
   .pied-corps {
     flex-direction: row;

@@ -220,20 +220,13 @@ try {
     verifie('la page publique ne contient aucun numero de client',
       !page.includes('0639980011') && !page.includes('06 39 98 00 11'), 'numero trouve');
 
-    // La VITRINE elle-meme, et non le document entier : le style et le
-    // JavaScript de l'espace commercant y voyagent encore, et ils contiennent
-    // forcement les mots « absences » et « presence » puisqu'ils savent les
-    // dessiner. Ce qui compte est qu'aucun MARQUEUR ne soit rendu cote
-    // visiteur.
-    //
-    // ⚠️ CE TEST SE DURCIRA AU LOT 4, quand l'espace commercant sortira de ce
-    //    document : la chaine devra alors avoir disparu de la page entiere.
-    const debut = page.indexOf('<div id="vueSite">');
-    const fin = page.indexOf('id="vueEspace"');
-    const corpsVitrine = debut !== -1 && fin > debut ? page.slice(debut, fin) : page;
-
-    verifie('aucun marqueur d\'absence n\'est rendu dans la vitrine',
-      !corpsVitrine.includes('agenda-absences'), 'marqueur rendu');
+    // ⚠️ TEST DURCI AU LOT 4. Il portait sur la seule zone `#vueSite`, parce
+    //    que le style et le JavaScript de l'espace commercant voyageaient dans
+    //    le meme document et contenaient forcement les mots « absences » et
+    //    « presence » — ils savent les dessiner. Depuis que l'espace est un
+    //    document a part, la chaine doit avoir disparu de la PAGE ENTIERE.
+    verifie('le mot « absences » a disparu de toute la vitrine',
+      !page.includes('agenda-absences'), 'marqueur trouve dans la page');
     verifie('/api/config ne porte ni presence ni absence',
       !JSON.stringify(config).includes('presence')
       && !JSON.stringify(config).includes('absence'), 'fuite dans la config');

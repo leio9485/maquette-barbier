@@ -4,13 +4,20 @@
    Deux volets : l'AGENDA (ce qu'on ouvre vingt fois par jour) et les RÉGLAGES
    (ce qu'on ouvre trois fois par an). L'agenda est donc le volet par défaut.
 
+   ⚠️ CE BALISAGE NE PART PLUS DANS LA VITRINE. Il y partait, chez chaque
+      visiteur : 58 154 octets sur 164 244, soit 35 % du poids de la page d'un
+      barbier occupés par un agenda que personne d'autre que lui ne verra. Ce
+      n'était pas une fuite — les conteneurs sont vides, et les rendez-vous ne
+      sortent que de /api/admin/… derrière une session — mais c'était du poids
+      et du JavaScript à analyser.
+
+      Il est désormais le corps de son propre document (src/page/espace.html),
+      servi par /espace-salon, et par lui seul.
+
    Tout ce qui est ici est derrière un identifiant et un mot de passe vérifiés
-   par le serveur. Ce balisage part quand même dans la page envoyée à tout le
-   monde : ce n'est pas une fuite — il ne contient aucune donnée, seulement des
-   conteneurs vides. Les rendez-vous, eux, ne sont servis que par
-   /api/admin/bookings, qui exige une session valide.
+   par le serveur.
    --------------------------------------------------------------------------- #-->
-<div class="espace" id="vueEspace" hidden>
+<div class="espace" id="vueEspace">
 
   <!-- LA CONNEXION ---------------------------------------------------------- -->
   <div class="connexion" id="ecranConnexion">
@@ -45,12 +52,12 @@
           <input type="password" id="connexionMotDePasse" autocomplete="current-password" required>
         </div>
 
-        <p class="tunnel-message" id="messageConnexion" hidden></p>
+        <p class="message" id="messageConnexion" hidden></p>
 
         <button type="submit" class="action action-pleine">Se connecter</button>
       </form>
 
-      <button type="button" class="lien-nu connexion-retour" id="retourVitrine">Retour au site</button>
+      <a class="lien-nu connexion-retour" href="/">Retour au site</a>
 
     </div>
   </div>
@@ -79,7 +86,7 @@
         </nav>
 
         <div class="espace-barre-actions">
-          <button type="button" class="lien-nu" id="voirLeSite">Voir le site</button>
+          <a class="lien-nu" href="/">Voir le site</a>
           <button type="button" class="lien-nu" id="seDeconnecter">Se déconnecter</button>
         </div>
       </div>
@@ -117,7 +124,7 @@
         </button>
       </div>
 
-      <p class="tunnel-message" id="messageDemo" hidden></p>
+      <p class="message" id="messageDemo" hidden></p>
 
 
       <!-- VOLET CHIFFRES ---------------------------------------------------- -->
@@ -132,7 +139,7 @@
               chasse fixe disent mieux — et la charte refuse de toute façon
               tout ce qui s'anime. #-->
       <section data-volet="chiffres" hidden>
-        <p class="tunnel-message" id="messageChiffres" hidden></p>
+        <p class="message" id="messageChiffres" hidden></p>
         <div id="chiffres"></div>
       </section>
 
@@ -160,7 +167,7 @@
           <button type="button" class="action-douce" id="ouvrirBlocage">Bloquer une période</button>
         </div>
 
-        <p class="tunnel-message" id="messageAgenda" hidden></p>
+        <p class="message" id="messageAgenda" hidden></p>
 
         <div class="agenda" id="agenda"></div>
       </section>
@@ -180,7 +187,7 @@
           </div>
         </div>
 
-        <p class="tunnel-message" id="messageReglages" hidden></p>
+        <p class="message" id="messageReglages" hidden></p>
 
         <nav class="reglages-sommaire etiquette" aria-label="Sections des réglages">
           <a href="#reglagesCoordonnees">Coordonnées</a>
@@ -355,7 +362,7 @@
             <input type="tel" id="rdvTel" maxlength="20">
           </div>
 
-          <p class="tunnel-message" id="messageRdv" hidden></p>
+          <p class="message" id="messageRdv" hidden></p>
           <button type="submit" class="action action-pleine">Noter ce rendez-vous</button>
         </form>
       </div>
@@ -395,7 +402,7 @@
             <input type="text" id="blocageMotif" maxlength="80" placeholder="Congés">
           </div>
 
-          <p class="tunnel-message" id="messageBlocage" hidden></p>
+          <p class="message" id="messageBlocage" hidden></p>
           <button type="submit" class="action action-pleine">Bloquer</button>
         </form>
       </div>

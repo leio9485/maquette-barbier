@@ -24,7 +24,7 @@ import { PORT, ROOT_DIR, TIMEZONE, IS_PRODUCTION, DEMO_MODE, PUBLIC_URL } from '
 import { prisma } from './db.js';
 import { startDemo } from './lib/demo.js';
 import { rendreLlmsTxt } from './lib/llms.js';
-import { renderIndex, renderAnnuler } from './lib/page.js';
+import { renderIndex, renderAnnuler, renderEspace } from './lib/page.js';
 import { lirePhoto } from './lib/photos.js';
 import { lirePlan, planifierPlan } from './lib/plan.js';
 import { startRetention } from './lib/retention.js';
@@ -151,6 +151,39 @@ app.get(['/annuler', '/annulation'], async (req, res, next) => {
   try {
     res.setHeader('X-Robots-Tag', 'noindex, follow');
     res.type('html').send(await renderAnnuler(res.locals.cspNonce));
+  } catch (erreur) {
+    next(erreur);
+  }
+});
+
+/**
+ * L'espace commercant.
+ *
+ * >>> UN DOCUMENT A PART, ET C'EST TOUT LE SUJET DU LOT 4. <<<
+ *
+ * Ce balisage, ce style et ce JavaScript partaient dans la meme page que la
+ * vitrine, chez CHAQUE visiteur : 58 154 octets sur 164 244, soit 35 % du poids
+ * d'une page de barbier occupes par un agenda que personne d'autre que lui ne
+ * verra. Ce n'etait pas une fuite — les conteneurs sont vides, et les
+ * rendez-vous ne sortent que de /api/admin/… derriere une session — mais
+ * c'etait du poids, du JavaScript a analyser, et un bouton offert a tout le
+ * monde en bas de page.
+ *
+ * `X-Robots-Tag` SANS CONDITION, contrairement a celui de la demonstration :
+ * l'agenda d'un vrai client n'a pas plus a figurer dans Google que celui de la
+ * demonstration. Il s'ajoute a la balise `<meta name="robots">` de la page et
+ * au `Disallow` de robots.txt — trois garde-fous, aucun ne dependant des deux
+ * autres.
+ *
+ * ⚠️ ET `noindex` N'EST PAS UN CONTROLE D'ACCES. Ce qui protege l'agenda, c'est
+ *    `requireAdmin` sur /api/admin/… : cette page-ci n'est qu'un formulaire de
+ *    connexion et des conteneurs vides. Un robot qui l'indexerait n'y lirait
+ *    aucun rendez-vous.
+ */
+app.get('/espace-salon', async (req, res, next) => {
+  try {
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    res.type('html').send(await renderEspace(res.locals.cspNonce));
   } catch (erreur) {
     next(erreur);
   }
@@ -286,7 +319,23 @@ app.get('/sitemap.xml', async (req, res, next) => {
 
 // Ce que les moteurs de recherche ont le droit de faire.
 app.get('/robots.txt', (req, res) => {
-  const lignes = ['User-agent: *', 'Allow: /'];
+  // `Disallow` sur l'espace commercant et sur la page d'annulation : ni l'un ni
+  // l'autre n'a quoi que ce soit a offrir a un moteur de recherche, et une
+  // adresse d'annulation qui remonte dans les resultats est une invitation a
+  // s'y perdre pour qui cherchait simplement le salon.
+  //
+  // ⚠️ `Disallow` INTERDIT DE LIRE, ce qui n'empeche pas l'adresse elle-meme de
+  //    figurer dans les resultats, sans description. C'est pourquoi ces deux
+  //    routes portent EN PLUS un en-tete `X-Robots-Tag: noindex` : celui-la se
+  //    lit, et il dit de ne pas retenir. Les deux sont complementaires, aucun ne
+  //    remplace l'autre.
+  const lignes = [
+    'User-agent: *',
+    'Disallow: /espace-salon',
+    'Disallow: /annuler',
+    'Disallow: /annulation',
+    'Allow: /',
+  ];
 
   // On n'annonce le plan du site que s'il existe reellement : renvoyer un robot
   // vers une adresse en 404 est le genre de detail qui remonte en avertissement

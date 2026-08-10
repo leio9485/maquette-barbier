@@ -138,6 +138,26 @@ function montrer(element, visible = true) {
 }
 
 /**
+ * Un message dans le flux, sur aplat plein.
+ *
+ * Jamais une bulle flottante : elle a besoin d'une ombre pour se detacher, elle
+ * disparait souvent avant d'etre lue, et sur telephone elle recouvre ce qu'on
+ * vient de saisir.
+ *
+ * ICI ET NON DANS LE TUNNEL, ou elle vivait : le tunnel, l'agenda, les
+ * reglages, la connexion et la page d'annulation s'en servent tous. Depuis que
+ * l'espace commercant est un document a part (lot 4), la laisser la-bas aurait
+ * demande d'embarquer les vingt-deux kilo-octets du tunnel dans un document qui
+ * n'a pas de tunnel.
+ */
+function afficherMessage(element, texte, ton = '') {
+  if (!element) return;
+  poserTexte(element, texte);
+  if (ton) element.dataset.ton = ton; else delete element.dataset.ton;
+  montrer(element, Boolean(texte));
+}
+
+/**
  * Les plages travaillees d'une journee, depuis un objet horaire des reglages.
  *
  * `null` = ferme. Une pause coupe la journee en deux plages. C'est la meme

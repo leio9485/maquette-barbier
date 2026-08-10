@@ -82,10 +82,6 @@
 /*@inclure styles/11-galerie.css*/
 /*@inclure styles/12-contact-et-pied.css*/
 /*@inclure styles/13-tunnel.css*/
-/*@inclure styles/14-connexion.css*/
-/*@inclure styles/15-agenda.css*/
-/*@inclure styles/16-reglages.css*/
-/*@inclure styles/17-chiffres.css*/
 /*@inclure styles/18-petits-ecrans.css*/
 </style>
 </head>
@@ -122,11 +118,13 @@
 <!--@inclure parties/pied-de-page.html-->
 </div>
 
-<!--# Hors de la vitrine : les mentions légales en surimpression (un visiteur au
-     milieu de sa réservation peut aller les lire sans perdre sa saisie) et
-     l'espace commerçant, qui est une vue entière avec son propre <main>. #-->
+<!--# Les mentions légales en surimpression : un visiteur au milieu de sa
+     réservation peut aller les lire sans perdre sa saisie.
+
+     ⚠️ L'ESPACE COMMERÇANT N'EST PLUS ICI. Il était inclus juste en dessous,
+        et partait donc chez chaque visiteur. Il a son propre document depuis
+        le lot 4 : src/page/espace.html, servi par /espace-salon. #-->
 <!--@inclure parties/mentions-legales.html-->
-<!--@inclure parties/espace-commercant.html-->
 <!--# LE JAVASCRIPT — une seule fonction anonyme, ouverte ici et refermée plus
      bas. Toutes les sections partagent donc la même portée : c'est ce qui leur
      permet de s'appeler entre elles sans rien exporter, et c'est pourquoi elles
@@ -147,10 +145,6 @@
 /*@inclure js/05-navigation.js*/
 /*@inclure js/06-bandeau-etat.js*/
 /*@inclure js/07-tunnel.js*/
-/*@inclure js/08-reglages.js*/
-/*@inclure js/09-agenda.js*/
-/*@inclure js/10-chiffres.js*/
-/*@inclure js/11-mon-compte.js*/
 /*@inclure js/12-mon-rendez-vous.js*/
 /*@inclure js/13-demarrage.js*/
 })();

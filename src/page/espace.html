@@ -1,0 +1,87 @@
+<!--# --------------------------------------------------------------------------
+   LE SQUELETTE DE L'ESPACE COMMERÇANT — /espace-salon.
+
+   Le troisième document du site, et celui qui change le plus la vitrine :
+   tout ce balisage y vivait, et partait chez CHAQUE visiteur.
+
+   Mesuré avant la séparation : 58 154 octets sur 164 244, soit 35 % du DOM
+   d'une page de barbier occupés par un agenda que le visiteur ne verra jamais.
+   Ce n'était pas une fuite — les conteneurs sont vides, et les rendez-vous ne
+   sortent que de /api/admin/… derrière une session — mais c'était du poids, du
+   JavaScript à analyser, et un bouton « Espace commerçant » offert à tout le
+   monde en bas de page.
+
+   ⚠️ CE DOCUMENT NE CONTIENT PAS LA VITRINE, et l'inverse est vrai depuis le
+      même commit. Les deux ne partagent que des morceaux — jetons, fondations,
+      contrôles, utilitaires — jamais un résultat : chacun a son propre cache
+      d'assemblage (src/lib/assemblage.js).
+
+   ⚠️ LES STYLES SONT CHOISIS, PAS RECOPIÉS. Ni accueil, ni galerie, ni tunnel,
+      ni bandeau d'état. Ce qui est ici est ce dont l'espace se sert.
+
+   ⚠️ IL N'Y A PLUS DE BASCULE ENTRE DEUX VUES. Avant, `afficherEspace(true)`
+      masquait la vitrine et montrait l'agenda dans le même document. Ici,
+      « Voir le site » est un lien vers `/` — c'est-à-dire une vraie
+      navigation, avec un bouton « précédent » qui fonctionne.
+   -------------------------------------------------------------------------- #-->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#16191B">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%2316191B'/%3E%3Crect x='10' y='14' width='6' height='36' fill='%2324405C'/%3E%3Crect x='26' y='14' width='28' height='6' fill='%23EFEEEA'/%3E%3Crect x='26' y='29' width='28' height='6' fill='%23EFEEEA'/%3E%3Crect x='26' y='44' width='20' height='6' fill='%23EFEEEA'/%3E%3C/svg%3E">
+
+<!--# L'espace ne s'indexe pas. Trois garde-fous, et les trois sont
+     volontaires : cette balise, l'en-tête `X-Robots-Tag` posé par le serveur
+     sur cette route seulement, et le `Disallow` de robots.txt.
+
+     Aucun ne dépend de DEMO_MODE : l'agenda d'un vrai client n'a pas plus à
+     figurer dans Google que celui de la démonstration. #-->
+<meta name="robots" content="noindex, nofollow">
+
+<!-- Remplacé par le serveur à chaque envoi (src/lib/page.js). -->
+<!--@espace-entete-->
+<title>Espace commerçant — L'Établi</title>
+<!--/@espace-entete-->
+
+<link rel="preload" href="/fonts/plexcond-600.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/plexsans-400.woff2" as="font" type="font/woff2" crossorigin>
+
+<style>
+/*@inclure styles/01-polices.css*/
+/*@inclure styles/02-jetons.css*/
+/*@inclure styles/03-fondations.css*/
+/*@inclure styles/05-controles.css*/
+/*@inclure styles/14-connexion.css*/
+/*@inclure styles/15-agenda.css*/
+/*@inclure styles/16-reglages.css*/
+/*@inclure styles/17-chiffres.css*/
+</style>
+</head>
+<body>
+
+<!--@inclure parties/espace-commercant.html-->
+
+<script>
+(function(){
+'use strict';
+
+/*@inclure js/00-trusted-types.js*/
+/*@inclure js/00-libelles.js*/
+/*@inclure js/01-configuration.js*/
+/*@inclure js/espace/etat.js*/
+/*@inclure js/02-utilitaires.js*/
+/*@inclure js/03-donnees.js*/
+/*@inclure js/espace/donnees.js*/
+/*@inclure js/05-navigation.js*/
+/*@inclure js/08-reglages.js*/
+/*@inclure js/09-agenda.js*/
+/*@inclure js/10-chiffres.js*/
+/*@inclure js/11-mon-compte.js*/
+/*@inclure js/espace/demarrage.js*/
+})();
+</script>
+
+</body>
+</html>

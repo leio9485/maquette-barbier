@@ -582,10 +582,16 @@ async function envoyerReglages() {
     // version qui fait foi.
     await chargerReglages();
 
-    // La vitrine se met a jour derriere : le commercant change un tarif et le
-    // voit changer sur son site, sans recharger.
+    // On relit les reglages : tout ce qui suit — les tarifs proposes dans le
+    // formulaire de rendez-vous, la liste de l'equipe — doit suivre.
+    //
+    // ⚠️ PLUS DE peindreVitrine() ICI. La vitrine est un autre document depuis
+    //    le lot 4 : il n'y a rien a repeindre a l'ecran, et l'appeler levait
+    //    une ReferenceError qui avalait le message de confirmation. Le
+    //    commercant voyait « Enregistrer » redevenir cliquable sans savoir si
+    //    quoi que ce soit avait ete enregistre. Trouve par le test du lot 4,
+    //    pas a l'ecran.
     CONFIG = await lireConfig();
-    peindreVitrine(CONFIG);
 
     afficherMessage(message, 'Enregistré. Le site est à jour.', 'bon');
     marquerPropre();
@@ -606,7 +612,6 @@ async function demanderReinitialisation() {
     await chargerReglages();
 
     CONFIG = await lireConfig();
-    peindreVitrine(CONFIG);
 
     afficherMessage($('#messageReglages'), 'Réglages remis aux valeurs d\'origine.', 'bon');
   } catch (erreur) {

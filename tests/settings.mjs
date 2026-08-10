@@ -381,11 +381,37 @@ try {
     await reponse.text();
   }
   {
+    // ⚠️ CE TEST DISAIT « robots.txt n'interdit RIEN », et c'etait juste tant
+    //    que le site tenait en une seule adresse. Depuis le lot 4, il y en a
+    //    trois : la vitrine, l'espace commercant et la page d'annulation. Les
+    //    deux dernieres n'ont rien a offrir a un moteur de recherche.
+    //
+    //    Ce qui compte n'a pas change : LA VITRINE RESTE INDEXABLE. C'est ce
+    //    que verifie ce test — pas l'absence de tout `Disallow`, qui n'etait
+    //    qu'une facon indirecte de le dire.
     const reponse = await fetch(BASE + '/robots.txt');
     const contenu = await reponse.text();
-    verifie('robots.txt est servi et n\'interdit rien',
-      reponse.status === 200 && contenu.includes('Allow: /') && !contenu.includes('Disallow'),
-      contenu);
+
+    verifie('robots.txt est servi', reponse.status === 200, reponse.status);
+    verifie('la vitrine reste indexable', contenu.includes('Allow: /'), contenu);
+    verifie('l\'espace commercant est ecarte des moteurs',
+      contenu.includes('Disallow: /espace-salon'), contenu);
+    verifie('la page d\'annulation aussi',
+      contenu.includes('Disallow: /annuler'), contenu);
+    verifie('et rien d\'autre n\'est interdit',
+      (contenu.match(/^Disallow:/gm) ?? []).length === 3, contenu);
+  }
+  {
+    // Les deux routes privees portent EN PLUS l'en-tete `noindex` : `Disallow`
+    // interdit de lire, ce qui n'empeche pas l'adresse de figurer dans les
+    // resultats sans description. Les deux sont complementaires.
+    for (const chemin of ['/espace-salon', '/annuler']) {
+      const reponse = await fetch(BASE + chemin);
+      verifie(`${chemin} porte l'en-tete noindex`,
+        (reponse.headers.get('x-robots-tag') ?? '').includes('noindex'),
+        reponse.headers.get('x-robots-tag'));
+      await reponse.text();
+    }
   }
 
   // --- 10. La page servie suit les reglages -------------------------------

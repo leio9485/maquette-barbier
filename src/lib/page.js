@@ -20,7 +20,7 @@
 // telle quelle : le site reste consultable, avec son contenu de secours.
 // ---------------------------------------------------------------------------
 
-import { PUBLIC_URL } from '../config.js';
+import { PUBLIC_URL, DEMO_MODE } from '../config.js';
 import { etatDuMoment } from './etat.js';
 import { loadConfig } from './settings.js';
 import { minifierPage } from './minify.js';
@@ -53,6 +53,8 @@ const ZONES = {
   // la description — ni donnees structurees ni og:image, cette page ne se
   // partage pas et ne s'indexe pas.
   annulerEntete: ['<!--@annuler-entete-->', '<!--/@annuler-entete-->'],
+  espaceEntete: ['<!--@espace-entete-->', '<!--/@espace-entete-->'],
+  espaceLien: ['<!--@espace-lien-->', '<!--/@espace-lien-->'],
 };
 
 /**
@@ -438,7 +440,44 @@ export async function renderIndex(nonce) {
   // été envoyée.
   html = remplacerZone(html, 'bandeau', bandeauEtat(await etatDuMoment()));
 
+  // L'ENTRÉE DE L'ESPACE COMMERÇANT, EN BAS DE PAGE : SEULEMENT SUR LA
+  // DÉMONSTRATION.
+  //
+  // Elle y est utile — un prospect qui ne verrait jamais l'agenda ni les
+  // réglages ne verrait pas ce qu'on lui vend. Chez un vrai client, elle
+  // n'apporte rien à ses clients et offre une porte à essayer à tous les
+  // autres. Le commerçant, lui, arrive par /espace-salon mis en raccourci sur
+  // son écran d'accueil : la session se renouvelle à l'usage, il ne resaisira
+  // presque jamais son mot de passe.
+  //
+  // RETIRÉE DU DOCUMENT, ET PAS SEULEMENT MASQUÉE : un lien caché reste dans la
+  // source, où le premier curieux le lit.
+  if (!DEMO_MODE) html = remplacerZone(html, 'espaceLien', '');
+
   return marquer(html);
+}
+
+/**
+ * L'espace commercant (/espace-salon), en-tete a jour.
+ *
+ * Aucun `og:*`, aucune adresse canonique, aucune donnee structuree : cette page
+ * ne se partage pas et ne s'indexe pas. Le titre porte le nom du commerce, pour
+ * que l'onglet garde en favori se reconnaisse.
+ */
+export async function renderEspace(nonce) {
+  const fichier = await lireFichier('espace');
+  const marquer = (html) => (nonce ? marquerScripts(html, nonce) : html);
+
+  let config;
+  try {
+    config = await loadConfig({ includeInactive: false });
+  } catch (erreur) {
+    console.error('Espace non mis a jour (reglages illisibles) :', erreur.message);
+    return marquer(fichier);
+  }
+
+  const entete = `<title>Espace commerçant — ${texte(config.salon.name)}</title>`;
+  return marquer(remplacerZone(fichier, 'espaceEntete', entete));
 }
 
 /**

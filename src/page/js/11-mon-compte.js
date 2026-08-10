@@ -11,7 +11,13 @@
 // rechargeant.
 // ---------------------------------------------------------------------------
 
-/** Montre l'ecran de connexion, agenda masque. */
+/**
+ * Montre l'ecran de connexion, agenda masque.
+ *
+ * On ne quitte PAS la page : se deconnecter ramene au formulaire, pas a la
+ * vitrine. Quelqu'un qui se deconnecte veut le plus souvent se reconnecter
+ * autrement, et l'y renvoyer d'un cran evite un aller-retour.
+ */
 function exigerConnexion() {
   ESPACE.connecte = false;
   montrer($('#ecranConnexion'), true);
@@ -58,10 +64,13 @@ async function remettreDemoAZero() {
   try {
     await reinitialiserDemo();
 
-    // Tout est reconstruit cote serveur : on relit, et on repeint les deux
-    // vues. Sans cela, l'agenda garderait les rendez-vous effaces a l'ecran.
+    // Tout est reconstruit cote serveur : on relit, et on repeint. Sans cela,
+    // l'agenda garderait les rendez-vous effaces a l'ecran.
+    //
+    // ⚠️ PLUS DE `peindreVitrine()` ICI : depuis le lot 4, l'espace est un
+    //    document a part et il n'y a aucune vitrine a repeindre a l'ecran. La
+    //    vitrine, elle, relira tout a sa prochaine ouverture.
     CONFIG = await lireConfig();
-    peindreVitrine(CONFIG);
     ESPACE.brouillon = null;
     await chargerAgenda();
     if (ESPACE.volet === 'reglages') await chargerReglages();
@@ -129,7 +138,6 @@ async function envoyerDeconnexion() {
 
   ESPACE.brouillon = null;
   exigerConnexion();
-  afficherEspace(false);
 }
 
 /** Bascule entre l'agenda et les reglages. */

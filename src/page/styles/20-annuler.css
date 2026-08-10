@@ -12,16 +12,6 @@
    a une page d'erreur.
    --------------------------------------------------------------------------- */
 
-/* --- LE GARDE-FOU HORIZONTAL -----------------------------------------------
-
-   `clip` et surtout pas `hidden`, pour la raison expliquee dans
-   styles/17-petits-ecrans.css : `hidden` ferait de la racine une boite de
-   defilement. Ce document n'a rien de colle en haut, mais la regle est la meme
-   partout — la difference entre les deux ne doit pas dependre du fichier ou
-   l'on regarde.
-*/
-html { overflow-x: clip; }
-
 /* La colonne unique. `--marge` de chaque cote, jamais plus large que la mesure
    confortable : cette page n'a qu'une seule chose a montrer a la fois. */
 .annuler-largeur {
@@ -122,25 +112,6 @@ html { overflow-x: clip; }
   text-transform: uppercase;
 }
 
-/* --- LES MESSAGES ----------------------------------------------------------
-
-   Repris a l'identique du tunnel (styles/13-tunnel.css) : dans le flux, sur
-   aplat plein, jamais une bulle flottante. Aucune couleur d'alarme — la charte
-   n'a pas de rouge, et ce site n'a rien a faire sonner.
-*/
-.annuler-message {
-  margin: var(--e3) 0;
-  padding: var(--e2);
-  max-width: none;
-  background: var(--encre);
-  color: var(--craie);
-  font-size: var(--t-petit);
-  line-height: 1.5;
-  border-left: 3px solid var(--craie);
-}
-
-.annuler-message[data-ton="bon"] { border-left-color: var(--vert-clair); }
-
 /* --- CE QUI PRECEDE L'IRREVERSIBLE ------------------------------------------
 
    Pas d'aplat, pas de couleur : un filet epais a gauche et le texte. La charte
@@ -207,19 +178,16 @@ html { overflow-x: clip; }
 
 .annuler-pied p { margin: 0; }
 
-/* --- L'IMPRESSION -----------------------------------------------------------
+/* --- L'IMPRESSION ----------------------------------------------------------
 
-   Un client imprime, ou enregistre en PDF, la page qui recapitule son
-   rendez-vous. On retire ce qui n'a aucun sens sur papier et on force le noir
-   sur blanc, comme le fait la vitrine.
+   Un client imprime, ou enregistre en PDF, la page qui récapitule son
+   rendez-vous. Le noir sur blanc et le retrait des boutons sont dans
+   styles/03-fondations.css, partagés par les trois documents ; il ne reste ici
+   que ce qui est propre à cette page.
 */
 @media print {
   .annuler-entete,
-  .annuler-actions,
-  .annuler-secours,
-  .saut { display: none !important; }
+  .annuler-secours { display: none !important; }
 
   .annuler-corps { padding-top: var(--e3); }
-
-  body { background: #FFF; color: #000; }
 }

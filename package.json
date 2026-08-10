@@ -21,7 +21,8 @@
     "test:categories": "node tests/categories.mjs",
     "test": "node tests/run.mjs",
     "test:annulation": "node tests/annulation.mjs",
-    "test:chiffres": "node tests/chiffres.mjs"
+    "test:chiffres": "node tests/chiffres.mjs",
+    "test:espace": "node tests/espace.mjs"
   },
   "engines": {
     "node": ">=20"

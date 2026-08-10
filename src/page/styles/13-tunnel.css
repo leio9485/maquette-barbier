@@ -370,31 +370,6 @@
   cursor: not-allowed;
 }
 
-/* --- LES MESSAGES ----------------------------------------------------------
-
-   Dans le flux, sur aplat plein, pleine largeur. Jamais une bulle flottante :
-   une bulle a besoin d'une ombre pour se détacher, elle disparaît souvent avant
-   d'être lue, et sur téléphone elle recouvre ce qu'on vient de saisir.
-
-   Aucune couleur d'alarme — la charte n'a pas de rouge, et un site de barbier
-   n'a rien à faire sonner. C'est la place du message et son aplat qui le
-   distinguent, et son texte qui dit quoi faire.
-*/
-.tunnel-message {
-  margin: var(--e3) 0;
-  padding: var(--e2);
-  max-width: none;
-  background: var(--encre);
-  color: var(--craie);
-  font-size: var(--t-petit);
-  line-height: 1.5;
-  border-left: 3px solid var(--craie);
-}
-
-/* Le message qui annonce une bonne nouvelle prend le vert, du côté du filet
-   seulement : le fond reste encre, donc le contraste du texte ne change pas. */
-.tunnel-message[data-ton="bon"] { border-left-color: var(--vert-clair); }
-
 /* --- LA FICHE ET LA CONFIRMATION ------------------------------------------- */
 
 .tunnel-fiche-titre {

@@ -365,9 +365,10 @@ function peindreGalerie(config) {
     const apres = photos[`${nom}-apres`];
     const legende = legendes[nom] ?? '';
 
-    // Les quatre premières se chargent tout de suite ; le reste attend
-    // d'approcher de l'écran.
-    const chargement = cases.length < 4 ? '' : ' loading="lazy"';
+    // Toutes en chargement différé : la galerie n'est jamais dans le premier
+    // écran. Voir le raisonnement dans src/lib/galerie.js — les charger tout
+    // de suite faisait passer le LCP de 2,3 s à 3,9 s.
+    const chargement = ' loading="lazy"';
 
     const images = apres?.url
       ? '<div class="galerie-paire">'

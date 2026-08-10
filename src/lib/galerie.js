@@ -85,11 +85,20 @@ export function sectionGalerie(donnees) {
   const cases = casesGalerie(donnees);
   if (!cases.length) return null;
 
-  return cases.map((c, rang) => {
-    // Les deux premieres lignes de la planche se chargent tout de suite ; le
-    // reste attend d'approcher de l'ecran. `loading="lazy"` sur une image du
-    // premier ecran retarde le rendu au lieu de l'accelerer.
-    const chargement = rang < 4 ? '' : ' loading="lazy"';
+  return cases.map((c) => {
+    // >>> TOUTES EN CHARGEMENT DIFFERE, SANS EXCEPTION. <<<
+    //
+    // Une premiere version chargeait les quatre premieres tout de suite, par
+    // analogie avec la photo d'accueil. C'etait faux, et Lighthouse l'a dit :
+    // LA GALERIE N'EST JAMAIS DANS LE PREMIER ECRAN — elle est la quatrieme
+    // section de la page. Ces quatre images (354 Kio) partaient donc en meme
+    // temps que la photo d'accueil et lui disputaient la bande passante. Le
+    // LCP est passe de 2,3 s a 3,9 s pour des photos que personne ne regardait
+    // encore.
+    //
+    // `loading="lazy"` ne se justifie que sous le premier ecran ; ici, tout y
+    // est.
+    const chargement = ' loading="lazy"';
 
     const images = c.apres
       ? '<div class="galerie-paire">'

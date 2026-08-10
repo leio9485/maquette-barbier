@@ -20,7 +20,15 @@
 <div class="espace" id="vueEspace">
 
   <!-- LA CONNEXION ---------------------------------------------------------- -->
-  <div class="connexion" id="ecranConnexion">
+  <!--# `<main>` ET NON `<div>` : quand personne n'est connecté, cet écran EST
+       le contenu du document, et il n'y en avait aucun. Un lecteur d'écran ne
+       trouvait donc pas de point d'entrée, et Lighthouse le relevait
+       (« Document does not have a main landmark »).
+
+       Deux `<main>` coexistent dans ce fichier — celui-ci et celui de l'espace
+       connecté — mais JAMAIS À L'ÉCRAN EN MÊME TEMPS : afficher l'un masque
+       l'autre. #-->
+  <main class="connexion" id="ecranConnexion">
     <div class="connexion-boite">
 
       <p class="etiquette connexion-sur-titre">Espace commerçant</p>
@@ -60,7 +68,7 @@
       <a class="lien-nu connexion-retour" href="/">Retour au site</a>
 
     </div>
-  </div>
+  </main>
 
   <!-- L'ESPACE, UNE FOIS CONNECTÉ ------------------------------------------- -->
   <div id="ecranEspace" hidden>

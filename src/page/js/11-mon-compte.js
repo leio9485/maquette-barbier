@@ -144,6 +144,7 @@ function ouvrirVolet(nom) {
     if (volet.tagName === 'SECTION') montrer(volet, volet.dataset.volet === nom);
   }
 
+  if (nom === 'chiffres') chargerChiffres();
   if (nom === 'reglages') chargerReglages();
   if (nom === 'agenda') chargerAgenda();
 }

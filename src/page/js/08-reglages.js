@@ -93,13 +93,69 @@ function peindreCoordonnees() {
     champTexte('salon.city', 'Ville'),
     champTexte('salon.phone', 'Téléphone', { type: 'tel' }),
     champTexte('salon.email', 'Courriel', { type: 'email' }),
-    champTexte('salon.links.google', 'Fiche Google', {
+    champTexte('salon.links.google', 'Lien de votre fiche Google', {
       type: 'url',
-      aide: "Le lien le plus utile des trois : il relie ce site à votre fiche.",
+      aide: "Le lien le plus utile de tous : il relie ce site à votre fiche, et "
+        + "c'est lui qu'ouvre « Lire les avis sur Google ». Sans lui, le site "
+        + "renvoie vers une simple recherche à votre adresse.",
+    }),
+    // ⚠️ CE N'EST PAS LE MEME LIEN QUE CELUI DU DESSUS, et c'est le genre de
+    //    distinction qu'un commercant ne fera pas tout seul : l'aide le dit.
+    //    La fiche, on la LIT ; celui-ci OUVRE la fenêtre d'avis. Un client
+    //    renvoyé vers la fiche doit encore trouver le bouton, faire défiler,
+    //    choisir ses étoiles — la moitié abandonne en route.
+    champTexte('salon.links.review', 'Lien pour laisser un avis', {
+      type: 'url',
+      aide: "Différent du précédent : celui-ci ouvre directement la fenêtre "
+        + "« laisser un avis ». Google vous le donne dans votre fiche, sous "
+        + "« Demander des avis ». C'est ce lien qu'envoie le bouton ci-dessous.",
     }),
     champTexte('salon.links.instagram', 'Instagram', { type: 'url' }),
     champTexte('salon.links.facebook', 'Facebook', { type: 'url' }),
   ].join('');
+}
+
+// --- Demander un avis -------------------------------------------------------
+
+/**
+ * Le message tout prêt, copié dans le presse-papier.
+ *
+ * Petit détail, gros effet en démonstration : le commerçant voit qu'il peut
+ * demander un avis en trois secondes, sans rédiger et sans se tromper de lien.
+ *
+ * LE TEXTE EST COMPOSÉ PAR LE SERVEUR, comme les phrases du bandeau d'état :
+ * une seule formulation existe dans le projet, et le jour où le SMS s'allumera,
+ * c'est exactement celle-là qui partira.
+ */
+async function copierMessageAvis() {
+  const bouton = $('#demanderAvis');
+  const message = $('#messageReglages');
+
+  bouton.disabled = true;
+
+  try {
+    const reponse = await lireMessageAvis();
+
+    if (!reponse.pret) {
+      afficherMessage(message, reponse.aide);
+      return;
+    }
+
+    // `clipboard` peut échouer : navigateur ancien, page non sécurisée,
+    // permission refusée. On ne laisse alors pas le commerçant sans rien —
+    // on lui affiche le message, il le sélectionne à la main.
+    try {
+      await navigator.clipboard.writeText(reponse.message);
+      afficherMessage(message, `Message copié : « ${reponse.message} »`, 'bon');
+    } catch {
+      afficherMessage(message, `À copier : ${reponse.message}`);
+    }
+  } catch (erreur) {
+    if (erreur.code === 401) return exigerConnexion();
+    afficherMessage(message, erreur.message);
+  } finally {
+    bouton.disabled = false;
+  }
 }
 
 // --- Les horaires -----------------------------------------------------------
@@ -770,6 +826,7 @@ function brancherReglages() {
   $('#enregistrerReglages')?.addEventListener('click', envoyerReglages);
   $('#annulerBrouillon')?.addEventListener('click', chargerReglages);
   $('#reinitialiserReglages')?.addEventListener('click', demanderReinitialisation);
+  $('#demanderAvis')?.addEventListener('click', copierMessageAvis);
 
   // Quitter la page avec un brouillon non enregistre : le navigateur demande
   // confirmation. C'est le seul endroit du site ou l'on interrompt quelqu'un, et

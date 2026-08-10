@@ -1,0 +1,234 @@
+// ---------------------------------------------------------------------------
+// LE VOLET « CHIFFRES »
+//
+// Ce qui manquait a l'espace commercant, et qui manquait le plus cher : un
+// patron qui vient de Fresha ou de Planity ouvre l'espace, voit deux onglets et
+// aucun nombre, et sait en trois secondes que le produit est plus jeune.
+//
+// AUCUN CALCUL ICI. Le serveur (src/lib/statistiques.js) renvoie des nombres
+// finis ; ce fichier les met en forme. Recalculer un chiffre d'affaires a
+// partir d'une liste de rendez-vous ferait diverger les deux le jour ou l'un
+// oublierait d'ecarter les annulations.
+//
+// AUCUNE LIBRAIRIE DE GRAPHIQUES, et rien qui s'anime. Les seules formes
+// dessinees sont des barres en CSS pur, de largeur proportionnelle. Une courbe
+// demanderait quarante kilo-octets de JavaScript pour dire ce que six nombres
+// en chasse fixe disent mieux.
+//
+// TOUTE DONNEE CHIFFREE EST EN CHASSE FIXE, comme partout ailleurs sur ce site.
+// C'est la regle qui compte le plus dans cet ecran : ici, les chiffres SONT le
+// contenu.
+// ---------------------------------------------------------------------------
+
+/** "3 200" centimes -> "32 €" ; "3 250" -> "32,50 €". */
+function fmtEuros(cents) {
+  return fmtPrix((cents ?? 0) / 100);
+}
+
+/** "+12 %", "−4 %", ou "—" quand la comparaison n'a pas de sens. */
+function fmtEcart(pourcent) {
+  if (pourcent === null || pourcent === undefined) return '—';
+  // Le signe moins typographique, et non le trait d'union du clavier : dans une
+  // colonne de chiffres en chasse fixe, le second est deux fois trop court.
+  if (pourcent < 0) return `−${Math.abs(pourcent)} %`;
+  return `+${pourcent} %`;
+}
+
+/** "9h" pour une heure pleine, "1h30" au-dela. */
+function fmtHeuresRondes(minutes) {
+  const heures = Math.round((minutes ?? 0) / 60);
+  return `${heures} h`;
+}
+
+/** Un bloc de chiffres : un titre, puis des lignes « intitulé / valeur ». */
+function bloc(titre, lignes, { note = '' } = {}) {
+  return `<section class="chiffres-bloc">`
+    + `<h3 class="etiquette">${esc(titre)}</h3>`
+    + `<dl class="fiche">`
+    + lignes.map(([intitule, valeur, classe = '']) =>
+      `<div${classe ? ` class="${esc(classe)}"` : ''}>`
+      + `<dt>${esc(intitule)}</dt><dd>${esc(valeur)}</dd></div>`).join('')
+    + '</dl>'
+    + (note ? `<p class="petit secondaire chiffres-note">${esc(note)}</p>` : '')
+    + '</section>';
+}
+
+/**
+ * Une barre proportionnelle, en CSS pur.
+ *
+ * La largeur est posee en style en ligne parce qu'elle est une DONNEE, pas une
+ * decision de mise en forme : elle change a chaque rendez-vous. C'est la seule
+ * exception a « aucune valeur en dehors de 02-jetons.css », et elle est du meme
+ * ordre que la teinte d'une personne dans l'agenda.
+ *
+ * `aria-hidden` : la barre ne dit rien de plus que le nombre ecrit a cote. La
+ * laisser lisible ferait annoncer deux fois la meme information.
+ */
+function barre(valeur, maximum) {
+  const part = maximum > 0 ? Math.round((valeur / maximum) * 100) : 0;
+  return `<span class="chiffres-barre" aria-hidden="true"><span style="width:${part}%"></span></span>`;
+}
+
+/** Un classement : nom, barre, valeur. */
+function classement(titre, lignes, { note = '', vide = 'Rien sur la période.' } = {}) {
+  if (!lignes.length) {
+    return `<section class="chiffres-bloc"><h3 class="etiquette">${esc(titre)}</h3>`
+      + `<p class="secondaire petit">${esc(vide)}</p></section>`;
+  }
+
+  const maximum = Math.max(...lignes.map((l) => l.valeur));
+
+  return `<section class="chiffres-bloc">`
+    + `<h3 class="etiquette">${esc(titre)}</h3>`
+    + '<ul class="chiffres-classement">'
+    + lignes.map((l) => '<li>'
+      + `<span class="chiffres-classement-nom">${esc(l.nom)}</span>`
+      + barre(l.valeur, maximum)
+      + `<span class="chiffres-classement-valeur donnee">${esc(l.affichage)}</span>`
+    + '</li>').join('')
+    + '</ul>'
+    + (note ? `<p class="petit secondaire chiffres-note">${esc(note)}</p>` : '')
+    + '</section>';
+}
+
+// --- Le dessin --------------------------------------------------------------
+
+function peindreChiffres(c) {
+  const cible = $('#chiffres');
+  if (!cible) return;
+
+  const morceaux = [];
+
+  // --- Cette semaine -------------------------------------------------------
+  morceaux.push(bloc('Cette semaine', [
+    ['Rendez-vous', String(c.semaine.rendezVous)],
+    ['Chiffre d\'affaires prévu', fmtEuros(c.semaine.caCents), 'appui'],
+    ['Temps rempli', `${c.semaine.remplissage} %`],
+    ['Temps ouvert', fmtHeuresRondes(c.semaine.minutesOuvertes)],
+  ], {
+    note: 'Le temps rempli compare les minutes réservées au temps réellement '
+      + 'ouvert, personne par personne. Les congés et les journées bloquées '
+      + 'n\'y comptent pas : le commerce n\'avait rien à vendre.',
+  }));
+
+  // --- Ce mois -------------------------------------------------------------
+  //
+  // L'ecart avec le mois precedent est donne en euros ET en pourcentage. Le
+  // pourcentage vaut « — » quand le mois precedent etait vide : « +100 % »
+  // depuis zero ne veut rien dire.
+  morceaux.push(bloc('Ce mois-ci', [
+    ['Rendez-vous', String(c.mois.rendezVous)],
+    ['Chiffre d\'affaires prévu', fmtEuros(c.mois.caCents), 'appui'],
+    ['Temps rempli', `${c.mois.remplissage} %`],
+    ['Écart avec le mois dernier', `${fmtEcart(c.ecart.pourcent)} · ${c.ecart.cents >= 0 ? '+' : '−'}${fmtEuros(Math.abs(c.ecart.cents))}`],
+    ['Mois dernier', `${c.moisPrecedent.rendezVous} rendez-vous · ${fmtEuros(c.moisPrecedent.caCents)}`],
+  ]));
+
+  // --- Les prestations -----------------------------------------------------
+  morceaux.push(classement('Prestations, ce mois-ci',
+    c.prestations.map((p) => ({
+      nom: p.name,
+      valeur: p.caCents,
+      affichage: `${p.nombre} · ${fmtEuros(p.caCents)}`,
+    })), {
+      note: 'Classées par ce qu\'elles rapportent, pas par leur nombre : '
+        + 'c\'est ce qui se regarde avant de revoir un tarif.',
+    }));
+
+  // --- L'equipe ------------------------------------------------------------
+  //
+  // ⚠️ CE N'EST PAS UN CLASSEMENT, et le libelle le dit. Les personnes sont
+  //    rangees dans l'ordre de l'equipe, pas du plus gros au plus petit :
+  //    quelqu'un a trois jours fera toujours moins que quelqu'un a cinq, et un
+  //    podium ferait dire a ce tableau une chose qu'il ne sait pas.
+  if (c.equipe.length) {
+    morceaux.push(classement('Réalisé par chacun, ce mois-ci',
+      c.equipe.map((p) => ({
+        nom: p.name,
+        valeur: p.caCents,
+        affichage: `${p.nombre} · ${fmtEuros(p.caCents)}`,
+      })), {
+        note: 'Dans l\'ordre de l\'équipe, pas du plus au moins. Les horaires '
+          + 'de chacun ne sont pas les mêmes : ces lignes ne se comparent pas '
+          + 'entre elles.',
+      }));
+  }
+
+  // --- Les creneaux morts --------------------------------------------------
+  //
+  // Le chiffre le plus actionnable de l'ecran : on ne fait pas grand-chose d'un
+  // chiffre d'affaires, on peut fermer le mardi matin.
+  morceaux.push(classement('Heures les plus creuses',
+    c.creneauxMorts.map((h) => ({
+      nom: `${JOURS_LONGS[h.jour]} ${String(h.heure).padStart(2, '0')}:00`,
+      // La barre montre le CREUX : plus elle est longue, plus l'heure est vide.
+      valeur: Math.max(...c.creneauxMorts.map((x) => x.nombre)) - h.nombre + 1,
+      affichage: h.nombre === 0 ? 'aucun' : `${h.nombre} rdv`,
+    })), {
+      note: `Sur les ${c.reculSemaines} dernières semaines, heures d'ouverture `
+        + "seulement. C'est là qu'on peut fermer, décaler, ou proposer quelque chose.",
+      vide: 'Pas encore assez de recul.',
+    }));
+
+  // --- La clientele --------------------------------------------------------
+  const total = c.clientele.total;
+  morceaux.push(bloc('Clientèle, ce mois-ci', [
+    ['Nouveaux', `${c.clientele.nouveaux}${total ? ` · ${Math.round((c.clientele.nouveaux / total) * 100)} %` : ''}`],
+    ['Déjà venus', `${c.clientele.habitues}${total ? ` · ${Math.round((c.clientele.habitues / total) * 100)} %` : ''}`],
+  ], {
+    note: 'Comptés par numéro de téléphone, sur tout l\'historique : quelqu\'un '
+      + 'qui revient après un an n\'est pas un nouveau client.',
+  }));
+
+  // --- Les absences --------------------------------------------------------
+  //
+  // ⚠️ LE DENOMINATEUR EST « CE QUI A ETE POINTE », et l'ecran le dit. Un
+  //    commercant qui ne coche rien ne doit pas lire « 0 % d'absence » : il doit
+  //    lire qu'il n'a rien pointe.
+  const a = c.absences;
+  morceaux.push(bloc('Absences, ce mois-ci', [
+    ['Rendez-vous passés', String(a.passes)],
+    ['Pointés', `${a.pointes} sur ${a.passes}`],
+    ['Absents', String(a.absents)],
+    ['Taux d\'absence', a.pointes ? `${a.taux} %` : '—', 'appui'],
+  ], {
+    note: a.pointes < a.passes
+      ? 'Le taux ne porte que sur les rendez-vous pointés. Cochez « venu » ou '
+        + '« pas venu » dans l\'agenda pour qu\'il veuille dire quelque chose.'
+      : 'Calculé sur les rendez-vous pointés dans l\'agenda.',
+  }));
+
+  // --- Les notifications ---------------------------------------------------
+  //
+  // N'apparait que si un canal est plafonne, c'est-a-dire aujourd'hui : jamais.
+  // Le bloc est ecrit maintenant pour que l'allumage du SMS n'ait rien a
+  // ajouter ici.
+  const sms = c.notifications?.sms;
+  if (sms && (sms.envoyes > 0 || sms.refuses > 0)) {
+    morceaux.push(bloc('SMS envoyés ce mois-ci', [
+      ['Partis', `${sms.envoyes}${sms.plafond === null ? '' : ` sur ${sms.plafond}`}`],
+      ['Non partis (plafond atteint)', String(sms.refuses), sms.refuses ? 'appui' : ''],
+    ], {
+      note: sms.refuses
+        ? 'Des rappels n\'ont pas été envoyés. Le plafond mensuel est atteint.'
+        : '',
+    }));
+  }
+
+  cible.innerHTML = `<div class="chiffres-grille">${morceaux.join('')}</div>`;
+}
+
+// --- Le chargement ----------------------------------------------------------
+
+async function chargerChiffres() {
+  const message = $('#messageChiffres');
+
+  try {
+    const chiffres = await lireChiffres();
+    afficherMessage(message, '');
+    peindreChiffres(chiffres);
+  } catch (erreur) {
+    if (erreur.code === 401) return exigerConnexion();
+    afficherMessage(message, erreur.message);
+  }
+}

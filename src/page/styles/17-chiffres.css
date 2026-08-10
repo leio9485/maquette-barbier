@@ -1,0 +1,115 @@
+/* ---------------------------------------------------------------------------
+   LE VOLET « CHIFFRES ».
+
+   Des nombres, et presque rien d'autre. Tout ce qui est chiffre est en chasse
+   fixe — c'est la regle du site, et c'est ici qu'elle compte le plus : dans ce
+   volet, les chiffres SONT le contenu.
+
+   AUCUNE COULEUR D'ETAT. Pas de vert pour « ca monte », pas de rouge pour « ca
+   descend » : la charte n'a pas de rouge, et un tableau de bord qui note le
+   travail du commercant en couleurs se lit comme un jugement. Les nombres
+   suffisent, l'ecart est ecrit en toutes lettres.
+
+   Les seules formes dessinees sont des barres — des rectangles pleins de
+   largeur proportionnelle, sans arrondi, sans degrade, sans transition.
+   --------------------------------------------------------------------------- */
+
+/* Deux colonnes des qu'il y a la place, une seule en dessous. Pas de troisieme
+   colonne : au-dela, les blocs deviennent trop etroits pour que les intitules
+   des fiches tiennent sur une ligne. */
+.chiffres-grille {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--e4);
+}
+
+@media (min-width: 900px) {
+  .chiffres-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+.chiffres-bloc > h3 {
+  margin-bottom: var(--e2);
+  padding-bottom: var(--e1);
+  border-bottom: 1px solid var(--filet);
+}
+
+/* La note qui explique ce que le nombre veut dire. Elle compte autant que le
+   nombre : « taux de remplissage 43 % » sans dire de quoi c'est le rapport ne
+   veut rien dire, et le commercant s'en fera sa propre idee — probablement
+   fausse. */
+.chiffres-note {
+  margin-top: var(--e2);
+  max-width: 46ch;
+}
+
+/* --- LES CLASSEMENTS ------------------------------------------------------
+
+   Nom, barre, valeur. La barre est entre les deux plutot qu'en dessous : elle
+   sert a comparer les lignes d'un coup d'oeil, ce qu'elle ne fait que si elles
+   sont alignees sur la meme abscisse de depart.
+*/
+.chiffres-classement { margin: 0; }
+
+.chiffres-classement li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 6rem auto;
+  align-items: center;
+  gap: var(--e2);
+  padding: var(--e1) 0;
+  border-bottom: 1px solid var(--filet);
+}
+
+.chiffres-classement li:first-child { border-top: 1px solid var(--filet); }
+
+.chiffres-classement-nom {
+  font-size: var(--t-petit);
+  /* Un nom de prestation peut etre long : il se coupe plutot que de pousser la
+     barre et la valeur hors de la ligne. */
+  overflow-wrap: anywhere;
+}
+
+.chiffres-classement-valeur {
+  font-size: var(--t-petit);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* La barre : un rail en filet, un aplat plein dedans. Rien qui s'anime — la
+   valeur ne bouge pas sous les yeux, elle est ce qu'elle est au chargement. */
+.chiffres-barre {
+  display: block;
+  height: 8px;
+  background: var(--filet);
+}
+
+.chiffres-barre > span {
+  display: block;
+  height: 100%;
+  background: var(--bleu-travail);
+}
+
+/* Sur l'aplat encre de l'espace commercant, le bleu de travail ne se detache
+   pas (1,7:1). Les barres y prennent la craie. */
+.sombre .chiffres-barre { background: var(--filet-sombre); }
+.sombre .chiffres-barre > span { background: var(--craie); }
+
+/* Sur telephone, la barre passe sous le nom : trois colonnes dans 390 px
+   laissent quatre caracteres au nom de la prestation. */
+@media (max-width: 560px) {
+  .chiffres-classement li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .chiffres-barre {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}
+
+/* --- L'EXPORT ------------------------------------------------------------- */
+
+.reglages-export {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e2);
+  margin-top: var(--e2);
+}

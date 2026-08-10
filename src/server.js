@@ -34,6 +34,7 @@ import { purgeExpiredSessions } from './lib/sessions.js';
 import { authRouter } from './routes/auth.js';
 import { bookingsRouter } from './routes/bookings.js';
 import { rendezVousRouter } from './routes/rendezvous.js';
+import { tableauDeBordRouter } from './routes/tableaudebord.js';
 import { settingsRouter } from './routes/settings.js';
 
 const app = express();
@@ -108,6 +109,9 @@ app.use('/api', bookingsRouter);
 // A part des adresses de reservation : elles ont leur propre facon de prouver
 // qui l'on est, et leur propre compteur de tentatives.
 app.use('/api', rendezVousRouter);
+
+// Le tableau de bord, l'export et le pointage des absences.
+app.use('/api', tableauDeBordRouter);
 
 // Les adresses de reglages (coordonnees, horaires, prestations).
 app.use('/api', settingsRouter);

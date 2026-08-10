@@ -218,3 +218,70 @@
 
   .agenda[data-vue="semaine"] .agenda-jour + .agenda-jour { margin-top: 0; }
 }
+
+/* --- LE POINTAGE « VENU » / « PAS VENU » -----------------------------------
+
+   Sur les rendez-vous PASSÉS seulement (js/09-agenda.js). Deux boutons courts,
+   posés sous la ligne sur téléphone et à sa droite dès qu'il y a la place.
+
+   ⚠️ AUCUNE COULEUR D'ÉTAT : ni vert pour « venu », ni rouge pour « absent ».
+      Un client qui n'est pas venu n'a pas à s'afficher en rouge dans l'agenda
+      de son barbier — et la charte n'a de toute façon pas de rouge. L'état
+      actif se marque par l'inversion de l'aplat, comme partout ailleurs.
+*/
+.agenda-pointages {
+  display: flex;
+  gap: var(--e1);
+  padding: 0 var(--e2) var(--e2);
+}
+
+.agenda-pointage {
+  min-height: 32px;
+  padding: 0 var(--e2);
+  border: 1px solid var(--filet);
+  background: transparent;
+  color: inherit;
+  font-family: var(--f-donnee);
+  font-size: var(--t-etiq);
+  letter-spacing: var(--ls-etiq);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition),
+              border-color var(--transition);
+}
+
+.agenda-pointage:hover { border-color: currentColor; }
+
+/* Coché : l'aplat s'inverse. C'est le même vocabulaire que les onglets de
+   « avec qui ? » dans le tunnel (styles/05-controles.css). */
+.agenda-pointage[aria-pressed="true"] {
+  background: var(--craie);
+  color: var(--encre);
+  border-color: var(--craie);
+}
+
+/* --- LE MARQUEUR D'ABSENCES ------------------------------------------------
+
+   Deux absences ou plus, à côté du nom. DISCRET, et il doit le rester : c'est
+   une information pour le commerçant, pas une étiquette sur le client. Il
+   n'existe pas sur la vitrine, ne déclenche rien, et n'empêche aucune
+   réservation.
+*/
+.agenda-absences {
+  margin-left: var(--e1);
+  padding: 1px var(--e1);
+  border: 1px solid var(--filet-sombre);
+  font-family: var(--f-donnee);
+  font-size: var(--t-etiq);
+  color: var(--acier-clair);
+  white-space: nowrap;
+}
+
+/* --- UN RENDEZ-VOUS ANNULÉ PAR LE CLIENT -----------------------------------
+
+   Barré, pas effacé. Le faire disparaître priverait le commerçant de la seule
+   chose qu'il ait à en apprendre : un créneau s'est libéré sans qu'il y soit
+   pour rien. Voir src/lib/annulation.js.
+*/
+.agenda-ligne[data-annule] .agenda-nom { text-decoration: line-through; }
+.agenda-ligne[data-annule] .agenda-rdv { opacity: 0.62; }

@@ -81,6 +81,9 @@ function toApiBooking(ligne, { avecJeton = false } = {}) {
     // l'agenda d'afficher la ligne barree plutot que de la faire disparaitre
     // sans explication (voir src/lib/annulation.js).
     cancelledAt: ligne.annuleLe ? ligne.annuleLe.toISOString() : null,
+    // « Venu », « pas venu », ou rien tant que personne n'a repondu. Lu par
+    // l'agenda pour dessiner les deux boutons de pointage.
+    presence: ligne.presence ?? null,
   };
   if (avecJeton) sortie.cancelToken = ligne.cancelToken;
   return sortie;

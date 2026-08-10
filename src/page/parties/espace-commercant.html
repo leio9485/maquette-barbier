@@ -65,7 +65,15 @@
           <span class="espace-nom" data-champ="nom">L'Établi</span>
         </p>
 
+        <!--# ⚠️ « CHIFFRES » EST LE PREMIER ONGLET, MAIS PAS LE VOLET PAR
+             DÉFAUT. Les deux décisions sont volontaires et ne se contredisent
+             pas : il est en tête parce que c'est ce qu'un patron cherche quand
+             il évalue le produit, et l'agenda reste ce qui s'ouvre parce que
+             c'est ce qu'on regarde vingt fois par jour une fois client.
+             Ouvrir sur les chiffres ferait payer à l'usage quotidien le prix
+             de la démonstration. #-->
         <nav class="espace-onglets etiquette" aria-label="Volets de l'espace">
+          <button type="button" class="espace-onglet" data-volet="chiffres">Chiffres</button>
           <button type="button" class="espace-onglet" data-volet="agenda" aria-current="true">Agenda</button>
           <button type="button" class="espace-onglet" data-volet="reglages">Réglages</button>
         </nav>
@@ -111,6 +119,22 @@
 
       <p class="tunnel-message" id="messageDemo" hidden></p>
 
+
+      <!-- VOLET CHIFFRES ---------------------------------------------------- -->
+      <!--# Tout est peint par js/10-chiffres.js depuis /api/admin/chiffres.
+           AUCUN CALCUL ICI NI DANS LA PAGE : le serveur renvoie des nombres
+           finis. Un chiffre d'affaires recalculé côté navigateur divergerait le
+           jour où l'un des deux oublierait d'écarter les annulations.
+
+           ⚠️ AUCUNE LIBRAIRIE DE GRAPHIQUES. Les seules formes dessinées sont
+              des barres en CSS pur, de largeur proportionnelle. Une courbe
+              demanderait 40 ko de JavaScript pour dire ce que six nombres en
+              chasse fixe disent mieux — et la charte refuse de toute façon
+              tout ce qui s'anime. #-->
+      <section data-volet="chiffres" hidden>
+        <p class="tunnel-message" id="messageChiffres" hidden></p>
+        <div id="chiffres"></div>
+      </section>
 
       <!-- VOLET AGENDA ------------------------------------------------------ -->
       <section data-volet="agenda">
@@ -165,6 +189,7 @@
           <a href="#reglagesEquipe">Équipe</a>
           <a href="#reglagesAvis">Avis</a>
           <a href="#reglagesPhotos">Photos</a>
+          <a href="#reglagesExport">Export</a>
         </nav>
 
         <section class="reglages-bloc" id="reglagesCoordonnees">
@@ -240,6 +265,43 @@
             Le site les passe en noir et blanc : inutile de le faire avant.
           </p>
           <div class="reglages-photos" id="champsPhotos"></div>
+        </section>
+
+        <section class="reglages-bloc" id="reglagesAvisGoogle">
+          <h2>Demander un avis</h2>
+          <p class="secondaire petit">
+            Le message tout prêt à envoyer par SMS à quelqu'un qui sort de la
+            boutique. Il porte le lien qui ouvre directement la fenêtre d'avis
+            — celui que vous avez saisi dans les coordonnées.
+          </p>
+          <button type="button" class="action-douce" id="demanderAvis">
+            Copier le message
+          </button>
+        </section>
+
+        <!--# L'EXPORT. « Vos données vous appartiennent » est un argument de
+             vente ; sans ce bouton, c'est une phrase, et un prospect averti le
+             sent. Avec, c'est une démonstration de dix secondes.
+
+             ⚠️ Les deux fichiers sont en UTF-8 AVEC BOM et séparés par des
+                point-virgules, sans quoi Excel en configuration française
+                affiche « RÃ©mi » et met tout dans une seule colonne. Le
+                détail est dans src/routes/tableaudebord.js. #-->
+        <section class="reglages-bloc" id="reglagesExport">
+          <h2>Exporter mes données</h2>
+          <p class="secondaire petit">
+            Deux fichiers, à ouvrir dans Excel ou LibreOffice. Vos données vous
+            appartiennent : elles sortent d'ici quand vous voulez, sans rien
+            demander à personne.
+          </p>
+          <div class="reglages-export">
+            <a class="action-douce" href="/api/admin/export/clients" download>
+              Exporter les clients
+            </a>
+            <a class="action-douce" href="/api/admin/export/rendez-vous" download>
+              Exporter les rendez-vous
+            </a>
+          </div>
         </section>
 
         <section class="reglages-bloc">

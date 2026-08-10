@@ -94,6 +94,11 @@ export function dbToConfig({ settings, hours, services, staff = [], categories =
         google: settings.googleUrl ?? '',
         instagram: settings.instagramUrl ?? '',
         facebook: settings.facebookUrl ?? '',
+        // Le lien qui ouvre DIRECTEMENT la fenetre d'avis. Il ne s'affiche
+        // nulle part sur la vitrine — il sert au message que le commercant
+        // copie pour demander un avis — mais il voyage avec les autres pour
+        // qu'il n'y ait qu'un seul objet `links` a maintenir.
+        review: settings.reviewUrl ?? '',
       },
     },
     reviews: { rating: settings.ratingValue, count: settings.ratingCount },
@@ -378,6 +383,7 @@ export function normalizeConfig(brut) {
         google: lien(liens.google),
         instagram: lien(liens.instagram),
         facebook: lien(liens.facebook),
+        review: lien(liens.review),
       },
     },
     reviews: {
@@ -466,7 +472,12 @@ export function validateConfig(config) {
   // mais ceux qui sont renseignés deviennent des `href` sur la vitrine. Un
   // « javascript:… » collé dans le champ Instagram ferait exécuter du code chez
   // chaque visiteur qui cliquerait dessus : seuls http et https passent.
-  const LIENS = { google: 'la fiche Google', instagram: 'Instagram', facebook: 'Facebook' };
+  const LIENS = {
+    google: 'la fiche Google',
+    instagram: 'Instagram',
+    facebook: 'Facebook',
+    review: "le dépôt d'avis",
+  };
   for (const [cle, intitule] of Object.entries(LIENS)) {
     const adresse = salon.links[cle];
     if (adresse && !lienAcceptable(adresse)) {
@@ -705,6 +716,7 @@ export async function saveConfig(config) {
       googleUrl: config.salon.links.google,
       instagramUrl: config.salon.links.instagram,
       facebookUrl: config.salon.links.facebook,
+      reviewUrl: config.salon.links.review,
       ratingValue: config.reviews.rating,
       ratingCount: config.reviews.count,
       slotStepMin: config.slotStep,

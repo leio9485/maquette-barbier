@@ -22,6 +22,31 @@
 /** Les rendez-vous de la periode affichee, ranges par jour. */
 let AGENDA = new Map();
 
+/**
+ * Les numeros qui cumulent au moins deux absences, et combien.
+ *
+ * Charge une fois avec l'agenda plutot qu'interroge rendez-vous par
+ * rendez-vous : la solution naive ferait cinquante allers-retours pour une
+ * semaine. Le serveur ne renvoie QUE ceux qui atteignent le seuil — envoyer la
+ * liste entiere reviendrait a exporter le repertoire du commerce a chaque
+ * ouverture de l'agenda.
+ */
+let ABSENCES = { seuil: 2, absences: {} };
+
+/**
+ * Le meme calcul de cle que le serveur (src/lib/statistiques.js).
+ *
+ * ⚠️ LES DEUX DOIVENT RESTER IDENTIQUES. Si l'un normalise « +33 6 39… » et pas
+ *    l'autre, le marqueur ne s'affichera jamais pour les numeros ecrits au
+ *    format international — sans que rien ne le signale.
+ */
+function clePhone(telephone) {
+  if (typeof telephone !== 'string') return '';
+  let chiffres = telephone.replace(/\D/g, '');
+  if (chiffres.startsWith('33') && chiffres.length === 11) chiffres = '0' + chiffres.slice(2);
+  return chiffres;
+}
+
 /** Les personnes actives, pour nommer qui prend le rendez-vous. */
 function equipeActive() {
   return (CONFIG?.staff ?? []).filter((p) => p.active !== false);
@@ -47,6 +72,13 @@ async function chargerAgenda() {
 
   try {
     const reponse = await lireRendezVous(du, au);
+
+    // Les absences en meme temps que l'agenda, et sans le retenir : leur echec
+    // ne doit pas empecher la journee de s'afficher. Sans elles, le marqueur ne
+    // s'affiche pas — c'est tout.
+    lireAbsences()
+      .then((liste) => { ABSENCES = liste; peindreAgenda(); })
+      .catch(() => { /* le marqueur est un confort, pas une fonction */ });
 
     AGENDA = new Map();
     for (const rdv of reponse.bookings ?? reponse) {
@@ -145,21 +177,83 @@ function ligneRdv(rdv, iso) {
 
   const detail = [prestation?.name, fmtDuree(rdv.duration)].filter(Boolean).join(' · ');
 
-  return '<li class="agenda-ligne">'
+  // Un rendez-vous que le CLIENT a annule reste affiche, barre. Le faire
+  // disparaitre priverait le commercant de la seule chose qu'il a a en
+  // apprendre : un creneau s'est libere sans qu'il y soit pour rien.
+  const annule = Boolean(rdv.cancelledAt);
+
+  // Le marqueur d'absences : discret, cote commercant seulement, JAMAIS de
+  // conséquence automatique. C'est une information, le patron décide.
+  const absences = ABSENCES.absences?.[clePhone(rdv.phone)] ?? 0;
+  const marque = absences >= (ABSENCES.seuil ?? 2)
+    ? `<span class="agenda-absences" title="${esc(absences)} absences constatées">${esc(absences)} abs.</span>`
+    : '';
+
+  return `<li class="agenda-ligne"${annule ? ' data-annule' : ''}>`
     + `<button type="button" class="agenda-rdv" data-rdv="${esc(rdv.id)}" data-source="${esc(rdv.source || '')}"`
       + (personne ? ` style="--teinte:${esc(personne.color || '#24405C')}"` : '')
       + `>`
       + `<span class="agenda-heure donnee">${fmtHeure(rdv.start)}<span class="agenda-fin"> → ${fin}</span></span>`
       + '<span class="agenda-corps">'
-        + `<span class="agenda-nom">${esc(rdv.name)}</span>`
-        + `<span class="agenda-quoi">${esc(detail)}</span>`
+        + `<span class="agenda-nom">${esc(rdv.name)}${marque}</span>`
+        + `<span class="agenda-quoi">${esc(detail)}${annule ? ' · annulé par le client' : ''}</span>`
       + '</span>'
       + '<span class="agenda-cote donnee">'
         + (personne ? `<span class="agenda-qui">${esc(personne.name)}</span>` : '')
         + (rdv.phone ? `<span class="agenda-tel">${esc(rdv.phone)}</span>` : '')
       + '</span>'
     + '</button>'
+    + pointage(rdv, iso, annule)
     + '</li>';
+}
+
+/**
+ * Les deux boutons « Venu » / « Pas venu », sur les rendez-vous PASSES.
+ *
+ * Ils n'apparaissent pas avant : pointer un rendez-vous de la semaine
+ * prochaine n'a aucun sens, et deux boutons de plus sur chaque ligne d'une
+ * journee a venir encombreraient l'ecran qu'on ouvre vingt fois par jour.
+ *
+ * Un rendez-vous annule n'a personne a pointer.
+ *
+ * ⚠️ ON PEUT REVENIR EN ARRIERE : cliquer le bouton deja actif l'efface. Le
+ *    cas le plus frequent d'un pointage est le clic a cote, et un etat qu'on ne
+ *    peut pas defaire ferait hesiter avant chacun.
+ */
+function pointage(rdv, iso, annule) {
+  if (annule || iso >= aujourdhui()) return '';
+
+  const bouton = (valeur, libelle) => {
+    const actif = rdv.presence === valeur;
+    return `<button type="button" class="agenda-pointage" data-pointage="${esc(rdv.id)}"`
+      + ` data-valeur="${esc(valeur)}"${actif ? ' aria-pressed="true"' : ' aria-pressed="false"'}>`
+      + `${esc(libelle)}</button>`;
+  };
+
+  return '<span class="agenda-pointages">'
+    + bouton('venu', 'Venu')
+    + bouton('absent', 'Pas venu')
+    + '</span>';
+}
+
+/** Enregistre le pointage, ou l'annule si on reclique le meme. */
+async function pointer(id, valeur) {
+  const rdv = [...AGENDA.values()].flat().find((r) => r.id === id);
+  if (!rdv) return;
+
+  const nouvelle = rdv.presence === valeur ? null : valeur;
+
+  try {
+    await pointerPresence(id, nouvelle);
+    rdv.presence = nouvelle;
+
+    // Le nombre d'absences a pu changer : on relit, puis on repeint une fois.
+    try { ABSENCES = await lireAbsences(); } catch { /* sans consequence */ }
+    peindreAgenda();
+  } catch (erreur) {
+    if (erreur.code === 401) return exigerConnexion();
+    afficherMessage($('#messageAgenda'), erreur.message);
+  }
 }
 
 // --- Les actions ------------------------------------------------------------
@@ -347,6 +441,11 @@ function brancherAgenda() {
   // Les cases vides cliquables ont disparu avec la grille : on note un
   // rendez-vous par le bouton en tete, qui ouvre le meme formulaire.
   $('#agenda')?.addEventListener('click', (evenement) => {
+    // Le pointage d'abord : ses boutons sont DANS la ligne, et laisser passer
+    // le clic ouvrirait la demande d'annulation par-dessus.
+    const point = evenement.target.closest('[data-pointage]');
+    if (point) return pointer(point.dataset.pointage, point.dataset.valeur);
+
     const rdv = evenement.target.closest('[data-rdv]');
     if (rdv) retirerRdv(rdv.dataset.rdv);
   });

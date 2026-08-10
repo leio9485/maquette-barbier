@@ -20,7 +20,8 @@
     "test:staff": "node tests/staff.mjs",
     "test:categories": "node tests/categories.mjs",
     "test": "node tests/run.mjs",
-    "test:annulation": "node tests/annulation.mjs"
+    "test:annulation": "node tests/annulation.mjs",
+    "test:chiffres": "node tests/chiffres.mjs"
   },
   "engines": {
     "node": ">=20"

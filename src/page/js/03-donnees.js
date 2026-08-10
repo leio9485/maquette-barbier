@@ -206,3 +206,26 @@ function retirerPhoto(emplacement) {
 function lirePhotos() {
   return api('/api/admin/photos');
 }
+
+/** Les nombres du volet « Chiffres », tous calcules par le serveur. */
+function lireChiffres() {
+  return api('/api/admin/chiffres');
+}
+
+/** Combien d'absences par numero, pour le marqueur discret de l'agenda. */
+function lireAbsences() {
+  return api('/api/admin/absences');
+}
+
+/** « Venu », « pas venu », ou rien (`null`) pour revenir en arriere. */
+function pointerPresence(id, presence) {
+  return api(`/api/admin/bookings/${encodeURIComponent(id)}/presence`, {
+    methode: 'PUT',
+    corps: { presence },
+  });
+}
+
+/** Le SMS tout pret pour demander un avis, compose par le serveur. */
+function lireMessageAvis() {
+  return api('/api/admin/message-avis');
+}

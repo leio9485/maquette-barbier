@@ -47,6 +47,11 @@ export const DEFAULT_CONFIG = {
       google: 'https://www.google.com/maps/search/?api=1&query=12+rue+de+Valenciennes+59570+Bavay',
       instagram: '',
       facebook: '',
+      // Le lien qui ouvre directement la fenetre « laisser un avis ». VIDE, et
+      // il doit le rester ici : Google en donne un par fiche, et ce commerce
+      // n'existe pas. C'est l'une des deux lignes a remplir chez un vrai client
+      // pour que le bouton « Demander un avis » serve a quelque chose.
+      review: '',
     },
   },
 

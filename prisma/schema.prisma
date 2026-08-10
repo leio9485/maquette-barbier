@@ -246,6 +246,21 @@ model Booking {
   /// definitivement invendable.
   annuleLe DateTime?
 
+  /// Le client est-il venu ? "venu", "absent", ou vide tant que personne n'a
+  /// repondu.
+  ///
+  /// AUCUNE CONSEQUENCE AUTOMATIQUE, JAMAIS. Deux absences font apparaitre un
+  /// discret marqueur a cote du nom, cote commercant seulement ; elles ne
+  /// bloquent rien, n'exigent aucun acompte et ne se voient pas depuis la
+  /// vitrine. C'est une information, le patron decide — un logiciel qui
+  /// refuserait un rendez-vous a la place du barbier lui ferait perdre un
+  /// client qu'il aurait peut-etre gardé.
+  ///
+  /// Vide n'est pas "venu" : un rendez-vous passe sur lequel on n'a rien
+  /// repondu ne compte ni dans un sens ni dans l'autre. Un taux d'absence
+  /// calcule sur des cases jamais cochees ne voudrait rien dire.
+  presence String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -256,6 +271,10 @@ model Booking {
   /// Le calcul des disponibilites lit une journee ET ecarte les annules : les
   /// deux colonnes ensemble, donc, et non `date` seule.
   @@index([date, annuleLe])
+  /// « Toutes les venues de ce numero » : le suivi des absences et le partage
+  /// nouveaux / habitues du tableau de bord.
+  @@index([customerPhone])
+  @@index([presence])
 }
 
 /// Un membre de l'equipe.
@@ -385,6 +404,19 @@ model Settings {
   googleUrl    String @default("")
   instagramUrl String @default("")
   facebookUrl  String @default("")
+
+  /// Le lien qui ouvre DIRECTEMENT la fenetre « laisser un avis » sur la fiche
+  /// Google, et non la fiche elle-meme.
+  ///
+  /// Les deux se ressemblent et ne servent pas du tout a la meme chose :
+  /// `googleUrl` est ce qu'on met dans « lire les avis », celui-ci est ce qu'on
+  /// envoie par SMS a quelqu'un qui sort de la boutique. Un client renvoye vers
+  /// la fiche doit encore trouver le bouton, faire defiler, choisir ses
+  /// etoiles ; la moitie abandonne en route. Google fournit une adresse courte
+  /// exactement pour cela.
+  ///
+  /// VIDE = on retombe sur `googleUrl`, et a defaut sur une recherche Maps.
+  reviewUrl String @default("")
 
   /// Toutes les combien de minutes un creneau est propose (30 = 9h30, 10h00...).
   slotStepMin Int @default(30)

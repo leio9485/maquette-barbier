@@ -97,3 +97,56 @@ export const IS_PRODUCTION = process.env.NODE_ENV === 'production';
  * l'agenda de ses clientes.
  */
 export const DEMO_MODE = process.env.DEMO_MODE === 'true';
+
+// ---------------------------------------------------------------------------
+// LES NOTIFICATIONS
+//
+// Deux canaux sont prevus, aucun n'est actif par defaut. Voir
+// src/lib/notifications.js pour le detail de ce qui part et de ce qui ne part
+// pas.
+// ---------------------------------------------------------------------------
+
+/**
+ * Le SMS de confirmation et de rappel.
+ *
+ * >>> ECRIT, TESTE, ET VOLONTAIREMENT ETEINT. <<<
+ *
+ * Le code d'envoi est complet — il appelle vraiment l'API de Twilio — mais il
+ * ne s'allume que si `SMS_ACTIF` vaut exactement "true" ET que les trois
+ * identifiants sont fournis. Tant qu'aucun client n'a acheté l'option, aucune
+ * instance n'envoie quoi que ce soit et aucune ne peut le faire par accident :
+ * il faut poser quatre variables, ce qui ne se fait pas en se trompant.
+ *
+ * Le jour ou un client la prend, il n'y a rien a coder — seulement quatre
+ * lignes a poser sur son instance, et le plafond a regler.
+ */
+export const SMS_ACTIF = process.env.SMS_ACTIF === 'true';
+
+export const SMS_COMPTE = process.env.SMS_COMPTE || '';      // Twilio Account SID
+export const SMS_JETON = process.env.SMS_JETON || '';        // Twilio Auth Token
+export const SMS_EXPEDITEUR = process.env.SMS_EXPEDITEUR || '';
+
+/**
+ * Plafond mensuel d'envois, par canal. DUR, et jamais depasse en silence.
+ *
+ * Un SMS se paie a l'unite. Sans plafond, une boucle mal ecrite ou un agenda
+ * charge transforme une option a quelques euros en facture a trois chiffres, et
+ * personne ne s'en apercoit avant le prelevement. Au-dela, l'envoi est REFUSE,
+ * compte a part, et affiche au commercant (voir src/lib/notifications.js).
+ *
+ * 200 par defaut : de l'ordre de ce qu'un barbier seul consomme en un mois s'il
+ * envoie une confirmation et un rappel par rendez-vous en ligne.
+ *
+ * ⚠️ PAS DE `Number(...) || 200` ICI, ET C'EST UN BOGUE CONSTATE. Zero est
+ *    faux en JavaScript : `SMS_PLAFOND_MOIS=0` — la facon la plus evidente de
+ *    dire « aucun envoi » — retombait silencieusement sur 200. Un plafond qu'on
+ *    croit avoir ferme et qui laisse passer deux cents SMS est exactement le
+ *    genre de panne qui se decouvre sur une facture.
+ */
+function plafondConfigure(brut, defaut) {
+  if (brut === undefined || brut === '') return defaut;
+  const valeur = Number(brut);
+  return Number.isFinite(valeur) && valeur >= 0 ? Math.floor(valeur) : defaut;
+}
+
+export const SMS_PLAFOND_MOIS = plafondConfigure(process.env.SMS_PLAFOND_MOIS, 200);

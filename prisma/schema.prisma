@@ -394,6 +394,37 @@ model Settings {
   updatedAt DateTime @updatedAt
 }
 
+/// Ce qui a ete envoye ce mois-ci, par canal.
+///
+/// UNE LIGNE PAR MOIS ET PAR CANAL, pas une ligne par message : on ne garde ici
+/// AUCUNE trace de qui a recu quoi. Le numero de telephone d'une cliente n'a
+/// rien a faire dans un journal d'envois — il est deja sur son rendez-vous, et
+/// il en disparait avec lui au bout de douze mois (src/lib/retention.js). Ce
+/// tiroir ne contient que des nombres.
+///
+/// A QUOI IL SERT. Le SMS se paie a l'unite. Un plafond mensuel dur, et un
+/// compteur pour le tenir, sont ce qui separe « le commerce envoie des rappels »
+/// de « le commerce decouvre une facture de 400 EUR ». Le plafond ne se depasse
+/// JAMAIS en silence : au-dela, l'envoi est refuse, compte dans `refuses`, et
+/// affiche au commercant.
+model NotificationCounter {
+  /// "AAAA-MM", dans le fuseau du commerce.
+  mois  String
+  /// "sms" ou "email".
+  canal String
+
+  /// Ce qui est reellement parti.
+  envoyes Int @default(0)
+  /// Ce qui a ete refuse parce que le plafond etait atteint. Cette colonne est
+  /// la moitie utile du tiroir : c'est elle qui dit au commercant qu'il manque
+  /// des rappels a ses clients, plutot que de le laisser croire que tout part.
+  refuses Int @default(0)
+
+  updatedAt DateTime @updatedAt
+
+  @@id([mois, canal])
+}
+
 /// Compte d'acces a l'espace du commercant.
 ///
 /// Remplace le code "1234" ecrit en clair dans le site : seule une empreinte

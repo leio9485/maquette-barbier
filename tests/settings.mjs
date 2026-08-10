@@ -784,8 +784,17 @@ try {
     const hero = await salon.appel('PUT', '/api/admin/photos/hero/legende', { texte: 'Non' });
     verifie("le visuel d'accueil refuse une legende", hero.status === 400, hero.status);
 
-    const invente = await salon.appel('PUT', '/api/admin/photos/galerie-9/legende', { texte: 'Non' });
+    // ⚠️ `galerie-9` FAISAIT L'AFFAIRE ICI, ET N'EN FAIT PLUS : la galerie
+    //    n'acceptait que quatre cases, elle en accepte douze depuis le lot 6.
+    //    Un test qui prend pour exemple une valeur « manifestement absurde »
+    //    finit toujours par la voir devenir valide.
+    const invente = await salon.appel('PUT', '/api/admin/photos/galerie-99/legende', { texte: 'Non' });
     verifie('un emplacement inconnu est refuse', invente.status === 400, invente.status);
+
+    // Une case « après » n'a pas de légende propre : c'est celle de la case qui
+    // légende les deux, sans quoi on lirait deux titres sous une seule idée.
+    const apres = await salon.appel('PUT', '/api/admin/photos/galerie-1-apres/legende', { texte: 'Non' });
+    verifie("la seconde photo d'un avant/après refuse une légende", apres.status === 400, apres.status);
 
     const chemin = await salon.appel('PUT',
       '/api/admin/photos/' + encodeURIComponent('../../.env') + '/legende', { texte: 'Non' });

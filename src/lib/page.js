@@ -24,9 +24,10 @@ import { PUBLIC_URL, DEMO_MODE } from '../config.js';
 import { etatDuMoment } from './etat.js';
 import { loadConfig } from './settings.js';
 import { minifierPage } from './minify.js';
-import { listerPhotos } from './photos.js';
+import { listerPhotos, listerLegendes, listerDescriptions } from './photos.js';
 import { sectionPrestations } from './catalogue.js';
 import { sectionTemoignages } from './temoignages.js';
+import { sectionGalerie } from './galerie.js';
 import { assemblerPage } from './assemblage.js';
 
 /**
@@ -49,6 +50,7 @@ const ZONES = {
   prestations: ['<!--@prestations-->', '<!--/@prestations-->'],
   temoignages: ['<!--@temoignages-->', '<!--/@temoignages-->'],
   bandeau: ['<!--@bandeau-->', '<!--/@bandeau-->'],
+  galerie: ['<!--@galerie-->', '<!--/@galerie-->'],
   // Le second document du site : /annuler. Son en-tete se resume au titre et a
   // la description — ni donnees structurees ni og:image, cette page ne se
   // partage pas et ne s'indexe pas.
@@ -467,10 +469,14 @@ export async function renderIndex(nonce) {
 
   let config;
   let photos = {};
+  let legendes = {};
+  let descriptions = {};
   try {
-    [config, photos] = await Promise.all([
+    [config, photos, legendes, descriptions] = await Promise.all([
       loadConfig({ includeInactive: false }),
       listerPhotos(),
+      listerLegendes(),
+      listerDescriptions(),
     ]);
   } catch (erreur) {
     console.error('Page non mise a jour (reglages illisibles) :', erreur.message);
@@ -478,6 +484,15 @@ export async function renderIndex(nonce) {
   }
 
   let html = remplacerZone(fichier, 'reglages', enTete(config, photos));
+
+  // LA GALERIE, ECRITE DANS LA PAGE plutot que peinte au chargement.
+  //
+  // Les images n'avaient AUCUN `src` dans le HTML servi : c'est le JavaScript
+  // qui les posait. Un robot qui ne l'execute pas ne voyait donc pas une seule
+  // image du site. Elles y sont maintenant des le premier octet — avec leur
+  // description, et seulement pour les cases qui portent vraiment une photo
+  // (jusqu'a douze, voir src/lib/galerie.js).
+  html = remplacerZone(html, 'galerie', sectionGalerie({ photos, legendes, descriptions }));
 
   // Les prestations dans le HTML lui-meme, et non plus seulement peintes par le
   // JavaScript de la page. La page les reecrira a l'identique au chargement :

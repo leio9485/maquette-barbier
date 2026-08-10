@@ -6,11 +6,27 @@
    contact plutôt que comme quatre vignettes posées au hasard.
    --------------------------------------------------------------------------- */
 
+/* ⚠️ LA GRILLE S'ADAPTE AU NOMBRE DE PHOTOS, elle ne le fixe plus.
+
+   Elle valait `repeat(2, …)` puis `repeat(4, …)` : exactement quatre photos, ni
+   plus ni moins. Quatre, c'est ce qu'on montre quand on ouvre ; un barbier qui
+   tourne depuis deux ans en a trente et n'a aucune raison d'en cacher
+   vingt-six.
+
+   `auto-fill` avec un `minmax` : les cases prennent la largeur disponible et
+   passent à la ligne toutes seules. Trois photos font trois colonnes sur grand
+   écran, douze en font quatre sur trois rangées, et rien à changer entre les
+   deux. `minmax(0, …)` et non `minmax(auto, …)` : sans le zéro, une légende
+   longue élargirait sa colonne et casserait l'alignement de la planche. */
 .galerie {
   margin-top: var(--e4);
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: var(--e1);
+}
+
+@media (min-width: 560px) {
+  .galerie { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
 }
 
 .galerie-case {
@@ -56,6 +72,35 @@
   color: var(--craie);
 }
 
-@media (min-width: 900px) {
-  .galerie { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+/* --- LE MODE AVANT / APRÈS -------------------------------------------------
+
+   Deux photos dans la MÊME case, côte à côte, sous UNE seule légende : c'est
+   une seule idée — « voilà ce que ça donne » — et deux titres sous une seule
+   idée se lisent mal.
+
+   La case double de largeur pour que chaque moitié garde son cadrage portrait.
+   `grid-column: span 2` sur une grille en `auto-fill` : si la ligne n'a plus
+   qu'une colonne libre, la case passe à la suivante d'elle-même.
+
+   Le filet d'un pixel entre les deux moitiés est la seule chose qui les sépare.
+   Pas de flèche, pas de curseur à faire glisser : le comparateur à poignée est
+   le réflexe habituel, il demande cent lignes de code, il ne fonctionne ni au
+   clavier ni sans JavaScript, et deux photos côte à côte disent la même chose. */
+.galerie-case-paire { grid-column: span 2; }
+
+.galerie-paire {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  width: 100%;
+  height: 100%;
+  background: var(--craie);
+}
+
+/* Sur les écrans les plus étroits, une case double occuperait toute la largeur
+   et les deux moitiés deviendraient illisibles. La paire passe alors sur une
+   seule colonne, les deux photos l'une au-dessus de l'autre. */
+@media (max-width: 420px) {
+  .galerie-case-paire { grid-column: span 1; }
+  .galerie-paire { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; }
 }

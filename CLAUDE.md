@@ -254,10 +254,14 @@ de vente.
 
 ## L'architecture
 
-Le navigateur reçoit **une seule page**, sans framework et **sans étape de
-construction**. Les morceaux vivent dans `src/page/` et le serveur les recolle à
-chaque envoi. Le mode d'emploi complet est dans `src/page/LISEZ-MOI.md` — le lire
-avant de toucher à la façade.
+Le navigateur reçoit **un seul fichier par page**, sans framework et **sans étape
+de construction**. Les morceaux vivent dans `src/page/` et le serveur les recolle
+à chaque envoi. Le mode d'emploi complet est dans `src/page/LISEZ-MOI.md` — le
+lire avant de toucher à la façade.
+
+**Il y a trois documents, plus un seul.** La vitrine (`/`), l'espace commerçant
+(`/espace-salon`) et la page d'annulation (`/annuler`). Ils ne partagent que des
+morceaux, jamais un résultat.
 
 ```
 src/
@@ -266,12 +270,53 @@ src/
   lib/
     etat.js          ← le bandeau d'état. Ajouté pour ce site.
     availability.js  toute la règle métier des créneaux
+    annulation.js    ← le filtre « ce qui occupe encore l'agenda »
+    reference.js     ← la référence courte d'un rendez-vous
+    statistiques.js  ← les chiffres du tableau de bord
+    notifications.js ← la porte de sortie unique (SMS écrit, éteint)
     catalogue.js     la liste tarifaire, écrite dans la page servie
     temoignages.js   la section « Avis », idem
+    galerie.js       ← la galerie, idem
     plan.js          le plan du quartier, dessiné depuis l'adresse
     defaults.js      >>> LE FICHIER À ADAPTER POUR CHAQUE CLIENT <<<
   page/              la façade — voir src/page/LISEZ-MOI.md
 ```
+
+## Ce qui a été ajouté après la première livraison
+
+**L'annulation existe pour de vrai.** L'écran de confirmation promettait
+« notez la référence : elle suffit à annuler », et c'était la seule phrase
+fausse du site — le jeton ne survivait qu'en mémoire vive, et la référence
+affichée était les six premiers caractères de ce jeton **mis en capitales**,
+donc non inversible. Elle est maintenant une colonne indexée, tirée dans
+l'alphabet de Crockford (ni I, ni L, ni O, ni U : elle se dicte au téléphone).
+`/annuler` la reprend, avec les quatre derniers chiffres du téléphone comme
+second facteur.
+
+**Une annulation par le client ne supprime pas la ligne, elle la marque**
+(`annuleLe`). Le créneau se libère, et le commerçant voit que quelqu'un s'est
+décommandé. ⚠️ Toute requête qui sert à calculer une disponibilité doit porter
+le filtre de `src/lib/annulation.js` : une ligne annulée est encore en base, et
+l'oublier rendrait son créneau invendable pour toujours.
+
+**Le volet « Chiffres »** (`src/lib/statistiques.js`). Le taux de remplissage se
+compte **en minutes, pas en créneaux** — sinon il monterait quand le barbier
+fait des prestations courtes. Le taux d'absence se calcule sur **ce qui a été
+pointé**, pas sur ce qui est passé.
+
+**Le SMS est écrit, testé, et volontairement éteint.** Le code appelle vraiment
+l'API de Twilio ; il ne s'allume que si quatre variables sont posées. Aucune
+dépendance ajoutée — le paquet `twilio` tire cinquante modules pour ce qui tient
+en une requête HTTP. Le plafond mensuel est **dur** et ne se dépasse jamais en
+silence.
+
+**L'espace commerçant est un document à part.** Il partait dans la même page que
+la vitrine, chez chaque visiteur : 35 % du poids. ⚠️ Le piège qui va avec s'est
+produit **trois fois** — du code de l'espace appelant une fonction de la vitrine
+(`peindreVitrine`, `peindrePhotos`, `initiales`). C'est une `ReferenceError`
+levée *après* l'écriture : les données partent, le message de confirmation est
+avalé, et rien n'apparaît à l'écran. `tests/portees.mjs` interdit désormais la
+classe entière.
 
 ## Les pièges, appris à la construction
 
@@ -353,8 +398,25 @@ Changer l'un sans l'autre remet les titres de section sous la barre.
 npm test
 ```
 
-401 tests. Le serveur doit tourner (`npm run dev`) et **`DEMO_MODE` doit être
-absent** du `.env`.
+**589 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
+`.env`.
+
+⚠️ **`npm run dev` ne convient pas pour lancer la suite.** `node --watch`
+redémarre le serveur dès qu'un fichier de `data/` change — or la suite écrit la
+base et `data/equipe-mise-de-cote.json`. La connexion est coupée en plein
+milieu et `npm test` échoue sur un `ECONNRESET` qui n'a rien à voir avec le
+code. Lancer `npm start`.
+
+Onze suites, dont quatre ajoutées après la première livraison :
+
+| Suite | Ce qu'elle protège |
+|---|---|
+| `portees.mjs` | chaque document n'appelle que ce qu'il embarque |
+| `chiffres.mjs` | le tableau de bord, le pointage, l'export CSV |
+| `espace.mjs` | la séparation vitrine / espace, au poids et à la chaîne près |
+| `seo.mjs` | un seul `h1`, les `alt`, le JSON-LD, le rendu hors écran |
+| `tunnel.mjs` | les quatre cas de collision, et jamais deux rendez-vous |
+| `annulation.mjs` | annuler, déplacer, et l'absence d'oracle |
 
 État au moment de la livraison — Lighthouse mobile : performance 99,
 accessibilité 100, bonnes pratiques 100, SEO 100. LCP 2,0 s en 4G lente simulée,

@@ -133,6 +133,9 @@ function peindreCoordonnees() {
   ].join('');
 }
 
+/** Combien de cases la galerie peut porter. Même valeur que côté serveur. */
+const GALERIE_MAX = 12;
+
 /** Les types de commerce proposés, dans l'ordre où on les rencontre. */
 const TYPES_COMMERCE = [
   ['BarberShop', 'Barbier'],
@@ -490,7 +493,17 @@ function peindreAvisReglages() {
 
   cible.innerHTML = avis.map((t, index) => '<div class="reglages-ligne">'
     + '<div class="reglages-ligne-tete">'
-      + `<span class="reglages-ligne-titre">Avis ${index + 1}</span>`
+      + `<span class="reglages-ligne-titre">${esc(t.author || `Avis ${index + 1}`)}</span>`
+      // QUAND CET AVIS A ÉTÉ TOUCHÉ POUR LA DERNIÈRE FOIS.
+      //
+      // ⚠️ ICI ET NULLE PART AILLEURS. Sur la vitrine, « avis de 2021 » dit
+      //    « plus personne n'écrit de bien d'ici depuis quatre ans » ; dans
+      //    les réglages, la même information dit « il serait temps d'en
+      //    recopier de nouveaux depuis votre fiche Google ». C'est la même
+      //    date et ce n'est pas le même message.
+      + (t.updatedAt
+        ? `<span class="reglages-ligne-appui donnee">${esc(dateCourte(t.updatedAt.slice(0, 10)))}</span>`
+        : '')
       + boutonsLigne('avis', index, avis.length)
     + '</div>'
     + '<div class="champ">'
@@ -527,12 +540,42 @@ async function peindrePhotosReglages() {
   // identifiant technique. « hero » et « galerie 1 » ne disent rien a un
   // barbier ; « la grande photo du haut » lui dit ou elle va apparaitre, et
   // c'est la seule chose qu'il a besoin de savoir pour choisir la bonne image.
+  // ⚠️ LA LISTE N'EST PLUS FIGÉE À QUATRE. La galerie accepte douze cases, mais
+  //    on n'affiche pas douze emplacements vides à quelqu'un qui en a rempli
+  //    trois : ce serait un mur de rectangles gris. On montre celles qui
+  //    portent une photo, PLUS UNE — la case suivante, prête à recevoir. C'est
+  //    ce qui rend l'ajout évident sans jamais encombrer.
+  const cases = [];
+  for (let n = 1; n <= GALERIE_MAX; n++) {
+    const id = `galerie-${n}`;
+    const remplie = Boolean(photos[id]?.url);
+    if (!remplie && cases.length && !cases[cases.length - 1].vide) {
+      cases.push({ id, nom: `Galerie — ${n}`, ou: 'Ajouter une photo.', vide: true });
+      break;
+    }
+    if (!remplie) break;
+
+    cases.push({ id, nom: `Galerie — ${n}`, ou: `Vignette ${n} de la planche.` });
+
+    // La seconde photo d'un avant/après, proposée seulement quand la première
+    // existe : sans elle, la case n'apparaît pas sur le site.
+    cases.push({
+      id: `${id}-apres`,
+      nom: `Galerie — ${n} · après`,
+      ou: 'Facultatif. Affiche les deux photos côte à côte, sous la même légende.',
+      apres: true,
+    });
+  }
+
+  // Aucune photo de galerie : on propose la première case, sinon il n'y aurait
+  // rien à cliquer.
+  if (!cases.length) {
+    cases.push({ id: 'galerie-1', nom: 'Galerie — 1', ou: 'Ajouter une photo.', vide: true });
+  }
+
   const emplacements = [
     { id: 'hero', nom: "Photo d'accueil", ou: 'La grande photo du haut, à côté du titre.', large: true },
-    { id: 'galerie-1', nom: 'Galerie — 1', ou: 'Première vignette de la planche.' },
-    { id: 'galerie-2', nom: 'Galerie — 2', ou: 'Deuxième vignette.' },
-    { id: 'galerie-3', nom: 'Galerie — 3', ou: 'Troisième vignette.' },
-    { id: 'galerie-4', nom: 'Galerie — 4', ou: 'Quatrième vignette.' },
+    ...cases,
   ];
 
   cible.innerHTML = emplacements.map((e) => {

@@ -328,12 +328,85 @@ function peindreAvis(config) {
  * ligne. Et surtout, la mise en page est deja definitive — deposer les photos
  * plus tard ne deplacera rien.
  */
+/** Combien de cases la galerie peut porter. Même valeur que `GALERIE_MAX`. */
+const GALERIE_MAX = 12;
+
+/**
+ * La galerie, repeinte depuis les réglages.
+ *
+ * ⚠️ CE CODE PRODUIT EXACTEMENT LE MÊME BALISAGE QUE `sectionGalerie()`
+ *    (src/lib/galerie.js). Même règle que pour les prestations et les avis : le
+ *    serveur écrit pour ceux qui n'exécutent pas de code, la page réécrit pour
+ *    la mise à jour sans rechargement, et un test vérifie que les deux
+ *    coïncident au caractère près. Si vous changez l'un, changez l'autre.
+ *
+ * Une case n'existe que si sa photo « avant » existe : la galerie se remplit et
+ * se vide toute seule, sans que le commerçant ait à déclarer combien de photos
+ * il veut.
+ */
+function peindreGalerie(config) {
+  const liste = $('#galerieListe');
+  if (!liste) return;
+
+  const photos = config.photos || {};
+  const legendes = config.legendes || {};
+  const descriptions = config.descriptions || {};
+
+  const image = (url, alt, chargement) =>
+    `<img src="${esc(url)}" alt="${esc(alt)}" width="700" height="933"${chargement}>`;
+
+  const cases = [];
+
+  for (let n = 1; n <= GALERIE_MAX; n++) {
+    const nom = `galerie-${n}`;
+    const photo = photos[nom];
+    if (!photo?.url) continue;
+
+    const apres = photos[`${nom}-apres`];
+    const legende = legendes[nom] ?? '';
+
+    // Les quatre premières se chargent tout de suite ; le reste attend
+    // d'approcher de l'écran.
+    const chargement = cases.length < 4 ? '' : ' loading="lazy"';
+
+    const images = apres?.url
+      ? '<div class="galerie-paire">'
+        + image(photo.url, descriptions[nom] ?? '', chargement)
+        + image(apres.url, descriptions[`${nom}-apres`] ?? '', chargement)
+        + '</div>'
+      : image(photo.url, descriptions[nom] ?? '', chargement);
+
+    cases.push(`<li class="galerie-case${apres?.url ? ' galerie-case-paire' : ''}" data-photo="${esc(nom)}">`
+      + '<figure>'
+      + images
+      + (legende
+        ? `<figcaption class="galerie-legende etiquette" data-legende="${esc(nom)}">${esc(legende)}</figcaption>`
+        : '')
+      + '</figure>'
+      + '</li>');
+  }
+
+  // Aucune photo : on laisse ce que le serveur a écrit plutôt que de vider la
+  // section. Une galerie vide vaut moins que pas de galerie du tout.
+  if (cases.length) liste.innerHTML = cases.join('');
+}
+
 function peindrePhotos(config) {
   const photos = config.photos || {};
   const legendes = config.legendes || {};
   const descriptions = config.descriptions || {};
 
+  // La galerie se redessine en entier : le nombre de cases dépend des photos
+  // déposées, ce qu'une simple mise à jour des `src` ne saurait pas suivre.
+  peindreGalerie(config);
+
   for (const case_ of $$('[data-photo]')) {
+    // Les cases de la galerie viennent d'être réécrites en entier, images et
+    // descriptions comprises : les reprendre ici ne ferait que du travail en
+    // double, et poserait mal les paires avant/après (deux images, une seule
+    // serait reprise).
+    if (case_.closest('#galerie')) continue;
+
     const emplacement = case_.dataset.photo;
     const photo = photos[emplacement];
     const image = $('img', case_);

@@ -31,7 +31,30 @@
               c'est la même information dite deux fois. Les valeurs livrées
               sont dans src/lib/photos.js, et le commerçant écrit les siennes
               depuis les réglages. #-->
-      <ul class="galerie" id="galerie">
+      <!--# LA LISTE EST ÉCRITE PAR LE SERVEUR (src/lib/galerie.js), entre les
+           deux marqueurs. Deux raisons :
+
+           • jusqu'à DOUZE cases, et seules celles qui portent vraiment une
+             photo sont écrites — une nouvelle instance ne montre donc jamais
+             huit rectangles gris ;
+           • les images ont leur `src` dès le premier octet. Elles ne
+             l'avaient pas : c'était le JavaScript qui les posait, et un robot
+             qui ne l'exécute pas ne voyait aucune image du site.
+
+           Ce qui est écrit ci-dessous est du CONTENU DE SECOURS : il ne
+           s'affiche que si la base est injoignable. #-->
+      <!--# ⚠️ `galerieListe`, ET SURTOUT PAS `galerie`. La `<section>` qui
+           entoure porte déjà `id="galerie"` — c'est l'ancre du menu. Deux
+           éléments partageaient donc le même identifiant, ce qui est invalide
+           en HTML et n'avait jamais gêné personne tant que rien n'allait les
+           chercher.
+
+           Le jour où `peindreGalerie()` a fait `$('#galerie')`, il a récupéré
+           la SECTION — la première dans le document — et remplacé son contenu
+           par la liste : le titre « L'atelier » et le repère « 04 » ont
+           disparu de la page. Trouvé à l'écran, pas par un test. #-->
+      <ul class="galerie" id="galerieListe">
+        <!--@galerie-->
         <li class="galerie-case" data-photo="galerie-1">
           <figure>
             <img alt="" width="700" height="933" loading="lazy" hidden>
@@ -56,6 +79,7 @@
             <figcaption class="galerie-legende etiquette" data-legende="galerie-4">Le rasage</figcaption>
           </figure>
         </li>
+        <!--/@galerie-->
       </ul>
     </div>
 

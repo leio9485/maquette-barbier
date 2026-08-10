@@ -24,7 +24,8 @@
     "test:chiffres": "node tests/chiffres.mjs",
     "test:espace": "node tests/espace.mjs",
     "test:seo": "node tests/seo.mjs",
-    "test:portees": "node tests/portees.mjs"
+    "test:portees": "node tests/portees.mjs",
+    "test:tunnel": "node tests/tunnel.mjs"
   },
   "engines": {
     "node": ">=20"

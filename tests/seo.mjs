@@ -73,12 +73,23 @@ console.log('\n2. Les images et leurs descriptions');
     courtes.length === 0, courtes);
 }
 {
-  verifie('la galerie emploie <figure>', compter(vitrine, 'figure') === 4,
-    compter(vitrine, 'figure'));
+  // ⚠️ ON COMPTE DANS LA LISTE, PAS DANS LA PAGE ENTIERE. Le JavaScript de la
+  //    page contient lui aussi le mot `<figure` — c'est lui qui redessine la
+  //    galerie sans rechargement (js/04-contenu-statique.js). Compter sur tout
+  //    le document donnait un de trop, et l'ancien compte ne tombait juste que
+  //    parce que ce code n'existait pas encore.
+  const liste = /<ul class="galerie" id="galerieListe">([\s\S]*?)<\/ul>/.exec(vitrine)?.[1] ?? '';
+
+  verifie('la liste de la galerie est bien dans le HTML servi', liste.length > 0, 'liste absente');
+  verifie('chaque case emploie <figure>',
+    compter(liste, 'figure') === compter(liste, 'li'), [compter(liste, 'figure'), compter(liste, 'li')]);
   verifie('et <figcaption>, qui lie la legende a SON image',
-    compter(vitrine, 'figcaption') === 4, compter(vitrine, 'figcaption'));
+    compter(liste, 'figcaption') > 0, compter(liste, 'figcaption'));
+  verifie('chaque image a son adresse des le HTML servi',
+    (liste.match(/<img [^>]*src="/g) ?? []).length >= compter(liste, 'li'),
+    [(liste.match(/<img /g) ?? []).length, compter(liste, 'li')]);
   verifie('les legendes ne sont plus des <p> orphelins',
-    !vitrine.includes('<p class="galerie-legende'), 'balise <p> trouvee');
+    !liste.includes('<p class="galerie-legende'), 'balise <p> trouvee');
 }
 
 // --- 3. Les donnees structurees --------------------------------------------

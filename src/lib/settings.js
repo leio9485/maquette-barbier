@@ -114,6 +114,17 @@ export function dbToConfig({ settings, hours, services, staff = [], categories =
       author: t.author,
       meta: t.meta,
       rating: t.rating,
+      // QUAND CET AVIS A ETE TOUCHE POUR LA DERNIERE FOIS.
+      //
+      // ⚠️ AFFICHEE AU COMMERCANT SEULEMENT, jamais sur la vitrine. Un avis
+      //    date de 2021 sur la page d'un commerce dit « plus personne n'ecrit
+      //    de bien d'ici depuis quatre ans », ce qui n'est pas ce qu'on veut
+      //    dire. Cote reglages, la meme information dit « il serait temps d'en
+      //    recopier de nouveaux depuis votre fiche Google », ce qui est utile.
+      //
+      // Elle traverse `normalizeConfig` sans y etre validee : c'est une donnee
+      // de la base, pas une saisie. Elle est simplement ignoree a l'ecriture.
+      updatedAt: t.updatedAt ? t.updatedAt.toISOString() : null,
     })),
     hours: parJour,
     slotStep: settings.slotStepMin,
@@ -402,6 +413,10 @@ export function normalizeConfig(brut) {
       // Cinq etoiles par defaut : c'est ce qu'on recopie de sa fiche Google dans
       // la quasi-totalite des cas, et le champ n'a alors pas a etre touche.
       rating: Number.isFinite(etoiles) ? etoiles : 5,
+      // La date de derniere modification traverse le brouillon sans y etre
+      // touchee : elle vient de la base et c'est la base qui la tient a jour.
+      // Elle est simplement ignoree a l'ecriture (voir `saveConfig`).
+      updatedAt: typeof source.updatedAt === 'string' ? source.updatedAt : null,
     };
   });
 

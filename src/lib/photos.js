@@ -44,6 +44,9 @@ import { ROOT_DIR, PHOTOS_DIR } from '../config.js';
  * Chaque entree porte aussi les dimensions attendues, dont se sert le
  * navigateur pour reduire la photo avant de l'envoyer.
  */
+/** Combien de cases la galerie peut porter au maximum. */
+export const GALERIE_MAX = 12;
+
 export const EMPLACEMENTS = {
   hero: {
     titre: "Photo d'accueil",
@@ -72,27 +75,66 @@ export const EMPLACEMENTS = {
   },
   // La galerie est en portrait 3:4 : c'est le cadrage d'une personne assise au
   // fauteuil et d'une main au travail, les deux sujets de ce commerce.
-  'galerie-1': {
-    titre: 'Galerie 1', format: 'Portrait', legende: 'La devanture',
-    alt: "La devanture du salon depuis la rue : vitrine sombre et enseigne.",
-    largeur: 700, hauteur: 933,
-  },
-  'galerie-2': {
-    titre: 'Galerie 2', format: 'Portrait', legende: 'Le poste',
-    alt: "Un poste de travail : fauteuil, miroir, tondeuses et ciseaux rangés.",
-    largeur: 700, hauteur: 933,
-  },
-  'galerie-3': {
-    titre: 'Galerie 3', format: 'Portrait', legende: 'La coupe',
-    alt: "Les mains du barbier taillant les cheveux d'un client aux ciseaux.",
-    largeur: 700, hauteur: 933,
-  },
-  'galerie-4': {
-    titre: 'Galerie 4', format: 'Portrait', legende: 'Le rasage',
-    alt: "Un rasage au coupe-chou, mousse chaude appliquée au blaireau.",
-    largeur: 700, hauteur: 933,
-  },
+  ...galerie(),
 };
+
+/**
+ * Les douze cases de la galerie, et leur seconde photo « après ».
+ *
+ * >>> QUATRE, C'ETAIT TROP PEU POUR UN BARBIER. <<< Quatre photos, c'est ce
+ * qu'on montre quand on ouvre ; un commerce qui tourne depuis deux ans en a
+ * trente, et n'a aucune raison d'en cacher vingt-six. La grille s'adapte au
+ * nombre reellement depose (voir styles/11-galerie.css) : trois, quatre, huit
+ * ou douze tiennent sans qu'on y touche.
+ *
+ * LES QUATRE PREMIERES SONT LIVREES avec le site et portent une legende ; les
+ * huit suivantes arrivent vides et n'apparaissent que si le commercant y met
+ * quelque chose. C'est ce qui evite qu'une nouvelle instance affiche huit
+ * rectangles gris.
+ *
+ * LA SECONDE PHOTO (« -apres ») est facultative et ne s'affiche jamais seule :
+ * sans la premiere, la case n'existe pas. C'est ce qui rend le mode
+ * avant/apres indolore — un commerce qui n'en veut pas ne rencontre jamais la
+ * notion.
+ */
+function galerie() {
+  const livrees = [
+    ['La devanture', "La devanture du salon depuis la rue : vitrine sombre et enseigne."],
+    ['Le poste', "Un poste de travail : fauteuil, miroir, tondeuses et ciseaux rangés."],
+    ['La coupe', "Les mains du barbier taillant les cheveux d'un client aux ciseaux."],
+    ['Le rasage', "Un rasage au coupe-chou, mousse chaude appliquée au blaireau."],
+  ];
+
+  const cases = {};
+
+  for (let n = 1; n <= GALERIE_MAX; n++) {
+    const [legende, alt] = livrees[n - 1] ?? ['', ''];
+
+    cases[`galerie-${n}`] = {
+      titre: `Galerie ${n}`,
+      format: 'Portrait',
+      legende,
+      alt: alt || `Photo ${n} de la galerie du salon.`,
+      largeur: 700,
+      hauteur: 933,
+    };
+
+    // La seconde photo d'un avant/apres. Pas de legende propre : c'est celle de
+    // la case qui legende les deux, sans quoi on lirait deux titres sous une
+    // seule idee.
+    cases[`galerie-${n}-apres`] = {
+      titre: `Galerie ${n} — après`,
+      format: 'Portrait',
+      legende: null,
+      alt: `Le résultat, après la prestation (photo ${n}).`,
+      largeur: 700,
+      hauteur: 933,
+      apres: true,
+    };
+  }
+
+  return cases;
+}
 
 /**
  * Les legendes de la galerie, ecrites par le commercant.

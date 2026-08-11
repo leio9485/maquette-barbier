@@ -304,6 +304,25 @@ compte **en minutes, pas en créneaux** — sinon il monterait quand le barbier
 fait des prestations courtes. Le taux d'absence se calcule sur **ce qui a été
 pointé**, pas sur ce qui est passé.
 
+**Les plafonds de réservation.** Rien n'empêchait de remplir l'agenda d'un
+client avec une boucle de dix lignes — aucun acompte, aucun compte à créer,
+c'est l'argument de vente central et c'est aussi la porte ouverte. Trois
+plafonds par adresse : 5 réservations abouties en 3 minutes, 20 par heure,
+60 tentatives par heure.
+
+⚠️ **Ils ne s'appliquent pas à la machine elle-même hors production**, et ce
+n'est pas un contournement : `npm test` envoie **quarante-trois demandes de
+réservation en quinze secondes** depuis la même adresse — mesuré, pas estimé.
+Aucune valeur ne laisse passer la suite tout en protégeant quoi que ce soit. En
+production, l'exemption n'existe pour personne (`src/lib/rateLimit.js`), et le
+site y tourne derrière un relais avec `trust proxy` : `req.ip` porte l'adresse
+réelle du visiteur.
+
+Ce qu'ils font : transformer une catastrophe en désagrément. Ce qu'ils ne font
+pas : arrêter un adversaire disposant de plusieurs adresses — et la vraie parade
+contre celui-là (vérification par SMS, acompte, CAPTCHA) est refusée par le
+produit, délibérément.
+
 **Le SMS est écrit, testé, et volontairement éteint.** Le code appelle vraiment
 l'API de Twilio ; il ne s'allume que si quatre variables sont posées. Aucune
 dépendance ajoutée — le paquet `twilio` tire cinquante modules pour ce qui tient
@@ -398,7 +417,7 @@ Changer l'un sans l'autre remet les titres de section sous la barre.
 npm test
 ```
 
-**589 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
+**634 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
 `.env`.
 
 ⚠️ **`npm run dev` ne convient pas pour lancer la suite.** `node --watch`
@@ -412,6 +431,7 @@ Onze suites, dont quatre ajoutées après la première livraison :
 | Suite | Ce qu'elle protège |
 |---|---|
 | `portees.mjs` | chaque document n'appelle que ce qu'il embarque |
+| `debit.mjs` | les plafonds de réservation, et la règle d'exemption |
 | `chiffres.mjs` | le tableau de bord, le pointage, l'export CSV |
 | `espace.mjs` | la séparation vitrine / espace, au poids et à la chaîne près |
 | `seo.mjs` | un seul `h1`, les `alt`, le JSON-LD, le rendu hors écran |

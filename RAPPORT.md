@@ -3,7 +3,7 @@
 Ce document rend compte du travail demandé. Il est écrit pour être relu lot par
 lot, et il dit aussi ce qui n'a **pas** été fait.
 
-**Référence de départ : 401 tests, 0 échec. Aujourd'hui : 589 tests, 0 échec.**
+**Référence de départ : 401 tests, 0 échec. Aujourd'hui : 634 tests, 0 échec.**
 
 Ordre d'exécution, tel que vous l'avez demandé : audit (phase 0), lot 1, puis
 l'infrastructure de notifications avec le SMS écrit mais éteint, puis les lots
@@ -30,7 +30,8 @@ mémoire vive.
 **3. `DELETE /api/bookings/:id?token=`** existait et fonctionnait (testé de bout
 en bout). **Une seule route du serveur était limitée en débit : `POST
 /api/login`.** → *Le lot 1 a ajouté un compteur strict sur les routes
-d'annulation. `POST /api/bookings` reste non limité — voir le point 5.*
+d'annulation ; `POST /api/bookings` a reçu les siens après le lot 6 — voir
+ci-dessous.*
 
 **4. Aucun email.** Zéro occurrence de `nodemailer`/`smtp`/`sendMail` dans le
 dépôt. `customerEmail` était écrit en base et plus jamais relu.
@@ -229,6 +230,71 @@ personne**.
 `src/page/js/04-contenu-statique.js`, `tests/tunnel.mjs`, `CLAUDE.md`,
 `src/page/LISEZ-MOI.md`.*
 
+### Après le lot 6 — les plafonds de réservation
+
+Relevé à l'audit, hors des six lots, et signalé comme le point le plus urgent :
+**n'importe qui pouvait remplir l'agenda d'un client avec une boucle de dix
+lignes.** Aucun acompte, aucun compte à créer — c'est l'argument de vente
+central du produit, et c'était aussi la porte grande ouverte.
+
+Trois plafonds par adresse, tous configurables :
+
+| Plafond | Valeur | Ce qu'il attrape |
+|---|---|---|
+| Rafale | 5 réservations abouties / 3 min | le script. **C'est celui qui protège.** |
+| Heure | 20 réservations abouties / heure | l'acharnement lent, qui espace ses envois |
+| Tentatives | 60 requêtes / heure | les requêtes malformées en boucle |
+
+**Calés pour ne jamais gêner un client réel, y compris derrière une adresse
+partagée** — réseau mobile d'un opérateur, wifi d'entreprise. Quelqu'un qui
+n'arrive pas à réserver ne se plaint pas : il appelle un autre barbier.
+
+Le refus dit **combien de temps attendre** et **donne une sortie** (« appelez le
+salon »), mais **ne nomme jamais le plafond qui a mordu** : l'apprendre
+apprendrait aussi comment passer entre.
+
+La fenêtre **ne se repousse pas** à chaque passage, contrairement au compteur
+d'échecs de la page de connexion. La différence n'est pas théorique : derrière
+une adresse partagée, une fenêtre qui se repousse enfermerait dehors des
+dizaines de clients innocents, indéfiniment.
+
+#### L'exemption, et pourquoi elle ne peut pas affaiblir la production
+
+Les plafonds ne s'appliquent pas à la machine elle-même **hors production**. Ce
+n'est pas un contournement pour faire passer les tests, c'est une mesure :
+`npm test` envoie **quarante-trois demandes de réservation en quinze secondes**
+depuis la même adresse — j'ai instrumenté la route pour le compter. C'est
+exactement le profil qu'un plafond existe pour arrêter. Aucune valeur ne laisse
+passer la suite tout en protégeant quelque chose : il faudrait un plafond
+supérieur à quarante-trois par quart d'heure, autant dire aucun plafond.
+
+En production, `IS_PRODUCTION` est vrai et la condition est fausse quoi qu'il
+arrive. Le site y tourne derrière le relais de l'hébergeur avec `trust proxy` :
+`req.ip` porte l'adresse réelle du visiteur, jamais une adresse locale.
+
+#### Ce qui est testé
+
+`tests/debit.mjs`, 45 tests, à trois niveaux :
+
+1. **La règle d'exemption** — les quatre combinaisons, dont celle qui compte :
+   en production, rien n'est exempté, pas même une requête venue de la machine.
+2. **Le compteur** — plafond, fenêtre fixe, expiration, indépendance des clés.
+3. **La route elle-même, en HTTP.** La suite monte son propre serveur sur un
+   autre port avec `trust proxy`, se présente avec une adresse publique via
+   `X-Forwarded-For`, sort de l'exemption et voit le plafond mordre. **Aucune
+   porte dérobée** : c'est le réglage de production qui rend l'en-tête digne de
+   foi, et c'est ce réglage-là qu'on reproduit.
+
+Vérifié en retirant la protection : cinq assertions passent au rouge.
+
+⚠️ **Ce que ces plafonds ne font pas** : arrêter un adversaire disposant de
+plusieurs adresses. La vraie parade contre celui-là — vérification par SMS,
+acompte, CAPTCHA — est refusée par le produit, délibérément. C'est un
+ralentisseur, pas un mur, et c'est assumé.
+
+*Fichiers : `src/lib/rateLimit.js`, `src/config.js`, `src/routes/bookings.js`,
+`tests/debit.mjs`, `.env.example`.*
+
 ---
 
 ## 3. Les critères d'acceptation
@@ -287,8 +353,8 @@ personne**.
 
 | | avant | après |
 |---|---:|---:|
-| **Tests** | 401 | **589** (+188) |
-| Suites | 5 | 11 |
+| **Tests** | 401 | **634** (+233) |
+| Suites | 5 | 12 |
 | **DOM de la vitrine** | 164 244 o (160,4 Kio) | **120 156 o (117,3 Kio)** |
 | Page servie | 156 493 o | 112 500 o |
 | Nœuds du DOM | 828 | 660 |
@@ -370,11 +436,6 @@ un ping externe toutes les dix minutes (gratuit, contourne la mise en veille) ;
 le plan payant Render à 7 $/mois (qui règle aussi la persistance) ; ou Koyeb,
 déjà visé par `CLAUDE.md`.
 
-**`POST /api/bookings` n'est toujours pas limité en débit.** Relevé à l'audit,
-hors des six lots. En l'état, **n'importe qui peut saturer l'agenda d'un client
-en une minute** avec une boucle de dix lignes. À mon avis, c'est le point le
-plus urgent de cette liste.
-
 **L'équipe et le tunnel restent absents du HTML servi.** Le lot 5 a traité les
 images ; ces deux sections-là demanderaient de rendre côté serveur ce que
 `peindreEquipe()` et `peindreQui()` produisent. Le mal est borné — les tarifs,
@@ -394,31 +455,26 @@ première cause de no-show et la première question d'un patron en rendez-vous.
 Tout est prêt ; il manque l'envoi et deux textes. Le rappel J-1 seul fait
 typiquement baisser les absences d'un tiers.
 
-**2. La limitation de débit sur `POST /api/bookings`.** *Valeur : c'est une
-assurance.* Quelques lignes — `src/lib/rateLimit.js` existe déjà. Le jour où un
-client découvre son agenda rempli de faux rendez-vous, c'est le produit qu'il
-met en cause.
-
-**3. La liste d'attente.** *Valeur : haute, et personne ne la fait bien.* Vous
+**2. La liste d'attente.** *Valeur : haute, et personne ne la fait bien.* Vous
 avez maintenant tout : les annulations laissent une trace, le canal de
 notification existe, les créneaux morts sont mesurés. « Prévenez-moi si un
 créneau se libère » transforme chaque annulation en rendez-vous, et c'est un
 argument qu'aucun concurrent de quartier n'a.
 
-**4. Le rendu serveur de l'équipe et du tunnel.** *Valeur : référencement.*
+**3. Le rendu serveur de l'équipe et du tunnel.** *Valeur : référencement.*
 « Coupe homme à Bavay » se joue là.
 
-**5. Descendre sous 100 Ko.** *Valeur : modérée.* Trois pistes chiffrées :
+**4. Descendre sous 100 Ko.** *Valeur : modérée.* Trois pistes chiffrées :
 compacter le JSON-LD (−2 Kio, au prix de sa lisibilité en source) ; retirer
 `peindrePrestations`/`peindreAvis` de la vitrine, désormais inutiles puisque les
 réglages sont dans un autre document (−4 à 6 Kio) ; découper le tunnel pour ne
 charger le calendrier qu'au premier clic (−8 Kio, mais c'est un vrai chantier).
 
-**6. Les statistiques par période choisie.** *Valeur : modérée.* Le tableau de
+**5. Les statistiques par période choisie.** *Valeur : modérée.* Le tableau de
 bord montre la semaine et le mois en cours. « Comparer à l'an dernier » est la
 demande suivante, et les données sont déjà là.
 
-**7. Un vrai audit de contraste automatisé.** *Valeur : faible mais durable.*
+**6. Un vrai audit de contraste automatisé.** *Valeur : faible mais durable.*
 `CLAUDE.md` dit que les couleurs ont été mesurées à la main. Sur un projet
 destiné à être décliné pour plusieurs clients, ce contrôle mérite d'être un test.
 

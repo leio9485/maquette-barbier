@@ -150,3 +150,57 @@ function plafondConfigure(brut, defaut) {
 }
 
 export const SMS_PLAFOND_MOIS = plafondConfigure(process.env.SMS_PLAFOND_MOIS, 200);
+
+// ---------------------------------------------------------------------------
+// LES PLAFONDS DE RESERVATION
+//
+// Rien n'empechait de remplir l'agenda d'un client avec une boucle de dix
+// lignes. Aucun acompte, aucun compte a creer — c'est l'argument de vente
+// central du produit, et c'est aussi ce qui laisse la porte grande ouverte.
+//
+// CE QUE CES PLAFONDS FONT, ET CE QU'ILS NE FONT PAS. Ils transforment une
+// catastrophe en desagrement : au lieu de milliers de faux rendez-vous, une
+// vingtaine, et le commercant a le temps de s'en apercevoir. Ils n'arretent PAS
+// un adversaire determine avec plusieurs adresses — et la vraie parade contre
+// celui-la (verification par SMS, acompte, CAPTCHA) est refusee par le produit,
+// deliberement. C'est un ralentisseur, pas un mur, et c'est assume.
+//
+// >>> ILS SONT CALES POUR NE JAMAIS GENER UN CLIENT REEL, Y COMPRIS DERRIERE
+//     UNE ADRESSE PARTAGEE. <<< Le reseau mobile d'un operateur, le wifi d'un
+//     centre commercial, la connexion d'une entreprise : des dizaines de
+//     personnes y sortent par la meme adresse. Un plafond serre y ferait des
+//     victimes qu'on ne verrait jamais — quelqu'un qui n'arrive pas a reserver
+//     ne se plaint pas, il appelle un autre barbier.
+// ---------------------------------------------------------------------------
+
+/**
+ * En rafale : cinq reservations abouties en trois minutes.
+ *
+ * C'est le plafond qui protege vraiment. Personne ne prend cinq rendez-vous en
+ * trois minutes ; un programme en prend cinq cents. Une famille qui en cale
+ * trois d'affilee reste en dessous.
+ */
+export const RESERVATIONS_RAFALE_MAX = plafondConfigure(process.env.RESERVATIONS_RAFALE_MAX, 5);
+export const RESERVATIONS_RAFALE_MS = 3 * 60 * 1000;
+
+/**
+ * Dans la duree : vingt reservations abouties par heure et par adresse.
+ *
+ * Large, et c'est voulu : il ne doit se declencher que sur un acharnement lent,
+ * celui qui passe sous le plafond de rafale en espacant ses envois.
+ */
+export const RESERVATIONS_HEURE_MAX = plafondConfigure(process.env.RESERVATIONS_HEURE_MAX, 20);
+
+/**
+ * Les TENTATIVES, abouties ou non : soixante par heure.
+ *
+ * Les deux plafonds ci-dessus ne comptent que ce qui aboutit — c'est ce qui
+ * salit l'agenda. Celui-ci attrape l'autre nuisance : quelqu'un qui envoie des
+ * requetes malformees en boucle ne cree rien, mais fait travailler la base a
+ * chaque fois. Assez haut pour qu'un client qui se trompe dix fois de suite ne
+ * le rencontre jamais.
+ */
+export const RESERVATIONS_TENTATIVES_MAX = plafondConfigure(process.env.RESERVATIONS_TENTATIVES_MAX, 60);
+
+/** La fenetre commune aux deux plafonds horaires. */
+export const RESERVATIONS_FENETRE_MS = 60 * 60 * 1000;

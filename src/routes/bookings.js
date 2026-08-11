@@ -15,10 +15,18 @@
 import express from 'express';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 
+import {
+  RESERVATIONS_RAFALE_MAX,
+  RESERVATIONS_RAFALE_MS,
+  RESERVATIONS_HEURE_MAX,
+  RESERVATIONS_TENTATIVES_MAX,
+  RESERVATIONS_FENETRE_MS,
+} from '../config.js';
 import { prisma } from '../db.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { OCCUPENT } from '../lib/annulation.js';
 import { referenceLibre } from '../lib/reference.js';
+import { limiteApplicable, passageDisponible, noterPassage } from '../lib/rateLimit.js';
 import { isValidIso, weekdayOf, todayIso, addDaysIso } from '../lib/time.js';
 import {
   loadSettings,
@@ -116,6 +124,39 @@ function texte(valeur, maxi) {
 /** Un identifiant recu, ou null. "Peu importe avec qui" s'ecrit null. */
 function identifiantOptionnel(valeur) {
   return typeof valeur === 'string' && valeur.trim() ? valeur.trim() : null;
+}
+
+// --- Les plafonds de reservation -------------------------------------------
+
+/**
+ * Les trois plafonds qui protegent l'agenda d'un client, dans l'ordre ou on les
+ * consulte. Voir src/config.js pour le raisonnement sur les valeurs.
+ */
+const PLAFONDS = [
+  { nom: 'tentatives', max: RESERVATIONS_TENTATIVES_MAX, fenetreMs: RESERVATIONS_FENETRE_MS },
+  { nom: 'rafale', max: RESERVATIONS_RAFALE_MAX, fenetreMs: RESERVATIONS_RAFALE_MS },
+  { nom: 'heure', max: RESERVATIONS_HEURE_MAX, fenetreMs: RESERVATIONS_FENETRE_MS },
+];
+
+const cleDe = (nom, ip) => `resa:${nom}:${ip}`;
+
+/**
+ * Ce qu'on repond quand un plafond est atteint.
+ *
+ * >>> LE MESSAGE DIT COMBIEN DE TEMPS, ET DONNE UNE SORTIE. <<< Un refus sec
+ * laisse quelqu'un recliquer dans le vide ; un refus qui dit « dans douze
+ * minutes, ou appelez le salon » laisse le choix. Le numero est sur la page,
+ * juste en dessous — inutile de le recopier ici et d'ouvrir la base pour cela.
+ *
+ * ⚠️ AUCUNE INDICATION DE CE QUI A DECLENCHE. « Trop de reservations » et rien
+ *    de plus : dire lequel des trois plafonds a mordu apprendrait a un curieux
+ *    comment passer entre.
+ */
+function trop(res, secondes) {
+  const minutes = Math.max(1, Math.ceil((secondes ?? 60) / 60));
+  return res.status(429).json({
+    error: `Trop de réservations depuis cette connexion. Réessayez dans ${minutes} minute${minutes > 1 ? 's' : ''}, ou appelez le salon.`,
+  });
 }
 
 // --- L'equipe ---------------------------------------------------------------
@@ -358,6 +399,25 @@ bookingsRouter.get('/status', async (req, res, next) => {
  */
 bookingsRouter.post('/bookings', async (req, res, next) => {
   try {
+    // >>> LES PLAFONDS, AVANT TOUT LE RESTE. <<<
+    //
+    // Avant meme de lire ce qui arrive : une requete refusee ici ne doit rien
+    // couter — ni lecture de la base, ni calcul de creneau. C'est tout l'objet
+    // du plafond de tentatives.
+    //
+    // On les consulte SANS RIEN COMPTER : la tentative est notee juste apres,
+    // et la reservation aboutie plus bas, seulement si elle a lieu.
+    const limite = limiteApplicable(req.ip);
+
+    if (limite) {
+      for (const plafond of PLAFONDS) {
+        const verdict = passageDisponible(cleDe(plafond.nom, req.ip), { max: plafond.max });
+        if (verdict.bloque) return trop(res, verdict.secondes);
+      }
+
+      noterPassage(cleDe('tentatives', req.ip), { fenetreMs: RESERVATIONS_FENETRE_MS });
+    }
+
     const { date, start, serviceId } = req.body ?? {};
 
     const nom = texte(req.body?.name, 120);
@@ -434,6 +494,14 @@ bookingsRouter.post('/bookings', async (req, res, next) => {
     });
 
     if (!cree) return refus(res, 409, "Ce créneau vient d'être réservé. Merci d'en choisir un autre.");
+
+    // LE RENDEZ-VOUS EXISTE : on le compte dans les deux plafonds qui portent
+    // sur ce qui aboutit. Ici et pas plus haut — un creneau perdu au profit de
+    // quelqu'un d'autre n'a sali aucun agenda, il n'a pas a etre decompte.
+    if (limite) {
+      noterPassage(cleDe('rafale', req.ip), { fenetreMs: RESERVATIONS_RAFALE_MS });
+      noterPassage(cleDe('heure', req.ip), { fenetreMs: RESERVATIONS_FENETRE_MS });
+    }
 
     res.status(201).json(toApiBooking(cree, { avecJeton: true }));
   } catch (erreur) {

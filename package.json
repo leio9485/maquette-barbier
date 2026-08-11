@@ -25,7 +25,8 @@
     "test:espace": "node tests/espace.mjs",
     "test:seo": "node tests/seo.mjs",
     "test:portees": "node tests/portees.mjs",
-    "test:tunnel": "node tests/tunnel.mjs"
+    "test:tunnel": "node tests/tunnel.mjs",
+    "test:debit": "node tests/debit.mjs"
   },
   "engines": {
     "node": ">=20"

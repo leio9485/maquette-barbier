@@ -212,6 +212,9 @@ const CONNUS = new Set([
   'parseInt', 'parseFloat', 'isNaN', 'isFinite', 'encodeURIComponent',
   'decodeURIComponent', 'encodeURI', 'decodeURI',
   'URLSearchParams', 'URL', 'FormData', 'Blob', 'FileReader', 'Image',
+  // `TextEncoder` sert au pliage du fichier .ics, qui se compte en OCTETS et
+  // non en caracteres (js/07-mon-agenda.js).
+  'TextEncoder',
   'CustomEvent', 'Event', 'MutationObserver', 'AbortController', 'AbortSignal',
   'document', 'window', 'navigator', 'localStorage', 'sessionStorage',
   'console', 'alert', 'confirm', 'prompt', 'CSS',

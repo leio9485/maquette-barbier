@@ -572,6 +572,54 @@ try {
     await restaurer();
   }
   {
+    // Les mentions legales supplementaires (lot D, D5) : forme juridique,
+    // SIRET, directeur de publication, coordonnees de l'hebergeur.
+    verifie('le champ existe et se transporte',
+      typeof ORIGINE.salon?.legal === 'object', ORIGINE.salon?.legal);
+
+    const brouillon = copie(ORIGINE);
+    brouillon.salon.legal = {
+      form: 'SARL',
+      siret: '123 456 789 00012',
+      publicationDirector: 'Camille Durand',
+      hostingDetails: 'Exemple Hébergement SAS, 1 rue du Serveur, 75000 Paris.',
+    };
+    const enregistre = await salon.appel('PUT', '/api/admin/settings', brouillon);
+    verifie('les mentions legales sont enregistrees', enregistre.status === 200, enregistre.status);
+    verifie('et renvoyees telles quelles',
+      enregistre.donnees?.salon?.legal?.siret === '123 456 789 00012',
+      enregistre.donnees?.salon?.legal);
+
+    const publique = await visiteur.appel('GET', '/api/config');
+    verifie('le site public les recoit aussi',
+      publique.donnees?.salon?.legal?.form === 'SARL', publique.donnees?.salon?.legal);
+    verifie('SIRET compris',
+      publique.donnees?.salon?.legal?.siret === '123 456 789 00012', publique.donnees?.salon?.legal);
+    verifie('et le directeur de publication saisi',
+      publique.donnees?.salon?.legal?.publicationDirector === 'Camille Durand', publique.donnees?.salon?.legal);
+
+    // ⚠️ CES CHAMPS SONT PEINTS PAR LE JAVASCRIPT, PAS ECRITS PAR LE SERVEUR —
+    //    meme traitement que le nom, l'adresse ou le telephone sur cette meme
+    //    page (`peindreChamps()`, js/04-contenu-statique.js). Un `fetch()` brut
+    //    n'execute rien : c'est pourquoi ce test verifie /api/config, la
+    //    source que le JavaScript lit, plutot que le HTML servi.
+    const mentions = await fetch(BASE + '/mentions-legales').then((r) => r.text());
+    verifie('le squelette servi porte bien les marqueurs a peindre',
+      mentions.includes('data-champ="siret"') && mentions.includes('data-champ="directeur-publication"'),
+      'marqueurs absents');
+
+    // Vide, le directeur de publication retombe sur le nom du commerce dans
+    // /api/config deja — c'est la regle que lit le JavaScript, pas une regle a
+    // reproduire cote serveur.
+    const sansDirecteur = copie(ORIGINE);
+    sansDirecteur.salon.legal = { form: '', siret: '', publicationDirector: '', hostingDetails: '' };
+    const remis = await salon.appel('PUT', '/api/admin/settings', sansDirecteur);
+    verifie('un directeur de publication vide est accepte tel quel',
+      remis.donnees?.salon?.legal?.publicationDirector === '', remis.donnees?.salon?.legal);
+
+    await restaurer();
+  }
+  {
     // LE CATALOGUE DANS LA PAGE SERVIE.
     //
     // C'est le filet qui rend tenable le second rendu de src/lib/catalogue.js :
@@ -750,7 +798,7 @@ try {
   {
     const depart = await visiteur.appel('GET', '/api/config');
     verifie('le site recoit les legendes livrees',
-      depart.donnees.legendes?.['galerie-1'] === 'La devanture', depart.donnees.legendes);
+      depart.donnees.legendes?.['galerie-1'] === 'Le poste', depart.donnees.legendes);
     verifie("le visuel d'accueil n'en porte pas",
       !('hero' in (depart.donnees.legendes ?? {})), depart.donnees.legendes);
 
@@ -802,7 +850,7 @@ try {
 
     // Remise en etat : sans reglage enregistre, on retombe sur la legende
     // livree avec le site, que les autres suites attendent.
-    await salon.appel('PUT', '/api/admin/photos/galerie-1/legende', { texte: 'La devanture' });
+    await salon.appel('PUT', '/api/admin/photos/galerie-1/legende', { texte: 'Le poste' });
   }
 
   // --- 10 quater. Les temoignages -----------------------------------------

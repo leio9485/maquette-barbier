@@ -37,11 +37,34 @@
           <span class="donnee" data-champ="email">contact@letabli-bavay.fr</span>
         </p>
 
+        <!--# LES CHAMPS QU'UN COMMERCE REEL DOIT FOURNIR (lot D, point D5).
+
+             Trois lignes, toutes avec un repli qui reste vrai meme sans
+             saisie : la forme juridique et le SIRET disent « à compléter »
+             plutôt que d'afficher une ligne vide (une mention légale absente
+             se voit, une case vide ne se remarque pas) ; le directeur de la
+             publication retombe sur le NOM DU COMMERCE — un indépendant qui
+             publie sous son enseigne est son propre directeur de publication,
+             ce n'est pas un champ vide à signaler.
+
+             ⚠️ LE SIRET N'A PAS DE VALEUR DE DÉMONSTRATION, contrairement au
+                reste de cette page. Voir src/lib/defaults.js : un numéro à
+                quatorze chiffres, même plausible, risquerait de désigner une
+                vraie entreprise. #-->
+        <p>Forme juridique : <span data-champ="forme-juridique">Entreprise individuelle</span></p>
+        <p>SIRET : <span class="donnee" data-champ="siret">à compléter</span></p>
+        <p>Directeur de la publication : <span data-champ="directeur-publication">L'Établi</span></p>
+
         <h3>Hébergement</h3>
         <p>
           Le site est hébergé en Allemagne (Francfort), au sein de l'Union
           européenne. Aucune donnée n'est transférée hors de l'Union.
         </p>
+        <!--# Facultatif : les coordonnées légales de l'hébergeur (raison
+             sociale, adresse), si la phrase ci-dessus ne suffit pas à
+             l'obligation légale du commerçant. Vide par défaut — y compris en
+             démonstration — donc masqué tant que rien n'est saisi. #-->
+        <p data-champ="hebergement-details" hidden></p>
 
         <h3>Propriété</h3>
         <p>

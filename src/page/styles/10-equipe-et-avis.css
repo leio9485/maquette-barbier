@@ -44,12 +44,34 @@
   filter: grayscale(1) contrast(1.08);
 }
 
-/* Sans photo : les initiales sur la couleur de la personne. C'est ce que voit
-   un commerce qui n'a pas encore déposé ses portraits — et il en dépose depuis
-   ses réglages en quelques secondes.
+/* >>> SANS PHOTO : L'INITIALE AU POCHOIR. C'EST UN REPLI, ET RIEN D'AUTRE. <<<
 
-   Le texte est en craie sur des couleurs choisies pour tenir au moins 5:1
-   (voir src/lib/defaults.js) : ce repli reste lisible, il n'est pas décoratif.
+   C'est ce que voit un commerce qui n'a pas encore déposé ses portraits — et il
+   en dépose depuis ses réglages en quelques secondes. Chez un vrai client,
+   **c'est le premier geste à faire** : trois carrés à initiales sur une page
+   d'équipe disent « ce site n'est pas fini », quel que soit leur soin.
+
+   ⚠️ UN SEUL TRAITEMENT POUR TOUT LE MONDE, ET DEPUIS LES JETONS. Le carré
+      prenait la COULEUR DE LA PERSONNE, écrite en `style="background:…"` par
+      le JavaScript. Deux défauts, et le second est le grave :
+
+      • les trois valeurs livrées n'étaient pas toutes de la charte — l'une
+        (`#4A5154`) ne correspondait à aucun jeton, et une autre était le vert
+        de signal, réservé aux états positifs (« ouvert », « confirmé ») ; il
+        se lisait comme une pastille de disponibilité posée à côté d'un nom ;
+
+      • surtout, cette couleur se règle depuis l'espace commerçant, avec un
+        choix libre. N'importe quelle teinte pouvait donc arriver en aplat sur
+        la vitrine, sans contrôle de contraste et sans rapport avec la charte.
+        La page publique ne se peint pas depuis un sélecteur de couleur.
+
+      La couleur de la personne garde son emploi là où elle sert vraiment à
+      quelque chose : le filet de 3 px qui distingue les lignes de l'agenda,
+      dans l'espace commerçant (15-agenda.css). Là, elle code une information ;
+      ici, elle ne codait rien — trois carrés, aucune légende, aucune seconde
+      occurrence.
+
+   Craie sur encre : 15,2:1, la même valeur que partout ailleurs sur ce fond.
 
    L'initiale est posée EN BAS À GAUCHE du carré, pas au centre. Centrée, elle
    faisait un badge — la forme de l'avatar, celle qu'on cherchait justement à
@@ -63,6 +85,7 @@
   width: 100%;
   height: 100%;
   padding: var(--e2);
+  background: var(--encre);
   color: var(--craie);
   font-family: var(--f-titre);
   /* Grande. À 18 px dans un carré de 112, la lettre avait l'air d'être tombée

@@ -31,10 +31,17 @@ export const DEFAULT_CONFIG = {
 
     // LE TYPE DE COMMERCE, tel que schema.org le nomme. C'est la ligne a
     // changer pour un autre metier — et la seule (voir TYPES_DE_COMMERCE dans
-    // src/lib/settings.js). Studio Cassandre est un `HairSalon` ; ici, un
-    // barbier, et le mot juste decide des recherches auxquelles ce site
-    // repond.
-    type: 'BarberShop',
+    // src/lib/settings.js).
+    //
+    // ⚠️ `HairSalon`, ET NON `BarberShop` (lot D, point D4). Ce site a valu
+    //    `type: 'BarberShop'` pendant plusieurs lots : schema.org n'a jamais
+    //    defini ce type (schema.org/BarberShop renvoie 404), verifie en le
+    //    demandant directement. Le JSON-LD servi etait donc invalide depuis sa
+    //    creation — sans erreur visible, ce qui est la pire espece de panne :
+    //    Google ignore en silence un type qu'il ne reconnait pas. `HairSalon`
+    //    est le sous-type de schema.org le plus proche d'un barbier ; Studio
+    //    Cassandre, salon de coiffure feminin, en est un aussi.
+    type: 'HairSalon',
 
     // La position exacte, pour les donnees structurees.
     //
@@ -68,6 +75,28 @@ export const DEFAULT_CONFIG = {
       // n'existe pas. C'est l'une des deux lignes a remplir chez un vrai client
       // pour que le bouton « Demander un avis » serve a quelque chose.
       review: '',
+    },
+
+    // LES MENTIONS LEGALES QU'UN COMMERCE REEL DOIT FOURNIR (lot D, point D5).
+    //
+    // >>> LE SIRET RESTE VIDE, MEME EN DEMONSTRATION. <<< Chaque autre champ de
+    // ce fichier fictif a un garde-fou connu — le telephone est reserve par
+    // l'ARCEP, l'adresse est celle d'une mairie — mais aucun n'existe pour un
+    // SIRET : ce numero designe une entreprise precise, et rien ne garantit
+    // qu'une suite de quatorze chiffres inventee n'en designe pas une vraie.
+    // Vide, la page affiche « à compléter » plutôt qu'un numéro qui pourrait
+    // usurper un commerce existant — voir src/lib/page.js.
+    //
+    // Le reste peut se permettre une valeur plausible : ni `legalForm` ni
+    // `publicationDirector` ne pointent vers une entité identifiable.
+    // `publicationDirector` reste tout de même vide ici — sans personnage
+    // « gérant » dans ce jeu de données, mieux vaut retomber sur le nom du
+    // commerce (voir src/lib/page.js) que d'inventer un nom de famille.
+    legal: {
+      form: 'Entreprise individuelle',
+      siret: '',
+      publicationDirector: '',
+      hostingDetails: '',
     },
   },
 
@@ -164,9 +193,23 @@ export const DEFAULT_CONFIG = {
   // au coupe-chou n'est qu'a Remi, les soins qu'a Karim, et TOUT LE RESTE n'est
   // coche par personne — donc assure par les trois, Yanis compris.
   //
-  // Les couleurs sont celles de la charte : elles distinguent les colonnes de
-  // l'agenda sans y introduire une teinte qui n'existe nulle part ailleurs.
-  // Toutes portent du texte craie a 5:1 au moins.
+  // LES COULEURS NE SERVENT QUE DANS L'AGENDA DU COMMERCANT — le filet de 3 px
+  // qui distingue les lignes d'une journee (styles/15-agenda.css). La vitrine
+  // ne s'en sert plus : le carre a initiales y est encre pour tout le monde
+  // (voir styles/10-equipe-et-avis.css, et le pourquoi).
+  //
+  // ⚠️ CE COMMENTAIRE DISAIT DEJA « les couleurs sont celles de la charte », ET
+  //    C'ETAIT FAUX POUR DEUX D'ENTRE ELLES. `#4A5154` ne correspondait a aucun
+  //    jeton — le plus proche, `--filet-sombre`, vaut `#4A5255`, a un chiffre
+  //    pres — et `#3F6B52` est `--vert-signal`, reserve aux etats positifs
+  //    (« ouvert », « confirme », « disponible »). Un audit l'a lu comme « un
+  //    vert franc etranger a la palette », ce qui est exactement l'effet qu'il
+  //    faisait.
+  //
+  // Les trois valeurs ci-dessous sont l'encre, le bleu de travail et l'acier :
+  // trois jetons reels, assez ecartes pour se distinguer sur un filet de 3 px,
+  // et tous les trois porteurs de texte craie bien au-dela de 5:1 (15,2 / 9,2 /
+  // 5,95). Toute valeur ecrite ici doit exister dans styles/02-jetons.css.
   //
   // Les photos ne se mettent pas ici : elles se deposent depuis les reglages,
   // ou le navigateur les reduit avant de les enregistrer.
@@ -175,7 +218,7 @@ export const DEFAULT_CONFIG = {
       id: 'stf-remi',
       name: 'Rémi',
       role: 'Coupe et rasage',
-      color: '#24405C',
+      color: '#16191B',
       active: true,
       services: ['rasage-coupe-chou', 'coupe-rasage'],
     },
@@ -183,7 +226,7 @@ export const DEFAULT_CONFIG = {
       id: 'stf-karim',
       name: 'Karim',
       role: 'Coupe et barbe',
-      color: '#3F6B52',
+      color: '#24405C',
       active: true,
       services: ['coloration-barbe', 'soin-visage'],
     },
@@ -198,7 +241,7 @@ export const DEFAULT_CONFIG = {
       id: 'stf-yanis',
       name: 'Yanis',
       role: 'Coupe',
-      color: '#4A5154',
+      color: '#545B5F',
       active: true,
       services: [],
       hours: {

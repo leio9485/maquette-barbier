@@ -1,5 +1,5 @@
 <!--# ---------------------------------------------------------------------------
-   LA GALERIE — quatre photos, à leur taille utile.
+   LA GALERIE — les photos livrées, à leur taille utile.
 
    AUCUNE VISIONNEUSE AU CLIC. Ouvrir l'image en grand sur fond noir demande du
    code, un piège à focus pour le clavier, une touche Échap, et n'apporte rien :
@@ -22,13 +22,13 @@
       <!--# ⚠️ `<figure>` ET `<figcaption>`, PAS UN `<div>` ET UN `<p>`.
            C'étaient des `<p>` posés à côté d'images sans `alt` : rien ne
            disait que ce texte légendait CETTE image-là. Un lecteur d'écran
-           annonçait donc quatre images muettes, puis quatre bouts de phrase
-           sans objet. `<figure>` est exactement la balise qui lie les deux,
-           et elle ne coûte rien.
+           annonçait donc des images muettes, puis des bouts de phrase sans
+           objet. `<figure>` est exactement la balise qui lie les deux, et
+           elle ne coûte rien.
 
-           ⚠️ L'`alt` DÉCRIT L'IMAGE, IL NE REPREND PAS LA LÉGENDE. « La
-              devanture » sous la photo et « La devanture » dans l'attribut,
-              c'est la même information dite deux fois. Les valeurs livrées
+           ⚠️ L'`alt` DÉCRIT L'IMAGE, IL NE REPREND PAS LA LÉGENDE. « Le
+              poste » sous la photo et « Le poste » dans l'attribut, c'est
+              la même information dite deux fois. Les valeurs livrées
               sont dans src/lib/photos.js, et le commerçant écrit les siennes
               depuis les réglages. #-->
       <!--# LA LISTE EST ÉCRITE PAR LE SERVEUR (src/lib/galerie.js), entre les
@@ -36,7 +36,7 @@
 
            • jusqu'à DOUZE cases, et seules celles qui portent vraiment une
              photo sont écrites — une nouvelle instance ne montre donc jamais
-             huit rectangles gris ;
+             neuf rectangles gris ;
            • les images ont leur `src` dès le premier octet. Elles ne
              l'avaient pas : c'était le JavaScript qui les posait, et un robot
              qui ne l'exécute pas ne voyait aucune image du site.
@@ -58,25 +58,19 @@
         <li class="galerie-case" data-photo="galerie-1">
           <figure>
             <img alt="" width="700" height="933" loading="lazy" hidden>
-            <figcaption class="galerie-legende etiquette" data-legende="galerie-1">La devanture</figcaption>
+            <figcaption class="galerie-legende etiquette" data-legende="galerie-1">Le poste</figcaption>
           </figure>
         </li>
         <li class="galerie-case" data-photo="galerie-2">
           <figure>
             <img alt="" width="700" height="933" loading="lazy" hidden>
-            <figcaption class="galerie-legende etiquette" data-legende="galerie-2">Le poste</figcaption>
+            <figcaption class="galerie-legende etiquette" data-legende="galerie-2">La coupe</figcaption>
           </figure>
         </li>
         <li class="galerie-case" data-photo="galerie-3">
           <figure>
             <img alt="" width="700" height="933" loading="lazy" hidden>
-            <figcaption class="galerie-legende etiquette" data-legende="galerie-3">La coupe</figcaption>
-          </figure>
-        </li>
-        <li class="galerie-case" data-photo="galerie-4">
-          <figure>
-            <img alt="" width="700" height="933" loading="lazy" hidden>
-            <figcaption class="galerie-legende etiquette" data-legende="galerie-4">Le rasage</figcaption>
+            <figcaption class="galerie-legende etiquette" data-legende="galerie-3">La barbe</figcaption>
           </figure>
         </li>
         <!--/@galerie-->

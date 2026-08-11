@@ -60,7 +60,7 @@ console.log('\n2. Les images et leurs descriptions');
   verifie('aucune n\'est vide', vides.length === 0, vides);
 
   // ⚠️ LE POINT QUI COMPTE : une description DECRIT l'image, elle ne repete
-  //    pas la legende. « La devanture » sous la photo et « La devanture » dans
+  //    pas la legende. « Le poste » sous la photo et « Le poste » dans
   //    l'attribut, c'est la meme information dite deux fois — quelqu'un qui
   //    n'a pas l'image entend deux fois trois mots et n'apprend rien.
   const legendes = config.legendes ?? {};
@@ -91,6 +91,19 @@ console.log('\n2. Les images et leurs descriptions');
   verifie('les legendes ne sont plus des <p> orphelins',
     !liste.includes('<p class="galerie-legende'), 'balise <p> trouvee');
 }
+{
+  // >>> LE HEROS EST ECRIT DANS LA PAGE, `src` ET `alt` COMPRIS (lot D, D2).
+  // <<< C'etait la derniere image de la vitrine que le HTML servi n'avait
+  // qu'en `<img alt="" hidden>`, sans adresse — un robot sans JavaScript ne la
+  // voyait pas, et n'en lisait pas la description.
+  const zone = /<div class="photo-accueil"[^>]*>([\s\S]*?)<\/div>/.exec(vitrine)?.[1] ?? '';
+  verifie('le heros a une adresse des le HTML servi',
+    /<img [^>]*src="\/photos\/hero\.jpg\?v=\d+"/.test(zone), zone);
+  verifie('et une description non vide',
+    /<img [^>]*alt="[^"]{20,}"/.test(zone), zone);
+  verifie('il n\'est plus masque',
+    !/<picture>[\s\S]*?<img[^>]*\bhidden\b/.test(zone), zone);
+}
 
 // --- 3. Les donnees structurees --------------------------------------------
 console.log('\n3. Les donnees structurees');
@@ -107,8 +120,12 @@ let ld = null;
   }
 }
 {
-  verifie('le type est celui d\'un barbier, pas d\'un salon de coiffure',
-    ld?.['@type'] === 'BarberShop', ld?.['@type']);
+  // ⚠️ `HairSalon`, ET NON `BarberShop` (lot D, D4). schema.org n'a jamais
+  //    defini `BarberShop` — verifie en le demandant directement, 404 — et ce
+  //    site l'a pourtant servi comme type par defaut pendant plusieurs lots.
+  //    `HairSalon` est le sous-type le plus proche pour un barbier.
+  verifie('le type est un sous-type reel de schema.org (HairSalon, pas BarberShop)',
+    ld?.['@type'] === 'HairSalon', ld?.['@type']);
   verifie('il vient des reglages et non du code',
     (await fetch(BASE + '/api/config').then((r) => r.json())).salon.type === ld?.['@type'],
     ld?.['@type']);
@@ -212,6 +229,100 @@ console.log('\n6. L\'indexation');
   verifie('et sa page ne porte aucune balise robots restrictive',
     !/<meta name="robots"[^>]*noindex/.test(vitrine), 'balise noindex trouvee');
   await reponse.text();
+}
+
+// --- 7. Le cache (lot C) -----------------------------------------------------
+//
+// >>> LES TROIS DOCUMENTS N'AVAIENT AUCUN EN-TETE DE CACHE. <<< Un navigateur,
+// un CDN ou un relais restait alors libre d'en garder une copie sans jamais la
+// revalider — au mieux une page dont le nonce CSP est perime (elle porte un
+// nonce different a chaque envoi, voir securityHeaders.js) et dont le script ne
+// s'execute plus, au pire un tarif que le commercant vient de changer et que le
+// visiteur ne voit pas. `no-cache` (et non `no-store`) : la copie peut etre
+// gardee, mais jamais servie sans revalidation.
+//
+// Les photos, elles, avaient DEJA la bonne regle (`/photos/:fichier`,
+// src/server.js) : `?v=` autorise un an, son absence force la revalidation.
+// L'audit externe visait aussi `/photos/*`, mais chaque adresse ecrite dans la
+// page porte deja `?v=` (verifie ci-dessous) — le mecanisme existait, il
+// n'etait simplement pas exploite par une requete tapee a la main.
+console.log('\n7. Le cache');
+{
+  const reponse = await fetch(BASE + '/');
+  verifie('>>> LE DOCUMENT HTML NE SE CACHE PAS SANS REVALIDATION <<<',
+    reponse.headers.get('cache-control') === 'no-cache', reponse.headers.get('cache-control'));
+  await reponse.text();
+
+  const espace = await fetch(BASE + '/espace-salon');
+  verifie('l\'espace commercant non plus',
+    espace.headers.get('cache-control') === 'no-cache', espace.headers.get('cache-control'));
+  await espace.text();
+
+  const annuler = await fetch(BASE + '/annuler');
+  verifie('ni la page d\'annulation',
+    annuler.headers.get('cache-control') === 'no-cache', annuler.headers.get('cache-control'));
+  await annuler.text();
+
+  verifie('chaque adresse de photo dans la page porte deja un numero de version',
+    /<link rel="preload" as="image" href="\/photos\/hero\.jpg\?v=\d+"/.test(vitrine),
+    'aucune correspondance');
+
+  const photoSansVersion = await fetch(BASE + '/photos/hero.jpg');
+  verifie('sans version : pas de cache long, la revalidation est forcee',
+    photoSansVersion.headers.get('cache-control') === 'public, max-age=0, must-revalidate',
+    photoSansVersion.headers.get('cache-control'));
+  await photoSansVersion.arrayBuffer();
+
+  const photoAvecVersion = await fetch(BASE + '/photos/hero.jpg?v=1');
+  verifie('avec version : cache long et immuable',
+    photoAvecVersion.headers.get('cache-control') === 'public, max-age=31536000, immutable',
+    photoAvecVersion.headers.get('cache-control'));
+  await photoAvecVersion.arrayBuffer();
+}
+
+// --- 8. Les mentions legales et la confidentialite (lot D, D3) --------------
+//
+// >>> DE VRAIES ADRESSES, PAS SEULEMENT UN BOUTON. <<< Elles ouvraient une
+// surimpression depuis un `<button>` sans la moindre adresse : ni
+// partageables, ni indexables, ni ouvrables dans un nouvel onglet.
+console.log('\n8. Les mentions legales et la confidentialite');
+{
+  const mentions = await fetch(BASE + '/mentions-legales').then((r) => r.text());
+  verifie('>>> /mentions-legales REPOND, ET SERT LE MEME DOCUMENT QUE LA VITRINE <<<',
+    /<h1>Coupe, barbe/.test(mentions), 'ce n\'est pas la vitrine');
+  verifie('la surimpression legale y est deja ouverte',
+    /id="surimpressionLegal">/.test(mentions) && !/id="surimpressionLegal" hidden/.test(mentions),
+    'surimpression fermee');
+  verifie('sur la vue « mentions »',
+    /<div data-legal-vue="mentions">/.test(mentions), 'vue confidentialite active');
+  verifie('avec un titre distinct',
+    /<title>Mentions légales — /.test(mentions), 'titre inchange');
+
+  const confidentialite = await fetch(BASE + '/confidentialite').then((r) => r.text());
+  verifie('/confidentialite repond aussi', /<h1>Coupe, barbe/.test(confidentialite), 'ce n\'est pas la vitrine');
+  verifie('sur la vue « confidentialite », cette fois',
+    /<div data-legal-vue="confidentialite">/.test(confidentialite)
+      && /<div data-legal-vue="mentions" hidden>/.test(confidentialite),
+    'la mauvaise vue est active');
+  verifie('le titre de la boite suit',
+    /id="titreLegal">Confidentialité<\/h2>/.test(confidentialite), 'titre de boite inchange');
+
+  // Aucune des deux ne porte de noindex — contrairement a /annuler et
+  // /espace-salon, ce sont de vraies pages a indexer.
+  const reponseMentions = await fetch(BASE + '/mentions-legales');
+  verifie('pas de noindex sur /mentions-legales',
+    reponseMentions.headers.get('x-robots-tag') === null, reponseMentions.headers.get('x-robots-tag'));
+  await reponseMentions.text();
+}
+{
+  // Le pied de page et le tunnel pointent vers de vrais liens, plus des boutons.
+  verifie('le pied de page pointe vers /mentions-legales',
+    /<a class="lien-nu" href="\/mentions-legales" data-legal="mentions">/.test(vitrine), 'lien absent');
+  verifie('et vers /confidentialite',
+    /<a class="lien-nu" href="\/confidentialite" data-legal="confidentialite">/.test(vitrine), 'lien absent');
+  verifie('le tunnel aussi, pour la mention de confidentialite',
+    /<a class="lien-nu" href="\/confidentialite" data-legal="confidentialite">confidentialité<\/a>/.test(vitrine),
+    'lien absent');
 }
 
 process.exitCode = bilan() === 0 ? 0 : 1;

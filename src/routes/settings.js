@@ -155,15 +155,20 @@ settingsRouter.get('/admin/settings', requireAdmin, async (req, res, next) => {
 // d'un numero de telephone.
 
 /**
- * PUT /api/admin/photos/:emplacement  { data: "data:image/jpeg;base64,..." }
+ * PUT /api/admin/photos/:emplacement
+ *   { data: "data:image/jpeg;base64,…", variantes: [{ largeur, format, donnees }] }
  *
- * La photo arrive deja reduite par le navigateur. Le serveur ne s'y fie pas
- * pour autant : il revoit le format, le poids, et n'ecrit que dans les
- * emplacements qu'il connait.
+ * La photo arrive deja reduite par le navigateur, et `variantes` porte les
+ * largeurs supplementaires et les equivalents WebP qu'il a pu produire (voir
+ * `reduireImage()` et `produireVariantes()`, js/08-reglages.js) — la liste
+ * peut etre absente ou vide, un navigateur qui ne sait pas encoder du WebP
+ * n'envoyant alors que la photo principale. Le serveur ne s'y fie pas pour
+ * autant : il revoit le format et le poids de chaque piece, et n'ecrit que
+ * dans les emplacements qu'il connait (src/lib/photos.js).
  */
 settingsRouter.put('/admin/photos/:emplacement', requireAdmin, async (req, res, next) => {
   try {
-    const resultat = await deposerPhoto(req.params.emplacement, req.body?.data);
+    const resultat = await deposerPhoto(req.params.emplacement, req.body?.data, req.body?.variantes);
     if (resultat.erreur) return res.status(400).json({ error: resultat.erreur });
 
     res.json({ ok: true, photos: await listerPhotos() });

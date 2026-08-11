@@ -13,9 +13,17 @@
       <span class="donnee pied-lieu">Barbier <span aria-hidden="true">·</span> <span data-champ="ville">Bavay</span></span>
     </p>
 
+    <!--# ⚠️ DE VRAIS LIENS, PAS DES BOUTONS (lot D, point D3). Ils ouvraient
+         une surimpression sans la moindre adresse : ni partageables, ni
+         indexables, ni ouvrables dans un nouvel onglet. `data-legal` reste
+         posé — le JavaScript l'utilise toujours pour intercepter le clic et
+         éviter un rechargement quand la page est déjà là
+         (`ouvrirLegalDepuisLien()`, js/05-navigation.js) — mais `href` fait
+         de chacun un vrai lien pour qui n'exécute pas de code, ou qui veut
+         l'ouvrir à part. #-->
     <nav class="pied-liens etiquette" aria-label="Informations légales">
-      <button type="button" class="lien-nu" data-legal="mentions">Mentions légales</button>
-      <button type="button" class="lien-nu" data-legal="confidentialite">Confidentialité</button>
+      <a class="lien-nu" href="/mentions-legales" data-legal="mentions">Mentions légales</a>
+      <a class="lien-nu" href="/confidentialite" data-legal="confidentialite">Confidentialité</a>
       <!--# ⚠️ CE LIEN N'EXISTE QUE SUR LA DÉMONSTRATION. Il est retiré du
            document par le serveur quand DEMO_MODE est absent (src/lib/page.js),
            et pas seulement masqué : un bouton caché reste dans la source.

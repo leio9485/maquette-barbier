@@ -30,6 +30,11 @@ const RESERVATION = {
   // et enregistre par /api/rendez-vous/deplacer au lieu de creer une seconde
   // ligne. Voir js/07-tunnel.js.
   deplacement: null,  // { reference, telephone, jeton, ancien }
+  // De quoi ecrire le fichier .ics du bouton « Ajouter à mon agenda »
+  // (js/07-mon-agenda.js). Rempli par les DEUX chemins qui menent a l'ecran de
+  // confirmation — la reservation neuve et le deplacement — parce que le
+  // second ne pose pas `confirmee`.
+  pourAgenda: null,   // { date, start, duree, prestation, avec, reference }
 };
 
 const NOMS_ETAPES = { 1: 'Prestation', 2: 'Date et heure', 3: 'Coordonnées', 4: "C'est réservé" };
@@ -53,20 +58,59 @@ function allerEtape(numero, { defiler = true } = {}) {
     else cellule.removeAttribute('aria-current');
   }
 
-  if (defiler) {
-    // On remonte en haut de la section, pas en haut de la page : le bandeau
-    // d'etat reste visible, et le titre de l'etape est la premiere chose lue.
-    $('#reserver')?.scrollIntoView({ block: 'start' });
-  }
-
   // Le premier titre de l'etape recoit le focus : sans cela, un lecteur d'ecran
   // continuerait d'annoncer l'etape precedente, et le clavier repartirait du
   // haut du document a la tabulation suivante.
+  //
+  // TOUT DE SUITE, ET SANS DEFILER (`preventScroll`). Le focus est la reponse
+  // au geste qu'on vient de faire : le differer d'une image le detacherait du
+  // clic. C'est le DEFILEMENT, lui, qui attend — voir juste dessous.
   const titre = $(`.etape[data-etape="${numero}"] h2`);
   if (titre) {
     titre.setAttribute('tabindex', '-1');
     titre.focus({ preventScroll: true });
   }
+
+  if (defiler) defilerVersTunnel();
+}
+
+/**
+ * Remonter en tete du tunnel apres un changement d'etape.
+ *
+ * >>> C'EST LE MOMENT OU L'ON PERD LE CLIENT. <<< Les etapes n'ont pas la meme
+ * hauteur, et de loin : l'etape 2 porte un calendrier et jusqu'a trente-trois
+ * creneaux, l'etape 4 tient en huit lignes. Choisir une heure fait donc perdre
+ * a la page les deux tiers de sa hauteur d'un coup — le navigateur ramene alors
+ * le defilement a ce qu'il reste, et sans rien faire de plus on se retrouve a
+ * regarder le pied de page. Sur telephone, c'est exactement l'instant ou l'on
+ * croit que la reservation n'est pas passee, et ou l'on rappelle.
+ *
+ * ⚠️ APRES LA REDISPOSITION, PAS PENDANT. Le defilement etait demande dans la
+ *    meme foulee que le `hidden` de l'etape precedente : la position visee
+ *    etait calculee sur une page qui n'avait pas encore retreci, puis rabotee
+ *    par le navigateur. Une image d'attente (`requestAnimationFrame`) suffit a
+ *    la calculer sur la page telle qu'elle sera.
+ *
+ * ⚠️ `#reserver`, PAS LE HAUT DE LA PAGE : le bandeau d'etat reste visible, et
+ *    la frise des quatre etapes est la premiere chose lue. `scrollIntoView`
+ *    tient compte du `scroll-padding-top` de la feuille (03-fondations.css),
+ *    donc du bandeau et de l'en-tete colles en haut — c'est la raison de le
+ *    preferer a un `scrollTo` qui redemanderait ce calcul ici.
+ *
+ * ⚠️ LE MOUVEMENT EST UNE PREFERENCE SYSTEME. `scroll-behavior: smooth` est
+ *    deja neutralise par la feuille sous `prefers-reduced-motion`, mais on ne
+ *    laisse pas une regle de confort dependre d'un `!important` pose trois
+ *    fichiers plus loin : la valeur est relue ici, et c'est la meme reponse.
+ */
+function defilerVersTunnel() {
+  const section = $('#reserver');
+  if (!section) return;
+
+  const sobre = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+  requestAnimationFrame(() => {
+    section.scrollIntoView({ block: 'start', behavior: sobre ? 'auto' : 'smooth' });
+  });
 }
 
 // --- ETAPE 1 : la prestation ------------------------------------------------
@@ -421,13 +465,48 @@ async function envoyerReservation(evenement) {
   const telephone = $('#clientTel')?.value.trim() ?? '';
   const courriel = $('#clientEmail')?.value.trim() ?? '';
 
-  // Les controles de saisie sont refaits par le serveur : ceux-ci n'existent que
-  // pour eviter un aller-retour et pour dire ou est le probleme.
-  if (!nom) return signalerChamp('clientNom', 'aideNom', 'Il nous faut un nom pour vous appeler.');
-  if (!telephone) return signalerChamp('clientTel', 'aideTel', 'Un numéro, pour vous prévenir si quelque chose change.');
+  // >>> CE MIROIR NE FAIT PAS FOI. <<< Les memes regles sont appliquees par le
+  // serveur (src/lib/coordonnees.js), et ce sont celles-la qui protegent la
+  // base : une requete peut arriver sans passer par cette page. Ce qui suit
+  // n'existe que pour eviter un aller-retour et DIRE OU EST LE PROBLEME —
+  // sous le champ fautif, pas dans un message general en bas du formulaire.
+  //
+  // ⚠️ SI UNE REGLE CHANGE ICI, ELLE CHANGE DANS src/lib/coordonnees.js — et
+  //    reciproquement. Un test envoie les memes saisies aux deux et verifie
+  //    qu'elles obtiennent le meme verdict. C'est la meme discipline que pour
+  //    le balisage des prestations et des avis, ecrit lui aussi a deux
+  //    endroits.
+  // >>> ON EFFACE LES TROIS AVANT DE REVERIFIER. <<< Sans cette ligne, un
+  // champ signale reste signale apres avoir ete corrige : on tapait « abc »,
+  // on obtenait le refus du telephone, on le corrigeait, et le message rouge
+  // du telephone restait a l'ecran pendant qu'un autre s'affichait sous le
+  // courriel. Le client repare alors un champ qui est deja juste.
+  //
+  // Le nettoyage etait fait APRES les controles, donc jamais atteint quand
+  // l'un d'eux echouait. Un defaut sans consequence tant qu'il n'y avait que
+  // deux champs et un seul refus possible a la fois.
+  for (const [champ, aide] of [['clientNom', 'aideNom'], ['clientTel', 'aideTel'], ['clientEmail', 'aideEmail']]) {
+    effacerChamp(champ, aide);
+  }
 
-  effacerChamp('clientNom', 'aideNom');
-  effacerChamp('clientTel', 'aideTel');
+  if (!nom) return signalerChamp('clientNom', 'aideNom', 'Il nous faut un nom pour vous appeler.');
+  if (nom.length > 80) {
+    return signalerChamp('clientNom', 'aideNom', 'Ce nom dépasse 80 caractères. Le prénom suffit.');
+  }
+
+  if (!telephone) return signalerChamp('clientTel', 'aideTel', 'Un numéro, pour vous prévenir si quelque chose change.');
+  if (!telephonePlausible(telephone)) {
+    return signalerChamp('clientTel', 'aideTel',
+      "Ce numéro de téléphone n'a pas l'air complet. Exemple : 06 12 34 56 78.");
+  }
+
+  // Le courriel est FACULTATIF : vide n'est pas une faute. Il n'est verifie
+  // que s'il y a quelque chose a verifier.
+  if (courriel && !courrielPlausible(courriel)) {
+    return signalerChamp('clientEmail', 'aideEmail',
+      "Cette adresse e-mail n'a pas l'air valable. Exemple : prenom@exemple.fr. "
+      + 'Vous pouvez aussi la laisser vide.');
+  }
 
   bouton.disabled = true;
   poserTexte(bouton, 'Enregistrement…');
@@ -475,6 +554,41 @@ async function envoyerReservation(evenement) {
   }
 }
 
+/**
+ * Le numero a-t-il une chance d'en etre un ?
+ *
+ * ⚠️ MIROIR DE `normaliserTelephone()` (src/lib/coordonnees.js). Il en reprend
+ *    les regles, PAS la normalisation : ce qu'on envoie est ce que le client a
+ *    tape, et c'est le serveur qui range. Reecrire son numero sous ses yeux
+ *    pendant qu'il le tape est desagreable, et surtout ca ferait exister deux
+ *    endroits ou une ecriture se decide.
+ *
+ * Les numeros etrangers passent : Bavay est a huit kilometres de la Belgique.
+ */
+function telephonePlausible(brut) {
+  let compact = String(brut).replace(/[\s.\-/()  ]/g, '');
+  if (compact.startsWith('00')) compact = '+' + compact.slice(2);
+
+  if (!/^\+?\d+$/.test(compact)) return false;
+  if (compact.startsWith('+33')) return /^[1-9]\d{8}$/.test(compact.slice(3));
+  if (compact.startsWith('+')) return /^\d{8,15}$/.test(compact.slice(1));
+
+  return /^0[1-9]\d{8}$/.test(compact);
+}
+
+/**
+ * L'adresse a-t-elle une chance d'en etre une ?
+ *
+ * ⚠️ MIROIR DE `validerCourriel()` (src/lib/coordonnees.js), meme expression.
+ *    Elle n'est volontairement pas celle de la norme : on ecarte ce qui NE
+ *    PEUT PAS etre une adresse (« pasunemail »), pas ce qui n'existe pas.
+ */
+function courrielPlausible(brut) {
+  const propre = String(brut);
+  if (propre.length > 160) return false;
+  return /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)*\.[^\s@.\d]{2,}$/.test(propre);
+}
+
 function signalerChamp(champId, aideId, texte) {
   const champ = $('#' + champId);
   const aide = $('#' + aideId);
@@ -483,10 +597,32 @@ function signalerChamp(champId, aideId, texte) {
   champ?.focus();
 }
 
+/**
+ * Le texte que porte une aide QUAND TOUT VA BIEN.
+ *
+ * ⚠️ Un seul des trois champs a une aide permanente : le telephone, qui dit
+ *    pourquoi on le demande. Elle est relevee au premier passage et remise
+ *    telle quelle apres un refus — sans ca, corriger son numero laissait a sa
+ *    place le message d'erreur, muet et definitif.
+ */
+const AIDES_AU_REPOS = new Map();
+
 function effacerChamp(champId, aideId) {
   $('#' + champId)?.closest('.champ')?.removeAttribute('data-refus');
+
   const aide = $('#' + aideId);
-  if (aide && aide.id !== 'aideTel') montrer(aide, false);
+  if (!aide) return;
+
+  // L'aide du telephone reste affichee : ce n'est pas un message d'erreur,
+  // c'est la raison pour laquelle on demande le numero.
+  if (aide.id === 'aideTel') {
+    if (!AIDES_AU_REPOS.has(aideId)) AIDES_AU_REPOS.set(aideId, aide.textContent);
+    poserTexte(aide, AIDES_AU_REPOS.get(aideId));
+    montrer(aide, true);
+    return;
+  }
+
+  montrer(aide, false);
 }
 
 // --- ETAPE 4 : la confirmation ----------------------------------------------
@@ -500,18 +636,32 @@ function confirmer(reponse) {
     ? `${dateLongue(reponse.date)} à ${fmtHeure(reponse.start)}, avec ${qui}.`
     : `${dateLongue(reponse.date)} à ${fmtHeure(reponse.start)}.`);
 
-  // La reference est le debut du jeton d'annulation, en capitales : six
-  // caracteres suffisent a la lire au telephone, et le jeton complet reste en
-  // memoire pour l'annulation.
+  // >>> LA REFERENCE VIENT DU SERVEUR. ELLE NE SE RECALCULE PAS ICI. <<<
   //
-  // ⚠️ LES TIRETS ET SOULIGNES SONT RETIRES AVANT LA COUPE. Le jeton est en
-  //    base64url : il contient des `-` et des `_`, et un tirage sur deux
-  //    donnait une reference du genre « -HHJBG » ou « A_9K2M ». Ce n'est pas
-  //    faux — le jeton complet sert seul a l'annulation — mais c'est la
-  //    derniere chose que le client lit, et on lui demande de la noter.
-  peindreFiche($('#confirmationFiche'), {
-    reference: (reponse.cancelToken || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase(),
-  });
+  // Cette ligne derivait la reference du jeton d'annulation :
+  //
+  //     (reponse.cancelToken || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()
+  //
+  // C'etait juste tant que la reference n'existait qu'a l'ecran. Elle est
+  // depuis une COLONNE INDEXEE, tiree par le serveur dans l'alphabet de
+  // Crockford (src/lib/reference.js), et c'est elle que /annuler cherche en
+  // base. Les deux ne coincidaient plus : l'ecran affichait « FVLJ8U » quand
+  // la base portait « MQJYBK ». Un client qui notait ce qu'il voyait et
+  // revenait l'annuler recevait « rendez-vous introuvable » — pour une
+  // reference que le site venait lui-meme de lui donner.
+  //
+  // Le tri etait double : le deplacement, lui, affichait deja la bonne
+  // (`rdv.reference`, plus bas). Seule la premiere reservation mentait.
+  peindreFiche($('#confirmationFiche'), { reference: reponse.reference ?? '' });
+
+  RESERVATION.pourAgenda = {
+    date: reponse.date,
+    start: reponse.start,
+    duree: reponse.duration ?? RESERVATION.prestation?.duration,
+    prestation: RESERVATION.prestation?.name ?? '',
+    avec: qui,
+    reference: reponse.reference ?? '',
+  };
 
   montrer($('#annulerReservation'), true);
   afficherMessage($('#messageAnnulation'), '');
@@ -710,6 +860,15 @@ function confirmerDeplacement(rdv) {
 
   peindreFiche($('#confirmationFiche'), { reference: rdv.reference });
 
+  RESERVATION.pourAgenda = {
+    date: rdv.date,
+    start: rdv.start,
+    duree: rdv.duration ?? RESERVATION.prestation?.duration,
+    prestation: rdv.serviceName || RESERVATION.prestation?.name || '',
+    avec: rdv.staffName ?? '',
+    reference: rdv.reference,
+  };
+
   // La note porte un lien vers /annuler : on la remplace par du texte, donc on
   // garde l'originale pour la remettre si le visiteur enchaine sur une nouvelle
   // reservation (`recommencer()`).
@@ -737,6 +896,7 @@ function recommencer() {
   RESERVATION.creneau = null;
   RESERVATION.confirmee = null;
   RESERVATION.deplacement = null;
+  RESERVATION.pourAgenda = null;
 
   // L'etape 3 avait pu etre deshabillee pour un deplacement : elle redevient
   // ce qu'elle est par defaut, sans quoi le rendez-vous suivant se prendrait
@@ -821,4 +981,9 @@ function brancherTunnel() {
   $('#formulaireReservation')?.addEventListener('submit', envoyerReservation);
   $('#annulerReservation')?.addEventListener('click', demanderAnnulation);
   $('#nouvelleReservation')?.addEventListener('click', recommencer);
+
+  // « Ajouter à mon agenda » (js/07-mon-agenda.js). Le fichier de l'agenda pose
+  // lui-meme son ecouteur, ou retire le bouton si le navigateur ne sait pas
+  // telecharger ce qu'on fabrique sur place.
+  preparerBoutonAgenda();
 }

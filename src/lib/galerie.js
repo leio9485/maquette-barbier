@@ -7,7 +7,7 @@
 //   1. QUATRE PHOTOS, C'EST TROP PEU POUR UN BARBIER. Un commerce qui tourne
 //      depuis deux ans en a trente. La galerie accepte douze cases, et
 //      n'affiche que celles qui portent reellement une photo — une nouvelle
-//      instance ne montre donc jamais huit rectangles gris.
+//      instance ne montre donc jamais neuf rectangles gris.
 //
 //   2. Les images n'avaient pas de `src` dans le HTML servi : c'est le
 //      JavaScript qui les posait. Un robot qui ne l'execute pas ne voyait
@@ -58,10 +58,19 @@ export function casesGalerie({ photos = {}, legendes = {}, descriptions = {} } =
     cases.push({
       nom,
       url: photo.url,
+      srcsetJpg: photo.srcsetJpg,
+      srcsetWebp: photo.srcsetWebp,
+      sizes: photo.sizes,
       alt: descriptions[nom] ?? '',
       legende: legendes[nom] ?? '',
       apres: apres?.url
-        ? { url: apres.url, alt: descriptions[`${nom}-apres`] ?? '' }
+        ? {
+          url: apres.url,
+          srcsetJpg: apres.srcsetJpg,
+          srcsetWebp: apres.srcsetWebp,
+          sizes: apres.sizes,
+          alt: descriptions[`${nom}-apres`] ?? '',
+        }
         : null,
     });
   }
@@ -69,9 +78,22 @@ export function casesGalerie({ photos = {}, legendes = {}, descriptions = {} } =
   return cases;
 }
 
-/** Une image de la galerie. */
-function image(url, alt, chargement) {
-  return `<img src="${esc(url)}" alt="${esc(alt)}" width="700" height="933"${chargement}>`;
+/**
+ * Une image de la galerie, avec sa variante WebP quand elle existe (lot C,
+ * C2). `photo` porte `url` (le JPEG plein format, toujours present) et,
+ * quand ils existent sur le disque, `srcsetJpg` / `srcsetWebp` / `sizes` —
+ * voir listerPhotos(), src/lib/photos.js.
+ *
+ * ⚠️ CE BALISAGE ET CELUI DE `peindreGalerie()` (js/04-contenu-statique.js)
+ *    DOIVENT COINCIDER — meme regle que pour le reste de cette galerie.
+ */
+function image(photo, alt, chargement) {
+  const source = photo.srcsetWebp
+    ? `<source type="image/webp" srcset="${esc(photo.srcsetWebp)}" sizes="${esc(photo.sizes)}">`
+    : '';
+  const srcset = photo.srcsetJpg ? ` srcset="${esc(photo.srcsetJpg)}" sizes="${esc(photo.sizes)}"` : '';
+
+  return `<picture>${source}<img src="${esc(photo.url)}" alt="${esc(alt)}" width="700" height="933"${srcset}${chargement}></picture>`;
 }
 
 /**
@@ -88,11 +110,11 @@ export function sectionGalerie(donnees) {
   return cases.map((c) => {
     // >>> TOUTES EN CHARGEMENT DIFFERE, SANS EXCEPTION. <<<
     //
-    // Une premiere version chargeait les quatre premieres tout de suite, par
-    // analogie avec la photo d'accueil. C'etait faux, et Lighthouse l'a dit :
+    // Une premiere version chargeait les premieres tout de suite, par analogie
+    // avec la photo d'accueil. C'etait faux, et Lighthouse l'a dit :
     // LA GALERIE N'EST JAMAIS DANS LE PREMIER ECRAN — elle est la quatrieme
-    // section de la page. Ces quatre images (354 Kio) partaient donc en meme
-    // temps que la photo d'accueil et lui disputaient la bande passante. Le
+    // section de la page. Ces images (354 Kio a l'epoque) partaient donc en
+    // meme temps que la photo d'accueil et lui disputaient la bande passante. Le
     // LCP est passe de 2,3 s a 3,9 s pour des photos que personne ne regardait
     // encore.
     //
@@ -102,10 +124,10 @@ export function sectionGalerie(donnees) {
 
     const images = c.apres
       ? '<div class="galerie-paire">'
-        + image(c.url, c.alt, chargement)
-        + image(c.apres.url, c.apres.alt, chargement)
+        + image(c, c.alt, chargement)
+        + image(c.apres, c.apres.alt, chargement)
         + '</div>'
-      : image(c.url, c.alt, chargement);
+      : image(c, c.alt, chargement);
 
     return `<li class="galerie-case${c.apres ? ' galerie-case-paire' : ''}" data-photo="${esc(c.nom)}">`
       + '<figure>'

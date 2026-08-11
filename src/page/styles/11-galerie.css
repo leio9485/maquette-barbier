@@ -13,20 +13,36 @@
    tourne depuis deux ans en a trente et n'a aucune raison d'en cacher
    vingt-six.
 
-   `auto-fill` avec un `minmax` : les cases prennent la largeur disponible et
+   `auto-fit` avec un `minmax` : les cases prennent la largeur disponible et
    passent à la ligne toutes seules. Trois photos font trois colonnes sur grand
    écran, douze en font quatre sur trois rangées, et rien à changer entre les
    deux. `minmax(0, …)` et non `minmax(auto, …)` : sans le zéro, une légende
-   longue élargirait sa colonne et casserait l'alignement de la planche. */
+   longue élargirait sa colonne et casserait l'alignement de la planche.
+
+   ⚠️ `auto-fit`, ET PLUS `auto-fill`. La différence ne se voyait pas tant que
+      la galerie livrée comptait exactement quatre photos, c'est-à-dire le
+      nombre de colonnes que la largeur de la colonne de texte laisse tenir.
+      Passée à trois (voir src/lib/photos.js), `auto-fill` gardait la quatrième
+      colonne — vide — et la planche s'arrêtait aux trois quarts de la largeur,
+      seule chose de la page à ne pas rejoindre son bord droit. `auto-fit`
+      supprime les pistes vides et les trois photos occupent toute la largeur. */
 .galerie {
   margin-top: var(--e4);
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   gap: var(--e1);
 }
 
 @media (min-width: 560px) {
-  .galerie { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+  .galerie { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+}
+
+/* Le revers d'`auto-fit` : UNE SEULE photo déposée prendrait toute la largeur,
+   soit près de 1 100 px de haut en 3:4 — une affiche, pas une planche. Elle
+   garde la largeur d'une demi-planche. Deux photos, elles, se tiennent très
+   bien côte à côte et n'ont besoin de rien. */
+.galerie:has(> .galerie-case:only-child) {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .galerie-case {

@@ -53,6 +53,32 @@ function peindreChamps(config) {
   for (const element of $$('[data-champ="horaires-du-jour"]')) {
     poserTexte(element, texteHoraire(duJour));
   }
+
+  // Les mentions legales supplementaires (lot D, D5). Deux reglent leur
+  // propre repli en HTML (« à compléter », voir mentions-legales.html) : rien
+  // a faire ici tant qu'une valeur existe reellement. Les deux autres ont un
+  // repli qui depend d'un AUTRE champ, et doivent donc se regler en JavaScript.
+  const legal = s.legal ?? {};
+
+  for (const element of $$('[data-champ="forme-juridique"]')) {
+    if (legal.form) poserTexte(element, legal.form);
+  }
+  for (const element of $$('[data-champ="siret"]')) {
+    if (legal.siret) poserTexte(element, legal.siret);
+  }
+  // REPLI SUR LE NOM DU COMMERCE : un independant qui publie sous son
+  // enseigne est son propre directeur de publication, ce n'est pas un champ
+  // vide a signaler.
+  for (const element of $$('[data-champ="directeur-publication"]')) {
+    poserTexte(element, legal.publicationDirector || s.name);
+  }
+  // FACULTATIF, ET MASQUE PAR DEFAUT : la phrase deja ecrite en dur (pays,
+  // region de l'hebergeur) reste correcte seule ; ceci ne fait que la
+  // completer si le commercant a saisi les coordonnees legales exactes.
+  for (const element of $$('[data-champ="hebergement-details"]')) {
+    montrer(element, Boolean(legal.hostingDetails));
+    if (legal.hostingDetails) poserTexte(element, legal.hostingDetails);
+  }
 }
 
 // --- LES PRESTATIONS --------------------------------------------------------
@@ -259,7 +285,15 @@ function peindreEquipe(config) {
   liste.innerHTML = equipe.map((p) => {
     const portrait = p.photo
       ? `<img src="${esc(p.photo)}" alt="" width="112" height="112">`
-      : `<span class="equipe-initiales" style="background:${esc(p.color || '#24405C')}" aria-hidden="true">${esc(initiales(p.name))}</span>`;
+      // ⚠️ AUCUNE COULEUR ECRITE ICI. Cette ligne posait un
+      //    `style="background:${p.color}"` — la couleur de la personne, reglee
+      //    librement depuis l'espace commercant. La vitrine se peignait donc
+      //    depuis un selecteur de couleur, sans controle de contraste, et deux
+      //    des trois valeurs livrees sortaient de la charte. Le carre est
+      //    aujourd'hui encre pour tout le monde (10-equipe-et-avis.css) ; la
+      //    couleur de la personne garde son emploi la ou elle code vraiment
+      //    quelque chose : les lignes de l'agenda, cote commercant.
+      : `<span class="equipe-initiales" aria-hidden="true">${esc(initiales(p.name))}</span>`;
 
     // LA PHOTO, LE PRENOM, LE POSTE. RIEN D'AUTRE.
     //
@@ -352,8 +386,16 @@ function peindreGalerie(config) {
   const legendes = config.legendes || {};
   const descriptions = config.descriptions || {};
 
-  const image = (url, alt, chargement) =>
-    `<img src="${esc(url)}" alt="${esc(alt)}" width="700" height="933"${chargement}>`;
+  // MEME BALISAGE QUE `image()` dans src/lib/galerie.js — voir ce fichier pour
+  // le pourquoi de `<picture>` et du `<source>` WebP conditionnel (lot C, C2).
+  const image = (photo, alt, chargement) => {
+    const source = photo.srcsetWebp
+      ? `<source type="image/webp" srcset="${esc(photo.srcsetWebp)}" sizes="${esc(photo.sizes)}">`
+      : '';
+    const srcset = photo.srcsetJpg ? ` srcset="${esc(photo.srcsetJpg)}" sizes="${esc(photo.sizes)}"` : '';
+
+    return `<picture>${source}<img src="${esc(photo.url)}" alt="${esc(alt)}" width="700" height="933"${srcset}${chargement}></picture>`;
+  };
 
   const cases = [];
 
@@ -372,10 +414,10 @@ function peindreGalerie(config) {
 
     const images = apres?.url
       ? '<div class="galerie-paire">'
-        + image(photo.url, descriptions[nom] ?? '', chargement)
-        + image(apres.url, descriptions[`${nom}-apres`] ?? '', chargement)
+        + image(photo, descriptions[nom] ?? '', chargement)
+        + image(apres, descriptions[`${nom}-apres`] ?? '', chargement)
         + '</div>'
-      : image(photo.url, descriptions[nom] ?? '', chargement);
+      : image(photo, descriptions[nom] ?? '', chargement);
 
     cases.push(`<li class="galerie-case${apres?.url ? ' galerie-case-paire' : ''}" data-photo="${esc(nom)}">`
       + '<figure>'
@@ -390,6 +432,40 @@ function peindreGalerie(config) {
   // Aucune photo : on laisse ce que le serveur a écrit plutôt que de vider la
   // section. Une galerie vide vaut moins que pas de galerie du tout.
   if (cases.length) liste.innerHTML = cases.join('');
+}
+
+/**
+ * Pose `srcset` / `sizes` sur un `<img>`, et sur le `<source>` WebP qui le
+ * précède s'il en a un (l'un et l'autre sont posés par le serveur pour le
+ * même but — voir listerPhotos(), src/lib/photos.js).
+ *
+ * ⚠️ QUAND `photo` N'A PAS DE VARIANTE, ON RETIRE `srcset`/`sizes` PLUTÔT QUE
+ *    DE LES LAISSER TELS QUELS. Une instance dont la photo vient d'être
+ *    remplacée par un navigateur incapable d'encoder du WebP n'a plus que
+ *    `url` : garder l'ancien `srcset` ferait choisir, sur un grand écran, une
+ *    variante qui montre encore le SUJET précédent.
+ */
+function poserSrcset(image, photo) {
+  if (photo.srcsetJpg) {
+    image.setAttribute('srcset', photo.srcsetJpg);
+    image.setAttribute('sizes', photo.sizes);
+  } else {
+    image.removeAttribute('srcset');
+    image.removeAttribute('sizes');
+  }
+
+  const source = image.previousElementSibling;
+  if (source?.tagName === 'SOURCE') {
+    if (photo.srcsetWebp) {
+      source.setAttribute('type', 'image/webp');
+      source.setAttribute('srcset', photo.srcsetWebp);
+      source.setAttribute('sizes', photo.sizes);
+    } else {
+      source.removeAttribute('type');
+      source.removeAttribute('srcset');
+      source.removeAttribute('sizes');
+    }
+  }
 }
 
 function peindrePhotos(config) {
@@ -419,6 +495,7 @@ function peindrePhotos(config) {
 
     if (photo?.url && image) {
       image.setAttribute('src', photo.url);
+      poserSrcset(image, photo);
 
       // LA DESCRIPTION LUE A VOIX HAUTE, posee en meme temps que l'adresse.
       // Les deux vont ensemble : une image sans `alt` est annoncee « image »

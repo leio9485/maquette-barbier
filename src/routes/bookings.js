@@ -26,6 +26,7 @@ import { prisma } from '../db.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { OCCUPENT } from '../lib/annulation.js';
 import { referenceLibre } from '../lib/reference.js';
+import { validerNom, normaliserTelephone, validerCourriel } from '../lib/coordonnees.js';
 import { limiteApplicable, passageDisponible, noterPassage } from '../lib/rateLimit.js';
 import { isValidIso, weekdayOf, todayIso, addDaysIso } from '../lib/time.js';
 import {
@@ -420,16 +421,37 @@ bookingsRouter.post('/bookings', async (req, res, next) => {
 
     const { date, start, serviceId } = req.body ?? {};
 
-    const nom = texte(req.body?.name, 120);
-    const telephone = texte(req.body?.phone, 40);
-    const courriel = texte(req.body?.email, 160);
-
     if (!isValidIso(date)) return refus(res, 400, 'Date invalide.');
     if (!Number.isInteger(start) || start < 0 || start > 1439) {
       return refus(res, 400, 'Heure invalide.');
     }
-    if (!nom) return refus(res, 400, 'Le nom est obligatoire.');
-    if (!telephone) return refus(res, 400, 'Le téléphone est obligatoire.');
+
+    // >>> LES COORDONNEES, VERIFIEES ICI ET PAS SEULEMENT DANS LE NAVIGATEUR. <<<
+    //
+    // Ces trois lignes etaient `texte(…, 120)` : rien de plus qu'un `trim()` et
+    // une coupe. « abc » passait pour un telephone, « pasunemail » pour un
+    // courriel, et un nom de cinq mille caracteres partait en base ampute a
+    // cent vingt sans que personne ne le sache. La regle complete, et le
+    // pourquoi de chaque cas, sont dans src/lib/coordonnees.js.
+    //
+    // ⚠️ L'ORDRE DES MESSAGES SUIT L'ORDRE DES CHAMPS A L'ECRAN. Le navigateur
+    //    pose la meme sequence (js/07-tunnel.js) : celui qui envoie un
+    //    formulaire depuis la page et celui qui appelle l'API directement
+    //    doivent lire la meme phrase pour la meme faute.
+    const verdictNom = validerNom(req.body?.name);
+    if (verdictNom.erreur) return refus(res, 400, verdictNom.erreur);
+
+    const verdictTel = normaliserTelephone(req.body?.phone);
+    if (verdictTel.erreur) return refus(res, 400, verdictTel.erreur);
+
+    const verdictCourriel = validerCourriel(req.body?.email);
+    if (verdictCourriel.erreur) return refus(res, 400, verdictCourriel.erreur);
+
+    const nom = verdictNom.valeur;
+    // NORMALISE, pas brut : le meme numero tape de quatre facons remplissait
+    // quatre lignes differentes dans l'export « clients ».
+    const telephone = verdictTel.valeur;
+    const courriel = verdictCourriel.valeur;
 
     const prestation = await loadService(serviceId);
     if (!prestation) return refus(res, 404, 'Prestation inconnue.');
@@ -652,6 +674,15 @@ bookingsRouter.get('/admin/bookings', requireAdmin, async (req, res, next) => {
  * Rendez-vous saisi par le commercant (appel telephonique, passage en boutique).
  * Plus souple que la reservation en ligne : les prestations et les personnes en
  * pause sont autorisees, et le delai minimum ne s'applique pas.
+ *
+ * ⚠️ LES COORDONNEES NE SONT PAS VALIDEES ICI, ET C'EST VOULU. La reservation
+ *    en ligne, elle, exige un telephone reconnaissable (src/lib/coordonnees.js)
+ *    parce qu'elle vient d'un inconnu et que ce numero est le seul moyen de le
+ *    rappeler. Ici, c'est le commercant qui tape, et il tape ce qu'il a : « le
+ *    monsieur de la rue Neuve » sans numero, un poste interne a quatre
+ *    chiffres, un numero note a moitie pendant l'appel. Lui refuser sa propre
+ *    saisie parce qu'elle ne rentre pas dans un format serait lui donner du
+ *    travail pour rien — c'est son agenda, pas le notre.
  */
 bookingsRouter.post('/admin/bookings', requireAdmin, async (req, res, next) => {
   try {

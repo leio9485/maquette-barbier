@@ -422,11 +422,6 @@ model Settings {
   ///
   /// >>> C'EST CE QUI REND CETTE BASE REUTILISABLE SANS Y RETOUCHER. <<<
   ///
-  /// Le type etait ecrit en dur — `HairSalon` — parce que la premiere instance
-  /// etait un salon de coiffure. Pour un barbier c'est `BarberShop`, et le mot
-  /// juste compte : c'est lui qui dit a Google de quel commerce il s'agit, et
-  /// donc a quelles recherches ce site doit repondre.
-  ///
   /// Une valeur ici, propagee dans les donnees structurees (src/lib/page.js),
   /// et la meme base sert une onglerie (`NailSalon`), un institut
   /// (`BeautySalon`) ou un spa (`DaySpa`) sans qu'une ligne de code change.
@@ -434,7 +429,14 @@ model Settings {
   /// La liste des valeurs acceptees est fermee, cote validation : un type
   /// invente ne serait pas une erreur visible, seulement des donnees
   /// structurees silencieusement ignorees.
-  businessType String @default("BarberShop")
+  ///
+  /// ⚠️ `HairSalon`, ET NON `BarberShop` (lot D, D4). Ce champ valait
+  ///    `BarberShop` par defaut — un type que schema.org n'a jamais defini
+  ///    (`schema.org/BarberShop` repond 404, verifie en le demandant
+  ///    directement). `HairSalon` est le sous-type le plus proche, pour un
+  ///    barbier comme pour un salon de coiffure — schema.org ne distingue pas
+  ///    les deux metiers. Voir TYPES_DE_COMMERCE, src/lib/settings.js.
+  businessType String @default("HairSalon")
 
   /// La position exacte du commerce, pour les donnees structurees.
   ///
@@ -446,6 +448,28 @@ model Settings {
   /// plus pour un commerce local. Ces deux nombres ne font que la preciser.
   latitude  Float?
   longitude Float?
+
+  /// LES MENTIONS LEGALES QU'UN COMMERCE REEL DOIT FOURNIR (lot D, point D5).
+  ///
+  /// Quatre champs, tous FACULTATIFS et vides par defaut, comme les liens
+  /// sociaux plus haut : la page ne les affiche que renseignes, jamais une
+  /// ligne "non communique" qui n'apprend rien. En demonstration, `defaults.js`
+  /// leur donne des valeurs plausibles mais fictives — le SIRET reste vide,
+  /// lui, meme en demonstration : un numero invente, meme d'apparence
+  /// plausible, risquerait de designer une vraie entreprise.
+  ///
+  /// - `legalForm` : la forme juridique (« Entreprise individuelle », « SARL »…).
+  /// - `siret` : le SIRET, quatorze chiffres.
+  /// - `publicationDirector` : le directeur de la publication. Vide, la page
+  ///   retombe sur le nom du commerce — le cas courant d'un independant qui
+  ///   publie sous son enseigne.
+  /// - `hostingDetails` : les coordonnees legales de l'hebergeur (raison
+  ///   sociale, adresse), si celles ecrites en dur dans la page (le pays et la
+  ///   region) ne suffisent pas a l'obligation legale du commercant.
+  legalForm           String @default("")
+  siret               String @default("")
+  publicationDirector String @default("")
+  hostingDetails      String @default("")
 
   /// Toutes les combien de minutes un creneau est propose (30 = 9h30, 10h00...).
   slotStepMin Int @default(30)

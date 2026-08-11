@@ -87,10 +87,19 @@ export const EMPLACEMENTS = {
  * nombre reellement depose (voir styles/11-galerie.css) : trois, quatre, huit
  * ou douze tiennent sans qu'on y touche.
  *
- * LES QUATRE PREMIERES SONT LIVREES avec le site et portent une legende ; les
- * huit suivantes arrivent vides et n'apparaissent que si le commercant y met
- * quelque chose. C'est ce qui evite qu'une nouvelle instance affiche huit
+ * LES TROIS PREMIERES SONT LIVREES avec le site et portent une legende ; les
+ * neuf suivantes arrivent vides et n'apparaissent que si le commercant y met
+ * quelque chose. C'est ce qui evite qu'une nouvelle instance affiche neuf
  * rectangles gris.
+ *
+ * >>> ELLES ETAIENT QUATRE. LA PREMIERE A ETE RETIREE. <<< C'etait un interieur
+ * de grand salon americain : enseigne BARBERSHOP en lettres d'un metre, panier
+ * de basket, planches de skate, panneau « SORRY WE'RE CLOSED ». Elle etait
+ * legendee « La devanture » alors qu'elle montrait un interieur, et elle
+ * contredisait frontalement la direction du site — le monde de reference est
+ * l'atelier d'artisan, pas le barbershop (voir CLAUDE.md). Aucune photo de
+ * remplacement n'etant disponible dans le depot, la galerie en montre trois :
+ * mieux vaut trois photos justes qu'une quatrieme qui vend un autre commerce.
  *
  * LA SECONDE PHOTO (« -apres ») est facultative et ne s'affiche jamais seule :
  * sans la premiere, la case n'existe pas. C'est ce qui rend le mode
@@ -99,10 +108,9 @@ export const EMPLACEMENTS = {
  */
 function galerie() {
   const livrees = [
-    ['La devanture', "La devanture du salon depuis la rue : vitrine sombre et enseigne."],
-    ['Le poste', "Un poste de travail : fauteuil, miroir, tondeuses et ciseaux rangés."],
-    ['La coupe', "Les mains du barbier taillant les cheveux d'un client aux ciseaux."],
-    ['Le rasage', "Un rasage au coupe-chou, mousse chaude appliquée au blaireau."],
+    ['Le poste', "Un fauteuil de barbier en cuir et chrome, devant le miroir du poste."],
+    ['La coupe', "Les mains du barbier dégradant une nuque à la tondeuse et au peigne."],
+    ['La barbe', "Une barbe taillée aux ciseaux, le client allongé sous la serviette."],
   ];
 
   const cases = {};
@@ -305,6 +313,90 @@ async function ecrireTexte(emplacement, champs) {
 /** Le dossier des photos livrees avec le site (celles du depart). */
 const DOSSIER_LIVRE = path.join(ROOT_DIR, 'public', 'photos');
 
+// ---------------------------------------------------------------------------
+// LES VARIANTES — largeurs reduites et WebP (lot C, point C2)
+//
+// >>> AUCUNE IMAGE N'AVAIT DE `srcset`, NI DE VARIANTE MODERNE. <<< Le heros
+// est un JPEG de 1200 px servi tel quel a un telephone de 390 : l'ecran en
+// affiche moins du tiers, et le visiteur en telecharge la totalite.
+//
+// LA CONTRAINTE QUI FACONNE TOUT CE QUI SUIT : ce projet n'a AUCUNE dependance
+// de traitement d'image (les quatre du projet sont Express et Prisma), et pas
+// d'etape de build. Redimensionner et encoder en WebP cote serveur demanderait
+// d'en ajouter une — refuse sans validation. La reduction se fait donc DANS LE
+// NAVIGATEUR, exactement comme le fait deja `reduireImage()` avant l'envoi
+// (js/08-reglages.js) : celui qui depose une photo produit lui-meme, en plus
+// du fichier plein format, une ou deux largeurs reduites et leurs equivalents
+// WebP, et les envoie tous ensemble. Le serveur ne fait que les ranger et les
+// servir — voir `deposerPhoto()` plus bas.
+//
+// Les QUATRE PHOTOS LIVREES avec le site (public/photos/) portent leurs
+// variantes toutes generees d'avance, par le meme procede (un navigateur, pas
+// un serveur) : voir public/photos/LISEZ-MOI.md.
+// ---------------------------------------------------------------------------
+
+/**
+ * Les largeurs reduites proposees pour un emplacement, EN PLUS de la largeur
+ * pleine (celle du fichier principal, sans suffixe).
+ *
+ * Le visuel d'accueil est affiche beaucoup plus grand a l'ecran qu'une
+ * vignette de galerie (il occupe une colonne entiere a partir de 1000 px) :
+ * il justifie une largeur intermediaire de plus.
+ */
+function largeursReduites(emplacement) {
+  return emplacement === 'hero' ? [400, 800] : [350];
+}
+
+/**
+ * Le hint `sizes` d'un emplacement — la largeur d'AFFICHAGE attendue, pas la
+ * largeur du fichier. Ecrit ici et une seule fois : la page (rendue par le
+ * serveur) et le JavaScript (qui repeint apres coup) lisent tous deux
+ * `photo.sizes` plutot que de deviner chacun le meme reglage CSS.
+ *
+ * Des approximations, assumees : le heros passe de 100 % de la largeur a une
+ * demi-colonne a partir de 1000 px (08-accueil.css) ; une vignette de galerie
+ * grandit avec le nombre de colonnes que la grille `auto-fit` retient, ce qui
+ * depend du nombre de photos deposees et ne se resout qu'a l'affichage. Une
+ * `sizes` imprecise ne casse rien : au pire, le navigateur choisit une image
+ * un cran plus grande que necessaire.
+ */
+const SIZES = {
+  hero: '(min-width: 1000px) 50vw, 100vw',
+  galerie: '(min-width: 560px) 30vw, 45vw',
+};
+
+function sizesDe(emplacement) {
+  return emplacement === 'hero' ? SIZES.hero : SIZES.galerie;
+}
+
+/** Le nom de fichier d'une variante : `hero-800.jpg`, `hero.webp` (pleine largeur). */
+function nomVariante(emplacement, largeur, format) {
+  return `${emplacement}${largeur ? `-${largeur}` : ''}.${format}`;
+}
+
+/**
+ * Toutes les variantes qu'un emplacement PEUT porter : chaque largeur reduite
+ * en JPEG et en WebP, plus la largeur pleine en WebP (le fichier principal
+ * couvre deja la largeur pleine en JPEG).
+ */
+function variantesPossibles(emplacement) {
+  const sortie = [];
+  for (const largeur of largeursReduites(emplacement)) {
+    sortie.push({ largeur, format: 'jpg' });
+    sortie.push({ largeur, format: 'webp' });
+  }
+  sortie.push({ largeur: null, format: 'webp' });
+  return sortie;
+}
+
+/** Le fichier d'une variante dans UN etage donne (jamais les deux melanges). */
+async function trouverFichierVariante(emplacement, tier, largeur, format) {
+  const dossier = tier === 'deposee' ? PHOTOS_DIR : DOSSIER_LIVRE;
+  const chemin = path.join(dossier, nomVariante(emplacement, largeur, format));
+  const s = await infos(chemin);
+  return s ? { chemin, mtime: s.mtimeMs } : null;
+}
+
 /**
  * Meme garde-fous que pour les photos d'equipe (voir src/lib/settings.js), avec
  * une limite plus haute : ces images-ci s'affichent en grand.
@@ -370,6 +462,14 @@ export async function trouverPhoto(emplacement) {
  * L'adresse porte un numero de version (la date du fichier) : il permet de
  * demander au navigateur de garder l'image pour toujours, tout en la
  * remplacant immediatement le jour ou le commercant en depose une autre.
+ *
+ * `srcsetJpg` / `srcsetWebp` / `sizes` — QUAND DES VARIANTES EXISTENT
+ * REELLEMENT SUR LE DISQUE, jamais devinees. Un emplacement livre sans
+ * variantes (une instance dont les photos n'ont pas encore ete regenerees) ou
+ * deposee par un navigateur incapable d'encoder du WebP n'a que `url` : la
+ * page retombe alors sur un simple `<img src>`, exactement comme avant ce lot.
+ * `srcsetJpg` REPREND `url` A LA LARGEUR PLEINE — un `srcset` sans son plus
+ * grand palier choisirait toujours une image trop petite sur un ecran large.
  */
 export async function listerPhotos() {
   const sortie = {};
@@ -377,22 +477,51 @@ export async function listerPhotos() {
   await Promise.all(Object.keys(EMPLACEMENTS).map(async (emplacement) => {
     const photo = await trouverPhoto(emplacement);
     if (!photo) return;
-    sortie[emplacement] = {
-      url: `/photos/${emplacement}.jpg?v=${Math.round(photo.mtime)}`,
-      source: photo.source,
-    };
+
+    const largeurPleine = EMPLACEMENTS[emplacement].largeur;
+    const url = `/photos/${emplacement}.jpg?v=${Math.round(photo.mtime)}`;
+    const entree = { url, source: photo.source };
+
+    const variantesTrouvees = await Promise.all(variantesPossibles(emplacement).map(async ({ largeur, format }) => {
+      const fichier = await trouverFichierVariante(emplacement, photo.source, largeur, format);
+      if (!fichier) return null;
+      return {
+        largeur: largeur ?? largeurPleine,
+        format,
+        url: `/photos/${nomVariante(emplacement, largeur, format)}?v=${Math.round(fichier.mtime)}`,
+      };
+    }));
+
+    const versSrcset = (liste) => liste.map((v) => `${v.url} ${v.largeur}w`).join(', ');
+
+    const jpgReduits = variantesTrouvees.filter((v) => v?.format === 'jpg');
+    if (jpgReduits.length) {
+      entree.srcsetJpg = versSrcset([...jpgReduits, { url, largeur: largeurPleine }]);
+    }
+
+    const webp = variantesTrouvees.filter((v) => v?.format === 'webp');
+    if (webp.length) entree.srcsetWebp = versSrcset(webp);
+
+    if (entree.srcsetJpg || entree.srcsetWebp) entree.sizes = sizesDe(emplacement);
+
+    sortie[emplacement] = entree;
   }));
 
   return sortie;
 }
 
 /**
- * Enregistre une photo envoyee par le commercant.
+ * Enregistre une photo envoyee par le commercant, et ses variantes eventuelles
+ * (largeurs reduites, WebP — voir plus haut). `variantes` est une liste de
+ * `{ largeur, format, donnees }` ; tout element hors de ce qu'attend cet
+ * emplacement, ou dont le contenu ne correspond pas au format annonce, est
+ * simplement IGNORE — jamais un refus. Un navigateur incapable d'encoder du
+ * WebP, par exemple, n'en enverra aucun : la photo se depose quand meme.
  *
  * Renvoie `{ erreur }` si l'envoi est refuse — le message est affichable tel
  * quel — ou `{ ok: true }`.
  */
-export async function deposerPhoto(emplacement, donnees) {
+export async function deposerPhoto(emplacement, donnees, variantes) {
   if (!emplacementConnu(emplacement)) {
     return { erreur: 'Emplacement inconnu.' };
   }
@@ -411,7 +540,43 @@ export async function deposerPhoto(emplacement, donnees) {
   const binaire = Buffer.from(reconnue[2], 'base64');
   if (!binaire.length) return { erreur: 'Cette image est vide.' };
 
+  // Les variantes sont VALIDEES ICI, AVANT LA MOINDRE ECRITURE : un depot qui
+  // s'arreterait a mi-chemin laisserait une vignette reduite d'une photo a
+  // cote du plein format d'une autre.
+  const permises = new Set(variantesPossibles(emplacement).map((v) => `${v.largeur}:${v.format}`));
+  const aEcrire = [];
+
+  if (Array.isArray(variantes)) {
+    for (const v of variantes) {
+      if (!v || typeof v.donnees !== 'string') continue;
+      if (!permises.has(`${v.largeur ?? null}:${v.format}`)) continue;
+      if (v.donnees.length > MAX_CARACTERES) continue;
+
+      const m = FORMAT.exec(v.donnees);
+      if (!m) continue;
+      // Le contenu doit correspondre a l'extension qu'il portera : un fichier
+      // `.webp` qui contiendrait en realite du JPEG tromperait le navigateur,
+      // qui decide du decodage a partir du `Content-Type` que le serveur pose
+      // depuis l'EXTENSION (voir la route dans src/server.js).
+      if ((v.format === 'webp') !== (m[1] === 'webp')) continue;
+      if (v.format === 'jpg' && m[1] !== 'jpeg') continue;
+
+      const bin = Buffer.from(m[2], 'base64');
+      if (!bin.length) continue;
+
+      aEcrire.push({ chemin: path.join(PHOTOS_DIR, nomVariante(emplacement, v.largeur ?? null, v.format)), binaire: bin });
+    }
+  }
+
   await mkdir(PHOTOS_DIR, { recursive: true });
+
+  // On efface D'ABORD toute variante deposee precedemment, y compris celles
+  // qu'on ne va pas remplacer. Sans ce menage, remplacer une photo depuis un
+  // navigateur incapable d'encoder du WebP garderait le WebP de l'ANCIENNE
+  // photo : la page servirait alors deux images differentes selon le format
+  // que le navigateur du visiteur demande.
+  await Promise.all(variantesPossibles(emplacement).map(({ largeur, format }) =>
+    unlink(path.join(PHOTOS_DIR, nomVariante(emplacement, largeur, format))).catch(() => {})));
 
   // Ecriture en deux temps : un fichier temporaire, puis un renommage, qui est
   // instantane. Sans cela, un visiteur tombant au mauvais moment recevrait une
@@ -420,23 +585,28 @@ export async function deposerPhoto(emplacement, donnees) {
   // Le nom du fichier temporaire est tire au hasard : deux envois qui se
   // croiseraient sur le meme emplacement s'ecriraient sinon l'un sur l'autre
   // avant d'etre renommes, et le resultat serait un melange des deux images.
-  const definitif = cheminDepose(emplacement);
-  const provisoire = `${definitif}.${randomBytes(6).toString('hex')}.tmp`;
-  try {
-    await writeFile(provisoire, binaire);
-    await rename(provisoire, definitif);
-  } catch (erreur) {
-    // Ne pas laisser trainer un fichier a moitie ecrit dans le dossier du client.
-    await unlink(provisoire).catch(() => {});
-    throw erreur;
-  }
+  const ecrire = async (definitif, contenu) => {
+    const provisoire = `${definitif}.${randomBytes(6).toString('hex')}.tmp`;
+    try {
+      await writeFile(provisoire, contenu);
+      await rename(provisoire, definitif);
+    } catch (erreur) {
+      // Ne pas laisser trainer un fichier a moitie ecrit dans le dossier du client.
+      await unlink(provisoire).catch(() => {});
+      throw erreur;
+    }
+  };
+
+  await ecrire(cheminDepose(emplacement), binaire);
+  await Promise.all(aEcrire.map((v) => ecrire(v.chemin, v.binaire)));
 
   return { ok: true };
 }
 
 /**
- * Retire la photo deposee. On retombe alors sur celle livree avec le site, ou
- * sur le degrade : c'est pourquoi ce geste ne demande pas de confirmation.
+ * Retire la photo deposee, ET SES VARIANTES. On retombe alors sur celle livree
+ * avec le site, ou sur le degrade : c'est pourquoi ce geste ne demande pas de
+ * confirmation.
  *
  * La photo livree, elle, ne se supprime pas — elle fait partie du site, pas des
  * donnees du commerce.
@@ -451,6 +621,9 @@ export async function retirerPhoto(emplacement) {
     if (erreur.code !== 'ENOENT') throw erreur;
   }
 
+  await Promise.all(variantesPossibles(emplacement).map(({ largeur, format }) =>
+    unlink(path.join(PHOTOS_DIR, nomVariante(emplacement, largeur, format))).catch(() => {})));
+
   return { ok: true };
 }
 
@@ -459,4 +632,73 @@ export async function lirePhoto(emplacement) {
   const photo = await trouverPhoto(emplacement);
   if (!photo) return null;
   return { contenu: await readFile(photo.chemin), mtime: photo.mtime };
+}
+
+/**
+ * Le contenu d'UNE VARIANTE (`largeur` reduite et/ou `format` WebP), pour la
+ * route qui la sert. `largeur: null, format: 'jpg'` designe le fichier
+ * principal — meme chose que `lirePhoto()`.
+ *
+ * >>> LA VARIANTE EST CHERCHEE DANS LE MEME ETAGE QUE LA PHOTO PRINCIPALE,
+ * JAMAIS DANS L'AUTRE. <<< Si le commercant a depose une photo mais que sa
+ * variante WebP a echoue a s'ecrire (ou que son navigateur ne sait pas
+ * l'encoder), on ne va pas chercher le WebP LIVRE a la place : ce serait
+ * montrer, sous un meme format, le sujet de deux photos differentes. Une
+ * variante absente de l'etage courant est simplement absente — voir
+ * `listerPhotos()`, qui ne l'annonce alors pas dans `srcset`.
+ */
+export async function lireVariante(emplacement, largeur, format) {
+  if (!emplacementConnu(emplacement)) return null;
+  if (!largeur && format === 'jpg') return lirePhoto(emplacement);
+
+  const photo = await trouverPhoto(emplacement);
+  if (!photo) return null;
+
+  const fichier = await trouverFichierVariante(emplacement, photo.source, largeur, format);
+  if (!fichier) return null;
+
+  return { contenu: await readFile(fichier.chemin), mtime: fichier.mtime };
+}
+
+/** Meme echappement que dans src/lib/galerie.js. Les deux doivent coincider. */
+function esc(valeur) {
+  return String(valeur ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+/**
+ * Le `<picture>` du visuel d'accueil, ECRIT DANS LA PAGE SERVIE plutot que
+ * peint au chargement (lot D, point D2).
+ *
+ * >>> C'ETAIT LA DERNIERE IMAGE DE LA VITRINE SANS `src` NI `alt` DANS LE HTML
+ * SERVI. <<< Le lot 6 avait fait ce geste pour la galerie ; le heros y avait
+ * echappe parce qu'il n'est pas dans une liste repetee — mais c'est la PLUS
+ * GRANDE image de la page, et celle qu'un robot sans JavaScript rencontre en
+ * premier. Sans ce geste, il ne lisait ni l'image ni sa description.
+ *
+ * Renvoie `null` si aucune photo n'est deposee ou livree : `remplacerZone()`
+ * laisse alors le squelette du fichier (`hidden`, sans `src`) tel quel — la
+ * page garde le degrade de la charte plutot qu'un `<img>` casse.
+ *
+ * ⚠️ MEME BALISAGE QUE CE QUE `peindrePhotos()` produit au chargement
+ * (js/04-contenu-statique.js, la fonction `poserSrcset()`) : la page le
+ * repeint a l'identique une fois le JavaScript execute.
+ */
+export function sectionHero(photos, descriptions) {
+  const photo = photos?.hero;
+  if (!photo?.url) return null;
+
+  const alt = descriptions?.hero ?? '';
+  const dims = EMPLACEMENTS.hero;
+
+  const source = photo.srcsetWebp
+    ? `<source type="image/webp" srcset="${esc(photo.srcsetWebp)}" sizes="${esc(photo.sizes)}">`
+    : '<source type="image/webp">';
+  const srcset = photo.srcsetJpg ? ` srcset="${esc(photo.srcsetJpg)}" sizes="${esc(photo.sizes)}"` : '';
+
+  return `<picture>${source}<img src="${esc(photo.url)}" alt="${esc(alt)}" width="${dims.largeur}" height="${dims.hauteur}"${srcset}></picture>`;
 }

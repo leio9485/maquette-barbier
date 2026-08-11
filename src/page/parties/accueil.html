@@ -73,10 +73,27 @@
        Sa réserve est en encre, comme le bloc à côté : tant que l'image n'est
        pas arrivée, on voit la suite de l'aplat, pas un trou.
 
-       `data-photo` désigne l'emplacement côté serveur (src/lib/photos.js) ; le
-       JavaScript y pose l'adresse réelle au chargement. #-->
+       `data-photo` désigne l'emplacement côté serveur (src/lib/photos.js).
+
+       ⚠️ ENTRE LES MARQUEURS `@hero` (lot D, point D2) : LE SERVEUR ÉCRIT ICI
+          LE `<picture>` RÉEL, `src` ET `alt` COMPRIS (`sectionHero()`,
+          src/lib/photos.js) — c'était la dernière image de la vitrine
+          absente du HTML servi. Le contenu ci-dessous (cachée, sans `src`,
+          `<source>` vide) ne sert QUE de secours : sans photo déposée ni
+          livrée, les marqueurs restent vides et ce squelette reste affiché
+          tel quel — la page garde le dégradé de la charte plutôt qu'une image
+          cassée. Le JavaScript le repeint à l'identique au chargement
+          (`peindrePhotos()`, `poserSrcset()`, js/04-contenu-statique.js), y
+          compris quand le serveur a déjà tout écrit : c'est ce qui tient
+          `srcset`/`sizes` à jour après un dépôt de photo depuis les
+          réglages, sans recharger la page. #-->
   <div class="photo-accueil" data-photo="hero">
-    <img alt="" width="1200" height="675" hidden>
+    <!--@hero-->
+    <picture>
+      <source type="image/webp">
+      <img alt="" width="1200" height="675" hidden>
+    </picture>
+    <!--/@hero-->
   </div>
 
 </section>

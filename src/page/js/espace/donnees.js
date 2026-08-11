@@ -84,11 +84,21 @@ function debloquerPeriode(corps) {
   return api('/api/admin/day-block', { methode: 'DELETE', corps });
 }
 
-/** Depose ou remplace une photo de la vitrine. */
-function envoyerPhoto(emplacement, dataUrl) {
+/**
+ * Depose ou remplace une photo de la vitrine, et ses variantes eventuelles
+ * (largeurs reduites, WebP — voir produireVariantes() et src/lib/photos.js).
+ *
+ * ⚠️ LA CLE EST `data`, PAS `image`. Elle envoyait `{ image: dataUrl }` alors
+ *    que le serveur lit `req.body?.data` (src/routes/settings.js) : chaque
+ *    depot de photo depuis l'ecran des reglages echouait en silence, avec
+ *    « Aucune image reçue. » — jamais vu par les tests, qui appellent l'API
+ *    directement avec le bon nom de champ. Trouve en verifiant ce lot a
+ *    l'ecran, pas par un test.
+ */
+function envoyerPhoto(emplacement, dataUrl, variantes) {
   return api(`/api/admin/photos/${encodeURIComponent(emplacement)}`, {
     methode: 'PUT',
-    corps: { image: dataUrl },
+    corps: { data: dataUrl, variantes },
   });
 }
 

@@ -430,8 +430,17 @@ document.
 Il contient déjà `hasOfferCatalog` (avec les rayons imbriqués), `url`, `sameAs`,
 `image`, `openingHoursSpecification`, et **pas** d'`aggregateRating` — ce dernier
 point pour la raison exacte que donne la mission, argumentée en commentaire dans
-le fichier. Manquent : le type `BarberShop`, `potentialAction`, `geo`, et
-`estimatedDuration` sur les offres.
+le fichier. Manquent : `potentialAction` et `geo`.
+
+⚠️ **Correction (lot D, point D4) : cette ligne se trompait sur `BarberShop`.**
+Elle le comptait parmi ce qu'il manquait d'ajouter — ce que le lot 5 a fait,
+en toute bonne foi sur la base de cette même phrase. `BarberShop` n'a jamais
+été un type schema.org (`schema.org/BarberShop` répond 404, vérifié en le
+demandant directement) : le JSON-LD servi portait donc un type invalide depuis
+plusieurs lots, sans la moindre erreur visible — Google ignore en silence un
+type qu'il ne reconnaît pas. Corrigé en `HairSalon`, le sous-type le plus
+proche pour un barbier ; `estimatedDuration` était bien présent sur les
+offres, contrairement à ce que cette ligne laissait entendre.
 
 **Le lien Google par défaut est bien une recherche Maps par adresse**, écrite
 dans `src/lib/defaults.js`.

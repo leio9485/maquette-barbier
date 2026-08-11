@@ -211,7 +211,10 @@
 
             <div class="champ">
               <label for="clientEmail">Courriel <span class="secondaire">(facultatif)</span></label>
-              <input type="email" id="clientEmail" name="email" autocomplete="email" maxlength="120">
+              <!--# `maxlength` valait 120 et le serveur bornait à 160 : deux
+                   limites pour un même champ, dont l'une invisible. Les deux
+                   valent 160 (`COURRIEL_MAX`, src/lib/coordonnees.js). #-->
+              <input type="email" id="clientEmail" name="email" autocomplete="email" maxlength="160">
               <p class="aide" id="aideEmail" hidden></p>
             </div>
           </div>
@@ -231,7 +234,7 @@
           <p class="petit secondaire tunnel-mention">
             Aucun compte à créer, aucun paiement en ligne. En réservant, vous
             acceptez que vos coordonnées servent à gérer ce rendez-vous
-            (<button type="button" class="lien-nu" data-legal="confidentialite">confidentialité</button>).
+            (<a class="lien-nu" href="/confidentialite" data-legal="confidentialite">confidentialité</a>).
           </p>
         </form>
       </div>
@@ -257,7 +260,20 @@
           la veille si vous pouvez, le créneau repart à quelqu'un d'autre.
         </p>
 
+        <!--# « AJOUTER À MON AGENDA » — le fichier est écrit DANS LE NAVIGATEUR
+             (js/07-mon-agenda.js), à partir de ce qui est déjà affiché
+             au-dessus. Aucune adresse à servir, aucun envoi, aucune donnée du
+             client qui reparte quelque part.
+
+             ⚠️ EN PREMIER, ET AVANT « Annuler ce rendez-vous ». Les deux
+                portent le même style secondaire ; celui qu'on veut voir en
+                premier après « c'est réservé » est celui qui garde le
+                rendez-vous, pas celui qui l'efface.
+
+             Le bouton se retire tout seul si le navigateur ne sait pas
+             télécharger un fichier fabriqué sur place. #-->
         <div class="tunnel-actions-fin">
+          <button type="button" class="action-douce" id="ajouterAgenda">Ajouter à mon agenda</button>
           <button type="button" class="action-douce" id="annulerReservation">Annuler ce rendez-vous</button>
           <button type="button" class="lien-nu" id="nouvelleReservation">Prendre un autre rendez-vous</button>
         </div>

@@ -18,6 +18,7 @@
 // ---------------------------------------------------------------------------
 
 import { prisma } from '../db.js';
+import { TIMEZONE } from '../config.js';
 import { OCCUPENT } from './annulation.js';
 import { toMin, toHHMM, todayIso } from './time.js';
 import { DEFAULT_CONFIG } from './defaults.js';
@@ -104,6 +105,15 @@ export function dbToConfig({ settings, hours, services, staff = [], categories =
         // qu'il n'y ait qu'un seul objet `links` a maintenir.
         review: settings.reviewUrl ?? '',
       },
+      // Les mentions legales qu'un commerce reel doit fournir (lot D, D5).
+      // Toutes facultatives, vides par defaut — voir le schema Prisma pour le
+      // detail de chacune.
+      legal: {
+        form: settings.legalForm ?? '',
+        siret: settings.siret ?? '',
+        publicationDirector: settings.publicationDirector ?? '',
+        hostingDetails: settings.hostingDetails ?? '',
+      },
     },
     reviews: { rating: settings.ratingValue, count: settings.ratingCount },
     // Liste vide = la section « Avis » ne s'affiche pas. Rien d'autre a decider :
@@ -127,6 +137,15 @@ export function dbToConfig({ settings, hours, services, staff = [], categories =
       updatedAt: t.updatedAt ? t.updatedAt.toISOString() : null,
     })),
     hours: parJour,
+    // LE FUSEAU DU COMMERCE. Il ne se regle pas depuis l'espace commercant —
+    // c'est une variable d'instance (src/config.js) — mais la page en a besoin
+    // pour une chose : ecrire l'heure exacte dans le fichier .ics du bouton
+    // « Ajouter à mon agenda ». Toutes les heures du site sont MURALES
+    // (« 8h30 »), et une heure murale ne devient un instant qu'avec un fuseau.
+    // Sans lui, le navigateur emploierait celui du VISITEUR, et un client qui
+    // reserve depuis un telephone reste a l'heure d'un autre pays se
+    // retrouverait avec un rendez-vous decale (voir js/07-mon-agenda.js).
+    fuseau: TIMEZONE,
     slotStep: settings.slotStepMin,
     leadTimeMinutes: settings.leadTimeMin,
     // Liste vide = commerce sans categorie, et le site retrouve exactement son
@@ -300,14 +319,21 @@ function normaliserSemaine(recu) {
  *
  * Chacun est un sous-type de `LocalBusiness` chez schema.org, et chacun
  * correspond a un commerce qu'on peut demarcher dans la meme rue.
+ *
+ * ⚠️ CETTE LISTE A PORTE `BarberShop`, ET C'ETAIT UN TYPE INVENTE (lot D,
+ *    point D4). schema.org ne l'a jamais defini — `schema.org/BarberShop`
+ *    renvoie 404 — malgre le commentaire ci-dessus qui promettait « tels que
+ *    schema.org les nomme ». La liste fermee proteges contre UNE saisie
+ *    invalide ; elle ne protege pas contre une valeur invalide ECRITE ICI.
+ *    `HairSalon` est le sous-type le plus proche pour un barbier comme pour
+ *    un salon de coiffure ; schema.org ne distingue pas les deux metiers.
  */
 export const TYPES_DE_COMMERCE = [
-  'BarberShop',    // barbier
-  'HairSalon',     // salon de coiffure
+  'HairSalon',     // salon de coiffure ou barbier
   'NailSalon',     // onglerie
   'BeautySalon',   // institut de beaute
   'DaySpa',        // spa
-  'HealthAndBeautyBusiness', // le fourre-tout, quand aucun des cinq ne convient
+  'HealthAndBeautyBusiness', // le fourre-tout, quand aucun des quatre ne convient
 ];
 
 /**
@@ -367,6 +393,7 @@ export function normalizeConfig(brut) {
   const entree = brut && typeof brut === 'object' ? brut : {};
   const salon = entree.salon && typeof entree.salon === 'object' ? entree.salon : {};
   const liens = salon.links && typeof salon.links === 'object' ? salon.links : {};
+  const legal = salon.legal && typeof salon.legal === 'object' ? salon.legal : {};
   const reviews = entree.reviews && typeof entree.reviews === 'object' ? entree.reviews : {};
 
   const hours = normaliserSemaine(entree.hours);
@@ -464,6 +491,12 @@ export function normalizeConfig(brut) {
         instagram: lien(liens.instagram),
         facebook: lien(liens.facebook),
         review: lien(liens.review),
+      },
+      legal: {
+        form: texte(legal.form, 80),
+        siret: texte(legal.siret, 20),
+        publicationDirector: texte(legal.publicationDirector, 120),
+        hostingDetails: texte(legal.hostingDetails, 400),
       },
     },
     reviews: {
@@ -800,6 +833,10 @@ export async function saveConfig(config) {
       instagramUrl: config.salon.links.instagram,
       facebookUrl: config.salon.links.facebook,
       reviewUrl: config.salon.links.review,
+      legalForm: config.salon.legal.form,
+      siret: config.salon.legal.siret,
+      publicationDirector: config.salon.legal.publicationDirector,
+      hostingDetails: config.salon.legal.hostingDetails,
       ratingValue: config.reviews.rating,
       ratingCount: config.reviews.count,
       slotStepMin: config.slotStep,

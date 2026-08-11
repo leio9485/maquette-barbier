@@ -24,7 +24,7 @@ import { PUBLIC_URL, DEMO_MODE } from '../config.js';
 import { etatDuMoment } from './etat.js';
 import { loadConfig } from './settings.js';
 import { minifierPage } from './minify.js';
-import { listerPhotos, listerLegendes, listerDescriptions } from './photos.js';
+import { listerPhotos, listerLegendes, listerDescriptions, sectionHero } from './photos.js';
 import { sectionPrestations } from './catalogue.js';
 import { sectionTemoignages } from './temoignages.js';
 import { sectionGalerie } from './galerie.js';
@@ -51,6 +51,7 @@ const ZONES = {
   temoignages: ['<!--@temoignages-->', '<!--/@temoignages-->'],
   bandeau: ['<!--@bandeau-->', '<!--/@bandeau-->'],
   galerie: ['<!--@galerie-->', '<!--/@galerie-->'],
+  hero: ['<!--@hero-->', '<!--/@hero-->'],
   // Le second document du site : /annuler. Son en-tete se resume au titre et a
   // la description — ni donnees structurees ni og:image, cette page ne se
   // partage pas et ne s'indexe pas.
@@ -231,14 +232,15 @@ function donneesStructurees(config, photos) {
     '@context': 'https://schema.org',
     // LE TYPE VIENT DES REGLAGES, il n'est plus ecrit ici.
     //
-    // Il valait `HairSalon` en dur, parce que la premiere instance etait un
-    // salon de coiffure. Pour un barbier, le type exact est `BarberShop`, et le
-    // mot juste n'est pas un detail : c'est lui qui dit a Google de quel
-    // commerce il s'agit, donc a quelles recherches ce site doit repondre.
-    //
     // Une valeur dans les reglages (voir TYPES_DE_COMMERCE dans
     // src/lib/settings.js), et la meme base sert une onglerie ou un institut
     // sans qu'une ligne change ici.
+    //
+    // ⚠️ SCHEMA.ORG N'A PAS DE TYPE DISTINCT POUR UN BARBIER. `BarberShop` a
+    //    ete la valeur par defaut de ce site pendant plusieurs lots — un type
+    //    invente, jamais defini par schema.org (verifie : schema.org/BarberShop
+    //    renvoie 404). `HairSalon` est le sous-type le plus proche, pour un
+    //    barbier comme pour un salon de coiffure.
     '@type': config.salon.type,
     name: config.salon.name,
     email: config.salon.email,
@@ -349,10 +351,27 @@ function donneesStructurees(config, photos) {
  * reglages se voie sans recharger la page. Les deux formulations doivent rester
  * identiques — si vous en changez une, changez l'autre.
  */
-function enTete(config, photos) {
-  const titre = `${config.salon.name} — Barbier à ${config.salon.city}`;
-  const description = `${config.salon.name}, barbier à ${config.salon.city} : `
-    + 'coupe, barbe, rasage au coupe-chou. Réservez votre créneau en ligne, à toute heure.';
+/**
+ * `vueLegal` : `'mentions'` ou `'confidentialite'` quand la page est servie
+ * depuis /mentions-legales ou /confidentialite (lot D, point D3) — sinon
+ * `undefined`. Change le titre, la description et l'adresse canonique ; le
+ * reste de l'en-tete (JSON-LD, aperçu de lien) reste celui de la vitrine, ces
+ * deux adresses servant le MEME document, la surimpression déjà ouverte.
+ */
+function enTete(config, photos, vueLegal) {
+  const PAGES_LEGALES = {
+    mentions: ['Mentions légales', '/mentions-legales'],
+    confidentialite: ['Confidentialité', '/confidentialite'],
+  };
+  const [titreLegal, cheminLegal] = PAGES_LEGALES[vueLegal] ?? [];
+
+  const titre = titreLegal
+    ? `${titreLegal} — ${config.salon.name}`
+    : `${config.salon.name} — Barbier à ${config.salon.city}`;
+  const description = titreLegal
+    ? `${titreLegal} de ${config.salon.name}, ${config.salon.city}.`
+    : `${config.salon.name}, barbier à ${config.salon.city} : `
+      + 'coupe, barbe, rasage au coupe-chou. Réservez votre créneau en ligne, à toute heure.';
 
   const lignes = [
     `<title>${texte(titre)}</title>`,
@@ -382,15 +401,28 @@ function enTete(config, photos) {
   //
   // Adresse relative : contrairement a og:image, un preload est lu par le
   // navigateur qui a la page sous les yeux. Pas besoin de PUBLIC_URL.
+  //
+  // `imagesrcset` / `imagesizes`, QUAND DES VARIANTES EXISTENT (lot C, C2) :
+  // sans eux, ce preload aurait toujours demande le JPEG plein format
+  // (1200 px), meme si `<picture>` choisit ensuite une variante plus petite —
+  // et l'aurait donc telecharge DEUX FOIS sur un telephone. Volontairement
+  // limite au JPEG : un preload ne sait pas brancher sur le support ou non du
+  // WebP par le navigateur (contrairement a `<source type>`), et se tromper
+  // dans ce sens-la echoue sans consequence (l'image demandee existe toujours),
+  // quand se tromper dans l'autre sens telechargerait un format que le
+  // navigateur ne sait pas afficher.
   if (photos?.hero?.url) {
+    const srcset = photos.hero.srcsetJpg ? ` imagesrcset="${attr(photos.hero.srcsetJpg)}"` : '';
+    const sizes = photos.hero.srcsetJpg && photos.hero.sizes ? ` imagesizes="${attr(photos.hero.sizes)}"` : '';
     lignes.push(
-      `<link rel="preload" as="image" href="${attr(photos.hero.url)}" fetchpriority="high">`
+      `<link rel="preload" as="image" href="${attr(photos.hero.url)}"${srcset}${sizes} fetchpriority="high">`
     );
   }
 
   if (PUBLIC_URL) {
-    lignes.push(`<link rel="canonical" href="${attr(PUBLIC_URL)}">`);
-    lignes.push(`<meta property="og:url" content="${attr(PUBLIC_URL)}">`);
+    const adresse = PUBLIC_URL + (cheminLegal ?? '');
+    lignes.push(`<link rel="canonical" href="${attr(adresse)}">`);
+    lignes.push(`<meta property="og:url" content="${attr(adresse)}">`);
 
     // L'image de l'apercu, celle qui s'affiche quand on envoie l'adresse du
     // salon par SMS ou qu'on la partage. C'est la photo d'accueil : la seule
@@ -444,6 +476,43 @@ function bandeauEtat(etat) {
 }
 
 /**
+ * Ouvre la surimpression des mentions légales DANS LE HTML SERVI — lot D,
+ * point D3.
+ *
+ * `/mentions-legales` et `/confidentialite` servent EXACTEMENT le même
+ * document que `/` (voir renderIndex ci-dessous), la surimpression déjà
+ * ouverte : « une adresse qui répond », plutôt qu'un second document qui
+ * dupliquerait le tunnel, les prestations et les avis. Le JavaScript la
+ * réouvre à l'identique une fois chargé (`ouvrirLegal()`, js/05-navigation.js)
+ * — c'est ce qui permet l'INTERCEPTION AU CLIC : depuis une page déjà
+ * ouverte, ces liens n'entraînent plus de rechargement.
+ *
+ * Remplacement de chaîne LITTÉRAL, pas une zone marquée : ce contenu est
+ * statique (src/page/parties/mentions-legales.html), il n'a jamais eu besoin
+ * d'être reconstruit depuis les réglages. `tests/seo.mjs` vérifie que ces deux
+ * routes affichent bien le texte attendu, ce qui suffit à attraper un
+ * changement de balisage qui casserait ce remplacement.
+ */
+function ouvrirLegalDansLaPage(html, vue) {
+  let sortie = html.replace(
+    '<div class="surimpression" id="surimpressionLegal" hidden>',
+    '<div class="surimpression" id="surimpressionLegal">'
+  );
+
+  if (vue === 'confidentialite') {
+    sortie = sortie
+      .replace(
+        '<h2 class="surimpression-titre" id="titreLegal">Mentions légales</h2>',
+        '<h2 class="surimpression-titre" id="titreLegal">Confidentialité</h2>'
+      )
+      .replace('<div data-legal-vue="mentions">', '<div data-legal-vue="mentions" hidden>')
+      .replace('<div data-legal-vue="confidentialite" hidden>', '<div data-legal-vue="confidentialite">');
+  }
+
+  return sortie;
+}
+
+/**
  * Pose le numero du jour (nonce) sur les balises <script> de la page.
  *
  * La politique de contenu n'autorise que les scripts qui le portent. Ce marquage
@@ -463,7 +532,7 @@ function marquerScripts(html, nonce) {
  * Tout echec renvoie le fichier tel quel plutot qu'une erreur : mieux vaut un
  * site affiche avec un en-tete un peu ancien qu'un site indisponible.
  */
-export async function renderIndex(nonce) {
+export async function renderIndex(nonce, vueLegal) {
   const fichier = await lireFichier();
   const marquer = (html) => (nonce ? marquerScripts(html, nonce) : html);
 
@@ -483,7 +552,7 @@ export async function renderIndex(nonce) {
     return marquer(fichier);
   }
 
-  let html = remplacerZone(fichier, 'reglages', enTete(config, photos));
+  let html = remplacerZone(fichier, 'reglages', enTete(config, photos, vueLegal));
 
   // LA GALERIE, ECRITE DANS LA PAGE plutot que peinte au chargement.
   //
@@ -493,6 +562,10 @@ export async function renderIndex(nonce) {
   // description, et seulement pour les cases qui portent vraiment une photo
   // (jusqu'a douze, voir src/lib/galerie.js).
   html = remplacerZone(html, 'galerie', sectionGalerie({ photos, legendes, descriptions }));
+
+  // LE VISUEL D'ACCUEIL, ECRIT DANS LA PAGE — lot D, point D2. C'etait la
+  // derniere image de la vitrine sans `src` ni `alt` dans le HTML servi.
+  html = remplacerZone(html, 'hero', sectionHero(photos, descriptions));
 
   // Les prestations dans le HTML lui-meme, et non plus seulement peintes par le
   // JavaScript de la page. La page les reecrira a l'identique au chargement :
@@ -530,6 +603,10 @@ export async function renderIndex(nonce) {
   // RETIRÉE DU DOCUMENT, ET PAS SEULEMENT MASQUÉE : un lien caché reste dans la
   // source, où le premier curieux le lit.
   if (!DEMO_MODE) html = remplacerZone(html, 'espaceLien', '');
+
+  if (vueLegal === 'mentions' || vueLegal === 'confidentialite') {
+    html = ouvrirLegalDansLaPage(html, vueLegal);
+  }
 
   return marquer(html);
 }

@@ -110,6 +110,103 @@ try {
     verifie('nom manquant refuse', r.status === 400, r);
   }
 
+  // --- 3 bis. Les coordonnees ---------------------------------------------
+  //
+  // >>> TROIS SAISIES PASSAIENT EN 201, ET AUCUNE N'AURAIT DU. <<< Constate en
+  // direct sur l'instance en ligne : telephone « abc », courriel
+  // « pasunemail », nom de cinq mille caracteres. Les deux premiers sont les
+  // graves — le telephone est le SEUL moyen de joindre un client, et c'est
+  // aussi le second facteur de /annuler.
+  //
+  // AUCUN DE CES REFUS NE CONSOMME LE CRENEAU : ils sont prononces avant la
+  // moindre ecriture, et `premierLibre` reste disponible pour la section 4.
+  console.log('\n3 bis. Les coordonnees');
+  {
+    const base = { date: JOUR, start: premierLibre.start, serviceId: 'coupe-barbe' };
+
+    const tel = await visiteur.appel('POST', '/api/bookings',
+      { ...base, name: 'Test', phone: 'abc' });
+    verifie('>>> un telephone qui n\'en est pas est refuse <<<', tel.status === 400, tel);
+    verifie('et le refus dit quoi taper',
+      /06 12 34 56 78/.test(tel.donnees?.error ?? ''), tel.donnees?.error);
+
+    const court = await visiteur.appel('POST', '/api/bookings',
+      { ...base, name: 'Test', phone: '06 12' });
+    verifie('un numero incomplet aussi', court.status === 400, court);
+
+    const courriel = await visiteur.appel('POST', '/api/bookings',
+      { ...base, name: 'Test', phone: '0600000000', email: 'pasunemail' });
+    verifie('>>> un courriel qui n\'en est pas est refuse <<<', courriel.status === 400, courriel);
+
+    const sansPoint = await visiteur.appel('POST', '/api/bookings',
+      { ...base, name: 'Test', phone: '0600000000', email: 'a@b' });
+    verifie('un domaine sans extension aussi', sansPoint.status === 400, sansPoint);
+
+    const long = await visiteur.appel('POST', '/api/bookings',
+      { ...base, name: 'x'.repeat(5000), phone: '0600000000' });
+    verifie('>>> un nom de cinq mille caracteres est refuse, plus coupe <<<',
+      long.status === 400, long.status);
+    verifie('et le refus donne la limite',
+      /80/.test(long.donnees?.error ?? ''), long.donnees?.error);
+
+    // LE COURRIEL EST FACULTATIF, et le vide n'est pas une faute. Ce refus-ci
+    // porte sur l'heure (deja prise plus bas), pas sur les coordonnees : ce
+    // qu'on verifie, c'est qu'on est alle PLUS LOIN que la validation.
+    const vide = await visiteur.appel('POST', '/api/bookings',
+      { ...base, start: 545, name: 'Test', phone: '0600000000', email: '' });
+    verifie('un courriel vide ne bloque pas la reservation',
+      vide.status === 409, vide.status);
+  }
+
+  // --- 3 ter. Le miroir du navigateur dit-il la meme chose ? ---------------
+  //
+  // ⚠️ LES REGLES SONT ECRITES A DEUX ENDROITS, et elles doivent coincider :
+  //    src/lib/coordonnees.js protege la base, js/07-tunnel.js evite un
+  //    aller-retour au client. Deux regles qui divergent donnent le pire des
+  //    cas — une page qui accepte ce que le serveur refuse, donc un message
+  //    d'erreur general la ou il faudrait une indication sous le champ.
+  //
+  // Meme discipline que pour le balisage des prestations et des avis, ecrit
+  // lui aussi des deux cotes et verifie par un test.
+  console.log('\n3 ter. Le miroir du navigateur');
+  {
+    const { readFile } = await import('node:fs/promises');
+    const { fileURLToPath } = await import('node:url');
+    const racine = fileURLToPath(new URL('..', import.meta.url));
+
+    const serveur = await import('../src/lib/coordonnees.js');
+    const source = await readFile(racine + 'src/page/js/07-tunnel.js', 'utf8');
+
+    // Les deux fonctions du miroir, extraites telles quelles et rendues
+    // appelables. On ne recopie pas leur code ici : ce test ne vaut que s'il
+    // lit celui qui part reellement chez le visiteur.
+    const extraire = (nom) => {
+      const debut = source.indexOf(`function ${nom}(`);
+      const fin = source.indexOf('\n}', debut) + 2;
+      return new Function(`${source.slice(debut, fin)}; return ${nom};`)();
+    };
+
+    const telPage = extraire('telephonePlausible');
+    const courrielPage = extraire('courrielPlausible');
+
+    const numeros = ['abc', '0612345678', '06 12 34 56 78', '+33 6 12 34 56 78',
+      '0033612345678', '+32 475 12 34 56', '06 12', '0612345678a', '1',
+      '03.27.39.98.40', '+336123456789012345'];
+
+    const desaccordsTel = numeros.filter((v) =>
+      telPage(v) !== !serveur.normaliserTelephone(v).erreur);
+    verifie(`les ${numeros.length} numeros obtiennent le meme verdict des deux cotes`,
+      desaccordsTel.length === 0, desaccordsTel);
+
+    const adresses = ['pasunemail', 'a@b', 'vincent@example.fr',
+      'v@sous.domaine.co.uk', 'a b@c.fr', 'a@b.c', 'x'.repeat(200) + '@a.fr'];
+
+    const desaccordsCourriel = adresses.filter((v) =>
+      courrielPage(v) !== !serveur.validerCourriel(v).erreur);
+    verifie(`les ${adresses.length} adresses aussi`,
+      desaccordsCourriel.length === 0, desaccordsCourriel);
+  }
+
   // --- 4. Reservation en ligne --------------------------------------------
   console.log('\n4. Reservation en ligne');
   let idReserve = null;
@@ -119,7 +216,10 @@ try {
       start: premierLibre.start,
       serviceId: 'coupe-barbe',
       name: '  Camille Durand  ',
-      phone: '06 11 22 33 44',
+      // ECRIT A L'INTERNATIONALE, EXPRES. Le meme numero se tape de quatre
+      // facons ; sans normalisation, l'export « clients » comptait quatre
+      // personnes la ou il y en a une.
+      phone: '+33 6 11 22 33 44',
       duration: 5,          // valeur fantaisiste : doit etre ignoree
       source: 'phone',      // tentative de se faire passer pour le salon
     });
@@ -127,6 +227,8 @@ try {
     verifie('la duree fantaisiste est ignoree (45 min)', r.donnees?.duration === 45, r.donnees?.duration);
     verifie("l'origine est forcee a 'online'", r.donnees?.source === 'online', r.donnees?.source);
     verifie('le nom est nettoye des espaces', r.donnees?.name === 'Camille Durand', r.donnees?.name);
+    verifie('>>> le telephone est normalise a une seule ecriture <<<',
+      r.donnees?.phone === '06 11 22 33 44', r.donnees?.phone);
     idReserve = r.donnees?.id;
     console.log(`     reserve a ${hhmm(premierLibre.start)} -> id ${idReserve}`);
   }

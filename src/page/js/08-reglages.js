@@ -130,16 +130,45 @@ function peindreCoordonnees() {
         + "position fausse envoie les clients à côté.",
     }),
     champTexte('salon.geo.lon', 'Longitude', { type: 'number' }),
+
+    // --- LES MENTIONS LEGALES (lot D, point D5) ----------------------------
+    //
+    // Quatre champs, tous facultatifs : la page des mentions légales
+    // (/mentions-legales) affiche un repli sensé tant qu'ils sont vides —
+    // « à compléter », ou votre nom pour le directeur de publication — plutôt
+    // qu'une ligne absente ou fausse.
+    champTexte('salon.legal.form', 'Forme juridique', {
+      aide: 'Entreprise individuelle, SARL, EURL… Affichée dans les mentions légales.',
+    }),
+    champTexte('salon.legal.siret', 'Numéro SIRET', {
+      aide: 'Quatorze chiffres, sans espace. Obligatoire pour un commerce réel, '
+        + "affiché tel quel — aucun format n'est imposé ici.",
+    }),
+    champTexte('salon.legal.publicationDirector', 'Directeur de la publication', {
+      aide: 'Vide, cette ligne reprend le nom du commerce — le cas courant '
+        + "d'un indépendant qui publie sous son enseigne.",
+    }),
+    champTexte('salon.legal.hostingDetails', "Coordonnées de l'hébergeur", {
+      aide: 'Facultatif. La page mentionne déjà le pays et la région de '
+        + "l'hébergement ; ce champ ne s'affiche que rempli, en complément — "
+        + 'raison sociale et adresse de votre hébergeur, si votre situation '
+        + "l'exige.",
+    }),
   ].join('');
 }
 
 /** Combien de cases la galerie peut porter. Même valeur que côté serveur. */
 const GALERIE_MAX = 12;
 
-/** Les types de commerce proposés, dans l'ordre où on les rencontre. */
+/**
+ * Les types de commerce proposés, dans l'ordre où on les rencontre.
+ *
+ * ⚠️ MÊME LISTE QUE `TYPES_DE_COMMERCE`, src/lib/settings.js — schema.org n'a
+ *    pas de type distinct pour un barbier : `HairSalon` couvre les deux
+ *    métiers (voir le commentaire là-bas, lot D, point D4).
+ */
 const TYPES_COMMERCE = [
-  ['BarberShop', 'Barbier'],
-  ['HairSalon', 'Salon de coiffure'],
+  ['HairSalon', 'Salon de coiffure ou barbier'],
   ['NailSalon', 'Onglerie'],
   ['BeautySalon', 'Institut de beauté'],
   ['DaySpa', 'Spa'],
@@ -457,8 +486,13 @@ function peindreEquipeReglages() {
           + `<span class="reglages-etiquette-champ">Portrait</span>`
           + '<div class="reglages-portrait">'
             + '<div class="reglages-portrait-apercu">'
+              // width/height : le portrait est toujours reduit en carre 240x240
+              // avant l'envoi (voir reduireImage() plus bas). Sans eux, l'apercu
+              // sautait a zero puis a sa taille reelle des que l'image finissait
+              // de charger — un sursaut de mise en page dans un formulaire ou l'on
+              // est justement en train de cliquer.
               + (p.photo
-                ? `<img src="${esc(p.photo)}" alt="">`
+                ? `<img src="${esc(p.photo)}" alt="" width="240" height="240">`
                 : `<span class="reglages-portrait-vide donnee" aria-hidden="true">${esc(initiales(p.name))}</span>`)
             + '</div>'
             + '<div class="reglages-portrait-actions">'
@@ -580,8 +614,12 @@ async function peindrePhotosReglages() {
 
   cible.innerHTML = emplacements.map((e) => {
     const photo = photos[e.id];
+    // width/height : le heros est livre en 1200x675 (16:9), une case de
+    // galerie en 700x933 (3:4) — les memes dimensions que EMPLACEMENTS
+    // (src/lib/photos.js). Sans eux, chaque apercu deposait un sursaut de
+    // mise en page en se chargeant, dans une liste qui en affiche jusqu'a sept.
     const apercu = photo?.url
-      ? `<img src="${esc(photo.url)}" alt="">`
+      ? `<img src="${esc(photo.url)}" alt="" width="${e.large ? 1200 : 700}" height="${e.large ? 675 : 933}">`
       : '<p class="reserve">Aucune photo</p>';
 
     // L'INPUT DE FICHIER EST MASQUE, SON LABEL FAIT LE BOUTON. Un
@@ -665,6 +703,95 @@ function reduireImage(fichier, largeurMax, hauteurMax) {
         contexte.drawImage(image, (largeurMax - largeur) / 2, (hauteurMax - hauteur) / 2, largeur, hauteur);
 
         resoudre(toile.toDataURL('image/jpeg', 0.82));
+      };
+      image.src = lecteur.result;
+    };
+
+    lecteur.readAsDataURL(fichier);
+  });
+}
+
+/**
+ * Vrai si CE navigateur sait reellement encoder du WebP par ce chemin.
+ *
+ * `toDataURL('image/webp')` ne leve jamais pour un type qu'il ne sait pas
+ * produire : la specification dit alors de RETOMBER SUR DU PNG, en silence.
+ * Sans ce controle, un fichier nomme `…-350.webp` aurait pu contenir des
+ * octets PNG — le serveur pose son `Content-Type` depuis l'EXTENSION
+ * (src/server.js), et le navigateur du VISITEUR aurait alors recu un fichier
+ * qu'il ne sait pas decoder sous ce type. Verifie une seule fois par page : le
+ * resultat ne peut pas changer entre deux photos deposees a la suite.
+ */
+let webpSupporte;
+function navigateurEncodeLeWebp() {
+  if (webpSupporte === undefined) {
+    const sonde = document.createElement('canvas');
+    sonde.width = 1;
+    sonde.height = 1;
+    webpSupporte = sonde.toDataURL('image/webp').startsWith('data:image/webp');
+  }
+  return webpSupporte;
+}
+
+/**
+ * Le heros et les vignettes de galerie n'ont pas de `srcset` ni de variante
+ * moderne : le heros est un JPEG plein format servi tel quel a un telephone de
+ * 390 px. Cette fonction produit, EN PLUS de la photo pleine largeur, une ou
+ * deux largeurs reduites et leurs equivalents WebP — le tout dans le
+ * navigateur, comme `reduireImage()` le fait deja pour la photo seule, et pour
+ * la meme raison : ce projet n'a aucune dependance de traitement d'image et
+ * aucune etape de build (voir src/lib/photos.js).
+ *
+ * >>> LE RECADRAGE EST CALCULE UNE SEULE FOIS, A LA RESOLUTION PLEINE. <<< Les
+ * largeurs reduites reprennent le MEME rectangle source, mis a l'echelle :
+ * sans quoi une vignette de 400 px cadrerait legerement differemment de la
+ * photo pleine, et les deux ne montreraient plus tout a fait le meme sujet.
+ *
+ * Les largeurs demandees doivent correspondre a `largeursReduites()`,
+ * cote serveur (src/lib/photos.js) — un ecart n'est pas une erreur, la
+ * variante correspondante est simplement ignoree au depot.
+ */
+function produireVariantes(fichier, largeurPleine, hauteurPleine, largeursReduites) {
+  return new Promise((resoudre, rejeter) => {
+    const lecteur = new FileReader();
+
+    lecteur.onerror = () => rejeter(new Error("Cette image n'a pas pu être lue."));
+    lecteur.onload = () => {
+      const image = new Image();
+      image.onerror = () => rejeter(new Error("Ce fichier n'est pas une image."));
+      image.onload = () => {
+        const ratio = Math.max(largeurPleine / image.width, hauteurPleine / image.height);
+        const largeurSource = largeurPleine / ratio;
+        const hauteurSource = hauteurPleine / ratio;
+        const xSource = (image.width - largeurSource) / 2;
+        const ySource = (image.height - hauteurSource) / 2;
+
+        const dessiner = (largeurCible, hauteurCible) => {
+          const toile = document.createElement('canvas');
+          toile.width = largeurCible;
+          toile.height = hauteurCible;
+          toile.getContext('2d').drawImage(
+            image, xSource, ySource, largeurSource, hauteurSource, 0, 0, largeurCible, hauteurCible);
+          return toile;
+        };
+
+        const toilePleine = dessiner(largeurPleine, hauteurPleine);
+        const avecWebp = navigateurEncodeLeWebp();
+        const variantes = [];
+
+        for (const largeur of largeursReduites) {
+          const hauteur = Math.round(largeur * hauteurPleine / largeurPleine);
+          const toile = dessiner(largeur, hauteur);
+          variantes.push({ largeur, format: 'jpg', donnees: toile.toDataURL('image/jpeg', 0.82) });
+          if (avecWebp) variantes.push({ largeur, format: 'webp', donnees: toile.toDataURL('image/webp', 0.82) });
+        }
+        // Le WebP a la largeur PLEINE : meme sujet, format plus leger, pour
+        // les navigateurs qui le comprennent — y compris sur grand ecran.
+        if (avecWebp) {
+          variantes.push({ largeur: null, format: 'webp', donnees: toilePleine.toDataURL('image/webp', 0.82) });
+        }
+
+        resoudre({ pleine: toilePleine.toDataURL('image/jpeg', 0.82), variantes });
       };
       image.src = lecteur.result;
     };
@@ -874,9 +1001,15 @@ function brancherReglages() {
       const emplacement = champ.dataset.photoVitrine;
       const grand = emplacement === 'hero';
 
+      // MEME REGLE QUE `largeursReduites()`, src/lib/photos.js — le heros est
+      // affiche beaucoup plus grand a l'ecran qu'une vignette de galerie, il
+      // justifie une largeur intermediaire de plus.
+      const largeursReduites = grand ? [400, 800] : [350];
+
       try {
-        const image = await reduireImage(fichier, grand ? 1200 : 700, grand ? 675 : 933);
-        await envoyerPhoto(emplacement, image);
+        const { pleine, variantes } = await produireVariantes(
+          fichier, grand ? 1200 : 700, grand ? 675 : 933, largeursReduites);
+        await envoyerPhoto(emplacement, pleine, variantes);
         await peindrePhotosReglages();
 
         // ⚠️ PLUS DE `peindrePhotos()` ICI, meme raison que pour

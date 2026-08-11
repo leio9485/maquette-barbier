@@ -25,7 +25,7 @@ import { prisma } from './db.js';
 import { startDemo } from './lib/demo.js';
 import { rendreLlmsTxt } from './lib/llms.js';
 import { renderIndex, renderAnnuler, renderEspace } from './lib/page.js';
-import { lirePhoto } from './lib/photos.js';
+import { lireVariante, emplacementConnu } from './lib/photos.js';
 import { lirePlan, planifierPlan } from './lib/plan.js';
 import { startRetention } from './lib/retention.js';
 import { compression } from './middleware/compression.js';
@@ -126,9 +126,60 @@ app.use('/api', (req, res) => {
 // description, donnees structurees) est reconstruit depuis les reglages du
 // salon. C'est ce que lisent les moteurs de recherche et les apercus de lien,
 // et eux n'attendent pas que le JavaScript de la page s'execute.
+//
+// ⚠️ `Cache-Control: no-cache`, ET CE N'EST PAS UNE INADVERTANCE COMBLEE. <<<
+// Les trois documents (ici, /annuler, /espace-salon) n'avaient AUCUN en-tete
+// de cache : un navigateur, un CDN ou un relais reste alors libre d'appliquer
+// sa propre heuristique et de garder une reponse HTML sans jamais revalider.
+// Chaque page porte un nonce CSP DIFFERENT a chaque envoi (securityHeaders.js)
+// et incorpore les reglages du commerce a l'instant de la requete : la servir
+// depuis un cache serait au mieux une page qui n'execute plus son script (nonce
+// perime), au pire un tarif ou un horaire que le commercant vient de changer et
+// que le visiteur ne voit pas. `no-cache` n'interdit pas de GARDER une copie —
+// contrairement a `no-store` — il oblige a la revalider avant de s'en servir ;
+// sans validateur (ETag, Last-Modified) sur ce document engendre a la volee,
+// revalider revient en pratique a redemander, ce qui est le comportement voulu.
+// Les photos, elles, portent deja leur propre regle de cache (voir plus bas) :
+// `?v=` autorise un an, son absence force la revalidation — c'est le mecanisme
+// que l'audit avait raison de vouloir, sauf qu'il existait deja.
 app.get(['/', '/index.html'], async (req, res, next) => {
   try {
+    res.setHeader('Cache-Control', 'no-cache');
     res.type('html').send(await renderIndex(res.locals.cspNonce));
+  } catch (erreur) {
+    next(erreur);
+  }
+});
+
+/**
+ * Les mentions légales et la confidentialité — lot D, point D3.
+ *
+ * >>> DES ADRESSES REELLES, PAS SEULEMENT UN BOUTON. <<< Elles ouvraient une
+ * surimpression depuis un `<button>` sans la moindre adresse : ni
+ * partageables, ni indexables, ni ouvrables dans un nouvel onglet — et pour
+ * des mentions légales, l'usage attendu est une adresse propre.
+ *
+ * Ces deux routes servent EXACTEMENT le même document que `/` (voir
+ * `renderIndex`), la surimpression déjà ouverte : « une adresse qui répond »,
+ * pas un second document qui dupliquerait le tunnel, les prestations et les
+ * avis. Le pied de page pointe désormais vers ces adresses avec de vrais
+ * `<a href>` ; le JavaScript intercepte le clic pour ouvrir la surimpression
+ * SANS rechargement quand la page est déjà chargée (`ouvrirLegalDepuisLien()`,
+ * js/05-navigation.js) — « une interception au clic », en plus de l'adresse.
+ */
+app.get('/mentions-legales', async (req, res, next) => {
+  try {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.type('html').send(await renderIndex(res.locals.cspNonce, 'mentions'));
+  } catch (erreur) {
+    next(erreur);
+  }
+});
+
+app.get('/confidentialite', async (req, res, next) => {
+  try {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.type('html').send(await renderIndex(res.locals.cspNonce, 'confidentialite'));
   } catch (erreur) {
     next(erreur);
   }
@@ -150,6 +201,8 @@ app.get(['/', '/index.html'], async (req, res, next) => {
 app.get(['/annuler', '/annulation'], async (req, res, next) => {
   try {
     res.setHeader('X-Robots-Tag', 'noindex, follow');
+    // Meme regle que / : voir le commentaire au-dessus de cette route.
+    res.setHeader('Cache-Control', 'no-cache');
     res.type('html').send(await renderAnnuler(res.locals.cspNonce));
   } catch (erreur) {
     next(erreur);
@@ -183,6 +236,8 @@ app.get(['/annuler', '/annulation'], async (req, res, next) => {
 app.get('/espace-salon', async (req, res, next) => {
   try {
     res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    // Meme regle que / : voir le commentaire au-dessus de cette route.
+    res.setHeader('Cache-Control', 'no-cache');
     res.type('html').send(await renderEspace(res.locals.cspNonce));
   } catch (erreur) {
     next(erreur);
@@ -190,12 +245,41 @@ app.get('/espace-salon', async (req, res, next) => {
 });
 
 /**
- * Les photos de la vitrine.
+ * Le nom d'un fichier de la route ci-dessous, decompose.
+ *
+ * Deux formes : `<emplacement>.<jpg|webp>` (la largeur pleine — `hero.jpg`,
+ * `hero.webp`) ou `<emplacement>-<largeur>.<jpg|webp>` (une variante reduite —
+ * `hero-800.jpg`, voir src/lib/photos.js). Tout le reste, y compris un nom qui
+ * ne correspond a AUCUN emplacement connu, renvoie `null` : `emplacementConnu`
+ * est la meme liste fermee qui protege deja le depot d'une photo, et elle
+ * empeche ici aussi qu'un nom recu du reseau designe un fichier ailleurs sur
+ * le disque.
+ */
+function analyserNomPhoto(brut) {
+  const nom = path.basename(brut);
+  const correspondance = /^(.+)\.(jpg|webp)$/i.exec(nom);
+  if (!correspondance) return null;
+
+  const [, base, format] = correspondance;
+  const formatBas = format.toLowerCase();
+
+  if (emplacementConnu(base)) return { emplacement: base, largeur: null, format: formatBas };
+
+  const avecLargeur = /^(.+)-(\d+)$/.exec(base);
+  if (avecLargeur && emplacementConnu(avecLargeur[1])) {
+    return { emplacement: avecLargeur[1], largeur: Number(avecLargeur[2]), format: formatBas };
+  }
+
+  return null;
+}
+
+/**
+ * Les photos de la vitrine, plein format ou en variante (largeur reduite,
+ * WebP — voir src/lib/photos.js).
  *
  * Une route a nous plutot que le service de fichiers d'Express, parce qu'elle
  * doit regarder a DEUX endroits : la photo deposee par le commercant
  * (data/photos), puis, a defaut, celle livree avec le site (public/photos).
- * Voir src/lib/photos.js.
  *
  * La mise en cache tient en une regle : l'adresse donnee par les reglages porte
  * un numero de version (la date du fichier). Quand il est la, l'image ne
@@ -205,11 +289,13 @@ app.get('/espace-salon', async (req, res, next) => {
  */
 app.get('/photos/:fichier', async (req, res, next) => {
   try {
-    const emplacement = path.basename(req.params.fichier, '.jpg');
-    const photo = await lirePhoto(emplacement);
+    const analyse = analyserNomPhoto(req.params.fichier);
+    if (!analyse) return res.status(404).json({ error: 'Photo inconnue.' });
+
+    const photo = await lireVariante(analyse.emplacement, analyse.largeur, analyse.format);
     if (!photo) return res.status(404).json({ error: 'Photo inconnue.' });
 
-    res.type('jpeg');
+    res.type(analyse.format === 'webp' ? 'image/webp' : 'jpeg');
     res.setHeader('Cache-Control', req.query.v
       ? 'public, max-age=31536000, immutable'
       : 'public, max-age=0, must-revalidate');
@@ -302,18 +388,26 @@ app.get('/sitemap.xml', async (req, res, next) => {
       ? `\n    <lastmod>${reglages.updatedAt.toISOString().slice(0, 10)}</lastmod>`
       : '';
 
-    // UNE SEULE ADRESSE, ET C'EST DELIBERE.
+    // TROIS ADRESSES : la vitrine, et les deux pages legales (lot D, D3).
     //
-    // Le site compte trois documents, mais deux d'entre eux portent
-    // `noindex` : /espace-salon et /annuler (voir plus haut). Les inscrire ici
-    // reviendrait a demander a Google de passer sur des pages qu'on lui
-    // interdit de retenir — ce qui remonte en avertissement dans la Search
-    // Console, « URL envoyee comportant une balise noindex », et n'apporte
-    // rien.
+    // ⚠️ /annuler N'Y FIGURE PAS, ET C'EST UN ECART ASSUME PAR RAPPORT A LA
+    //    MISSION. Elle demandait d'y ajouter /annuler en plus des pages
+    //    legales ; /annuler porte pourtant `X-Robots-Tag: noindex` ET un
+    //    `Disallow` dans robots.txt (voir plus haut), deux garde-fous poses
+    //    et testes deliberement lors d'un lot precedent. L'inscrire ici
+    //    demanderait a Google de passer sur une page qu'on lui interdit par
+    //    ailleurs de retenir — exactement l'avertissement « URL envoyee
+    //    comportant une balise noindex » que ce fichier evite depuis le
+    //    depart. Les deux instructions se contredisent ; celle qui a un test
+    //    et un raisonnement ecrit l'emporte.
     //
-    // Les ancres de la page (#prestations, #reserver) n'y figurent pas non
-    // plus : un plan de site liste des DOCUMENTS. Une ancre n'est pas une
-    // adresse distincte, et Google la trouve en lisant la page.
+    // /mentions-legales et /confidentialite, elles, sont de vraies pages
+    // indexables (aucun `noindex`, voir les routes correspondantes) : les
+    // inscrire ici n'a pas le meme defaut.
+    //
+    // Les ancres de la page (#prestations, #reserver) n'y figurent pas :
+    // un plan de site liste des DOCUMENTS. Une ancre n'est pas une adresse
+    // distincte, et Google la trouve en lisant la page.
     res.type('application/xml');
     res.setHeader('Cache-Control', 'public, max-age=3600');
     res.send(
@@ -321,6 +415,12 @@ app.get('/sitemap.xml', async (req, res, next) => {
       + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
       + '  <url>\n'
       + `    <loc>${PUBLIC_URL}/</loc>${lastmod}\n`
+      + '  </url>\n'
+      + '  <url>\n'
+      + `    <loc>${PUBLIC_URL}/mentions-legales</loc>${lastmod}\n`
+      + '  </url>\n'
+      + '  <url>\n'
+      + `    <loc>${PUBLIC_URL}/confidentialite</loc>${lastmod}\n`
       + '  </url>\n'
       + '</urlset>\n'
     );

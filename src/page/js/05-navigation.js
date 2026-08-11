@@ -65,7 +65,7 @@ function brancherClavierSurimpression() {
     if (!boite) return;
 
     if (evenement.key === 'Escape') {
-      fermerSurimpression(boite.id);
+      fermerSurimpressionAuto(boite.id);
       return;
     }
 
@@ -89,6 +89,28 @@ function brancherClavierSurimpression() {
 }
 
 // --- LES MENTIONS LEGALES ---------------------------------------------------
+//
+// >>> DE VRAIES ADRESSES, /mentions-legales ET /confidentialite (lot D,
+// point D3). <<< Le bouton qui ouvrait la surimpression n'avait pas
+// d'adresse : ni partageable, ni indexable, ni ouvrable dans un nouvel onglet.
+// Le serveur sait desormais servir ces deux adresses directement, la
+// surimpression deja ouverte (src/lib/page.js, `ouvrirLegalDansLaPage()`).
+//
+// CE QUI SUIT NE FAIT QU'EVITER LE RECHARGEMENT quand on clique DEPUIS une
+// page deja ouverte : `history.pushState()` change l'adresse sans naviguer, et
+// `ouvrirLegal()` fait ce que le serveur aurait fait. `legalPousseParNous`
+// distingue les deux facons d'arriver ici — ELLE DECIDE COMMENT FERMER :
+//
+//   - venu d'un clic (etat pousse par nous) : fermer, c'est REVENIR EN
+//     ARRIERE (`history.back()`), pour que l'adresse redevienne celle d'avant
+//     le clic. Le `popstate` qui en resulte fait le menage.
+//   - arrive directement sur /mentions-legales ou /confidentialite (lien
+//     partage, favori, robot) : il n'y a rien a "revenir en arriere" —
+//     `history.back()` sortirait du site. Fermer pousse alors une nouvelle
+//     adresse, `/`.
+
+/** Vrai si l'entree d'historique courante a ete posee par un clic ICI. */
+let legalPousseParNous = false;
 
 /** Ouvre la surimpression legale sur l'une de ses deux vues. */
 function ouvrirLegal(vue) {
@@ -100,6 +122,46 @@ function ouvrirLegal(vue) {
   }
 
   ouvrirSurimpression('surimpressionLegal');
+}
+
+/** Le clic sur un lien `[data-legal]` : ouvre sans recharger. */
+function ouvrirLegalDepuisLien(vue, href) {
+  history.pushState({ legal: vue }, '', href);
+  legalPousseParNous = true;
+  ouvrirLegal(vue);
+}
+
+/** La fermeture de la surimpression legale — voir le commentaire plus haut. */
+function fermerLegal() {
+  if (legalPousseParNous) {
+    history.back();
+  } else {
+    history.pushState(null, '', '/');
+    fermerSurimpression('surimpressionLegal');
+  }
+}
+
+/**
+ * Ouvre la vue legale correspondant a l'adresse actuelle, si elle y
+ * correspond. Appelee au demarrage : le serveur a deja tout ecrit pour
+ * /mentions-legales et /confidentialite, ce n'est qu'une remise a jour
+ * (meme raison que `peindrePhotos()` repeint une galerie deja servie).
+ */
+function ouvrirLegalDepuisAdresse() {
+  const vue = { '/mentions-legales': 'mentions', '/confidentialite': 'confidentialite' }[location.pathname];
+  if (vue) ouvrirLegal(vue);
+}
+
+/**
+ * Ferme UNE surimpression, quelle qu'elle soit.
+ *
+ * La legale a sa propre fermeture, qui tient compte de l'adresse
+ * (`fermerLegal()` ci-dessus) ; les autres surimpressions — celles de l'espace
+ * commercant, qui partage ce fichier — se ferment simplement.
+ */
+function fermerSurimpressionAuto(id) {
+  if (id === 'surimpressionLegal') fermerLegal();
+  else fermerSurimpression(id);
 }
 
 // --- LA VITRINE ET L'ESPACE -------------------------------------------------
@@ -125,23 +187,47 @@ function brancherNavigation() {
   brancherClavierSurimpression();
 
   // Les mentions legales et la confidentialite, depuis le pied de page comme
-  // depuis le tunnel.
+  // depuis le tunnel. Ce sont de vrais `<a href>` (lot D, D3) : un clic
+  // ordinaire les intercepte pour eviter un rechargement ; un clic du milieu,
+  // un Ctrl+clic ou un clic droit « Ouvrir dans un nouvel onglet » les laisse
+  // filer normalement — `ctrlKey`/`metaKey`/`button` sont ceux qu'un
+  // navigateur utilise pour ces gestes.
   document.addEventListener('click', (evenement) => {
-    const bouton = evenement.target.closest('[data-legal]');
-    if (bouton) ouvrirLegal(bouton.dataset.legal);
+    const lien = evenement.target.closest('[data-legal]');
+    if (!lien || evenement.defaultPrevented) return;
+    if (evenement.button !== 0 || evenement.ctrlKey || evenement.metaKey || evenement.shiftKey) return;
+
+    evenement.preventDefault();
+    ouvrirLegalDepuisLien(lien.dataset.legal, lien.getAttribute('href'));
   });
 
-  $('#fermerLegal')?.addEventListener('click', () => fermerSurimpression('surimpressionLegal'));
+  // L'adresse peut deja designer une page legale a l'arrivee (lien partage,
+  // favori, robot) : le serveur a tout ecrit, ceci ne fait que le confirmer.
+  ouvrirLegalDepuisAdresse();
+
+  // Precedent/suivant du navigateur : rouvre ou referme la legale selon que
+  // l'etat qu'on y retrouve la designe ou non.
+  window.addEventListener('popstate', (evenement) => {
+    if (evenement.state?.legal) {
+      legalPousseParNous = true;
+      ouvrirLegal(evenement.state.legal);
+    } else if (surimpressionOuverte()?.id === 'surimpressionLegal') {
+      legalPousseParNous = false;
+      fermerSurimpression('surimpressionLegal');
+    }
+  });
+
+  $('#fermerLegal')?.addEventListener('click', () => fermerLegal());
 
   // Un clic sur le voile ferme. Le test `=== boite` compte : sans lui, un clic
   // n'importe ou DANS la boite fermerait aussi, puisque l'evenement remonte.
   for (const boite of $$('.surimpression')) {
     boite.addEventListener('click', (evenement) => {
-      if (evenement.target === boite) fermerSurimpression(boite.id);
+      if (evenement.target === boite) fermerSurimpressionAuto(boite.id);
     });
   }
 
   for (const bouton of $$('[data-fermer]')) {
-    bouton.addEventListener('click', () => fermerSurimpression(bouton.dataset.fermer));
+    bouton.addEventListener('click', () => fermerSurimpressionAuto(bouton.dataset.fermer));
   }
 }

@@ -38,17 +38,34 @@
            connexion — et seulement quand DEMO_MODE=true. Sans lui, un prospect
            voit la vitrine, réserve, et ne découvre jamais l'agenda ni les
            réglages, c'est-à-dire exactement ce qu'on lui vend. #-->
-      <div class="connexion-demo" id="connexionDemo" hidden>
-        <p class="etiquette">Démonstration</p>
-        <dl class="fiche">
-          <div><dt>Identifiant</dt><dd id="demoIdentifiant">—</dd></div>
-          <div><dt>Mot de passe</dt><dd id="demoMotDePasse">—</dd></div>
-        </dl>
-        <p class="petit secondaire">
-          Tout est remis à zéro chaque nuit. Vous pouvez tout essayer, rien n'est
-          définitif.
-        </p>
-      </div>
+      <!--# LES IDENTIFIANTS DE LA DÉMONSTRATION — ÉCRITS PAR LE SERVEUR.
+
+           ⚠️ CE BLOC ÉTAIT RÉVÉLÉ PAR JAVASCRIPT, ET C'ÉTAIT TOUT LE CLS DU
+              SITE. Il partait `hidden`, et `demarrerEspace()` le montrait après
+              la réponse de `/api/config`. Sur la démonstration déployée, la
+              page peignait donc un écran de connexion SANS lui, puis l'ajoutait
+              — 259 px de contenu en plus dans une boîte centrée verticalement,
+              ce qui ne pousse pas ce qui suit mais **recentre tout** :
+              le formulaire sautait de 299 px, mesuré. CLS 0,219, très au-dessus
+              du seuil de 0,1, sur la page qu'on ouvre devant un prospect.
+
+              Invisible en local, et c'est ce qui l'a fait vivre si longtemps :
+              sans `DEMO_MODE`, `CONFIG.demo` n'existe pas, le bloc ne paraît
+              jamais et le CLS est de zéro.
+
+              Lighthouse désignait `plexcond-600.woff2` et « Web font » comme
+              cause : la police finissait d'arriver au même instant. C'était une
+              coïncidence — forcer la police de repli ne déplace rien du tout,
+              vérifié.
+
+           Le serveur connaît `DEMO_MODE` et les deux identifiants. Il écrit donc
+           le bloc entre les marqueurs, comme il écrit déjà le titre de cette
+           page : il est là dès le premier octet, et il n'y a plus rien à
+           déplacer. Hors démonstration, la zone est **vidée** — le contenu
+           ci-dessous n'est qu'un secours, visible seulement si le serveur n'a
+           pas pu écrire. #-->
+      <!--@espace-demo-->
+      <!--/@espace-demo-->
 
       <form id="formulaireConnexion" novalidate>
         <div class="champ">

@@ -28,13 +28,21 @@ async function demarrerEspace() {
     // message quand il echouera a son tour.
   }
 
-  // Les identifiants de la demonstration, sur l'ecran de connexion. Chez un
-  // vrai client, le serveur n'envoie pas ce champ et rien ne s'affiche.
-  if (CONFIG?.demo) {
-    poserTexte($('#demoIdentifiant'), CONFIG.demo.username);
-    poserTexte($('#demoMotDePasse'), CONFIG.demo.password);
-    montrer($('#connexionDemo'), true);
-  }
+  // >>> LES IDENTIFIANTS DE LA DEMONSTRATION NE SONT PLUS POSES ICI. <<<
+  //
+  // C'etaient quatre lignes : ecrire les deux identifiants, puis reveler le
+  // bloc. Elles s'executaient APRES `lireConfig()`, donc apres un aller-retour
+  // reseau, sur une boite centree verticalement — le formulaire de connexion
+  // sautait de 299 px, et c'etait le seul CLS du site (0,219 sur l'instance
+  // deployee, mesure le 12 aout 2026).
+  //
+  // Le serveur ecrit desormais le bloc entier dans la page. Il est la des la
+  // premiere peinture, avec ses deux valeurs, et il n'y a plus rien a reveler.
+  // Le motif complet est en tete de parties/espace-commercant.html.
+  //
+  // ⚠️ `CONFIG.demo` existe toujours dans /api/config, et c'est voulu : c'est
+  //    ce qui dit au reste de l'espace qu'il est sur une demonstration — le
+  //    bandeau « Remettre a zero maintenant » en depend.
 
   // Une session encore valide ouvre directement l'agenda ; sinon, la connexion.
   //

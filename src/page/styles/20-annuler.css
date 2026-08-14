@@ -16,7 +16,7 @@
    confortable : cette page n'a qu'une seule chose a montrer a la fois. */
 .annuler-largeur {
   width: 100%;
-  max-width: 42rem;
+  max-width: var(--largeur-colonne);
   margin: 0 auto;
   padding-left: var(--marge);
   padding-right: var(--marge);

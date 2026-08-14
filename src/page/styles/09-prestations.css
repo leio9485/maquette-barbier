@@ -6,7 +6,29 @@
    un filet entre chaque, les chiffres en chasse fixe à droite.
    --------------------------------------------------------------------------- */
 
-.tarifs { margin-top: var(--e4); }
+/* LA LISTE EST BORNÉE, LE RESTE DE LA SECTION NE L'EST PAS.
+
+   Elle ne l'était pas, et ça se voyait à partir de 1 536 px : la colonne de
+   contenu fait 992 px sur grand écran, la description d'une prestation s'arrête
+   à 46ch (386 px), et les chiffres sont calés à droite. Entre les deux,
+   373 px de rien — sur la section que le prospect regarde le plus longtemps.
+
+   La largeur retenue n'a pas été choisie à l'œil : c'est celle que le tunnel
+   emploie déjà, et le tunnel rend EXACTEMENT le même `.tarif-ligne` à l'étape 1.
+   La même ligne y laissait 17 px de vide au lieu de 373. Le composant avait
+   deux largeurs ; il n'en a plus qu'une (`--largeur-colonne`, 02-jetons.css).
+
+   ⚠️ Posé sur `.tarifs`, donc sur les intitulés de rayon AUSSI. Sur la seule
+      `.tarif-liste`, le filet sous « COUPE » aurait couru 320 px plus loin que
+      les lignes qu'il coiffe — le genre d'arête qui ne s'explique pas.
+
+   Le titre de section et le chapô, eux, gardent leur largeur : ils sont du
+   texte, ils suivent `--mesure`. Tous démarrent à la même abscisse, ce qui est
+   la règle ; c'est le bord droit qui rentre, et lui n'aligne rien. */
+.tarifs {
+  margin-top: var(--e4);
+  max-width: var(--largeur-colonne);
+}
 
 /* Un cran d'espace de plus entre deux rayons qu'entre deux lignes du même
    rayon : à 40 px, les quatre rayons se lisaient comme une seule liste de

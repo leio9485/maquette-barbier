@@ -97,20 +97,34 @@ function allerEtape(numero, { defiler = true } = {}) {
  *    donc du bandeau et de l'en-tete colles en haut — c'est la raison de le
  *    preferer a un `scrollTo` qui redemanderait ce calcul ici.
  *
- * ⚠️ LE MOUVEMENT EST UNE PREFERENCE SYSTEME. `scroll-behavior: smooth` est
- *    deja neutralise par la feuille sous `prefers-reduced-motion`, mais on ne
- *    laisse pas une regle de confort dependre d'un `!important` pose trois
- *    fichiers plus loin : la valeur est relue ici, et c'est la meme reponse.
+ * ⚠️ `auto`, JAMAIS `smooth`. C'etait `smooth` sauf sous
+ *    `prefers-reduced-motion`, et ce reglage a ete retire pour la meme raison
+ *    que `scroll-behavior` l'a ete de la feuille (03-fondations.css, qui porte
+ *    le diagnostic complet) : un defilement anime n'avance qu'aux images
+ *    peintes, donc pas du tout dans un onglet en arriere-plan ni sous un
+ *    navigateur pilote — et « Changer de creneau » ne bougeait alors plus la
+ *    page du tout. Un saut instantane arrive toujours.
  */
 function defilerVersTunnel() {
   const section = $('#reserver');
   if (!section) return;
 
-  const sobre = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const remonter = () => section.scrollIntoView({ block: 'start', behavior: 'auto' });
 
-  requestAnimationFrame(() => {
-    section.scrollIntoView({ block: 'start', behavior: sobre ? 'auto' : 'smooth' });
-  });
+  // DEUX FOIS, ET LES DEUX SERVENT.
+  //
+  // Tout de suite : `scrollIntoView` force le calcul de la mise en page, donc
+  // il lit deja la page RETRECIE par le `hidden` d'au-dessus — verifie, la
+  // position visee est la bonne des le premier appel. C'est aussi le seul appel
+  // qui arrive quand les images ne sont pas peintes (onglet en arriere-plan,
+  // navigateur pilote), ou `requestAnimationFrame` ne se declenche jamais.
+  //
+  // Puis a l'image suivante : ce qui se met en place APRES le calcul — une
+  // photo qui finit d'arriver, une police qui remplace sa doublure — change
+  // encore la hauteur. Le second appel vise la page telle qu'elle est vraiment.
+  // Il est sans effet quand rien n'a bouge : on redemande la meme position.
+  remonter();
+  requestAnimationFrame(remonter);
 }
 
 // --- ETAPE 1 : la prestation ------------------------------------------------

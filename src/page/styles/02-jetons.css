@@ -136,6 +136,27 @@
   --mesure:         66ch;  /* la longueur de ligne au-dela de laquelle on relit
                               deux fois la meme ligne */
 
+  /* LA COLONNE DE TRAVAIL — la largeur d'un bloc qui se REMPLIT plutot qu'il ne
+     se lit : la liste tarifaire, le tunnel, la page d'annulation.
+
+     42rem etait deja la valeur du tunnel et de /annuler, ecrite en dur dans
+     leurs deux feuilles. Elle monte ici parce qu'un troisieme bloc en a besoin,
+     et une valeur repetee a trois endroits derive au premier reglage.
+
+     >>> CE QU'ELLE CORRIGE. <<< La liste tarifaire, elle, n'etait bornee par
+     rien : elle prenait les 992 px de la colonne de contenu. Or sa description
+     s'arrete a 46ch et ses chiffres sont cales a droite — d'ou 373 px de vide
+     entre « La coupe classique… » et « 30 min 18 € », a partir de 1 536 px et
+     jusqu'a n'importe quelle largeur. Le meme balisage (`.tarif-ligne`) rendu
+     DANS le tunnel, lui, laissait 17 px : c'est la mesure qui a tranche, pas le
+     gout. Un composant, une largeur.
+
+     ⚠️ Ce n'est pas `--mesure`. `--mesure` borne du TEXTE SUIVI, en `ch`, pour
+        que l'oeil retrouve le debut de la ligne suivante. Ici on borne une ligne
+        de formulaire ou de tarif, dont la largeur utile depend des colonnes de
+        droite, pas du nombre de caracteres. Deux besoins, deux jetons. */
+  --largeur-colonne: 42rem;
+
   /* Marge laterale. Trois valeurs seulement, reprises du meme jeu. */
   --marge: var(--e3);
 

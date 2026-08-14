@@ -480,5 +480,235 @@ destiné à être décliné pour plusieurs clients, ce contrôle mérite d'être
 
 ---
 
+## 7. Mesures du 12 août 2026 — après la reprise de la mise en page
+
+`CLAUDE.md` avertissait que les chiffres du § 4 dataient d'avant la reprise et
+n'avaient pas été refaits. Ils l'ont été. Lighthouse 13.4.1, profil mobile par
+défaut, `--only-categories=performance,accessibility,best-practices,seo`.
+
+### En local, comparable au § 4
+
+C'est la colonne à comparer : le § 4 avait été mesuré en local lui aussi.
+
+| | vitrine | `/annuler` | `/espace-salon` |
+|---|---:|---:|---:|
+| Performance | **99** (=) | **100** (=) | **100** (=) |
+| Accessibilité | **100** (=) | **100** (=) | **100** (=) |
+| Bonnes pratiques | **100** (=) | **100** (=) | **96** (=) |
+| SEO | **100** (=) | 63 (=) | 54 (=) |
+| LCP | 2,1 s (=) | 1,4 s (=) | 1,7 s (+0,2) |
+| CLS | **0** (=) | **0** (=) | **0** (=) |
+| Poids transféré | 176 Kio (+3) | 95 Kio (=) | 110 Kio (+1) |
+
+**Rien n'a bougé.** La crainte écrite dans `CLAUDE.md` — « la photo d'accueil
+est passée sous le premier écran, ce qui peut en faire le nouvel élément de
+LCP » — ne s'est pas réalisée : le LCP reste à 2,1 s et le CLS à zéro.
+
+Les +3 Kio de la vitrine sont les commentaires ajoutés aux feuilles de style
+pendant cette session. Ils ne partent qu'en local : la production minifie.
+
+### Sur l'instance déployée, et ce que ça change
+
+Même commande, contre `letabli-barbier.onrender.com` — donc à travers le réseau,
+l'offre gratuite de Render et Cloudflare.
+
+| | vitrine | `/annuler` | `/espace-salon` |
+|---|---:|---:|---:|
+| Performance | 98 | 91 | 87 |
+| Accessibilité | 100 | 100 | 100 |
+| Bonnes pratiques | 100 | 100 | 96 |
+| SEO | 69 | 63 | 54 |
+| LCP | 1,9 s | 1,1 s | 1,6 s |
+| CLS | **0** | **0** | **0,219** |
+| Poids transféré | 174 Kio | 94 Kio | 108 Kio |
+
+⚠️ **SEO 69 sur la vitrine déployée, contre 100 en local, et c'est voulu.** La
+démonstration porte `DEMO_MODE=true`, donc `X-Robots-Tag: noindex, nofollow` :
+Lighthouse compte `is-crawlable` comme un défaut, et il a raison de le faire —
+sur un site de client, cet en-tête serait la catastrophe décrite dans
+`src/page/LISEZ-MOI.md`. **Ne pas « corriger » ce 69.** Il revient à 100 dès que
+`DEMO_MODE` n'est pas posée, ce que la colonne locale confirme.
+
+⚠️ **CLS 0,219 sur `/espace-salon` déployé, contre 0 en local.** C'était le seul
+écart réel entre les deux colonnes, et le seul chiffre de ce rapport à sortir du
+vert (le seuil « bon » est 0,1). **Corrigé depuis — voir le § 8.**
+
+Lighthouse désignait « Web font », `plexcond-600.woff2`. **C'était une fausse
+piste**, et elle a coûté du temps : forcer la police de repli sur toute la page
+ne déplace rien du tout, mesuré. La police finissait simplement d'arriver au
+même instant que la vraie cause.
+
+### En-têtes HTTP de l'instance déployée
+
+Relevés au `curl -I`, ce que l'audit en direct n'avait pas pu lire.
+
+| En-tête | Valeur | Verdict |
+|---|---|---|
+| `Cache-Control` (page) | `no-cache` | juste — le bandeau d'état est daté |
+| `Cache-Control` (polices) | `public, max-age=31536000, immutable` | juste |
+| `Cache-Control` (photos) | `public, max-age=0, must-revalidate` | voulu (le commerçant remplace ses photos), mais `hero.webp` est l'élément de LCP et repaie un aller-retour à chaque visite |
+| `Content-Security-Policy` | `default-src 'self'`, nonce par envoi, `require-trusted-types-for 'script'`, `frame-ancestors 'none'`, `object-src 'none'`, `base-uri 'self'`, `form-action 'self'` | complet |
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains` | présent |
+| `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`, `Cross-Origin-Opener-Policy` | posés | présents |
+| `X-Robots-Tag` | `noindex, nofollow` | correct **sur la démonstration**, fatal chez un client |
+
+`'unsafe-inline'` figure dans `script-src` à côté du nonce : c'est le repli
+prévu pour les navigateurs qui ne connaissent pas CSP niveau 3, et le nonce le
+neutralise partout ailleurs. Ce n'est pas un trou.
+
+`GET /sitemap.xml` répond 404 sur la démonstration, et c'est **également voulu** :
+`SITEMAP_SERVI = Boolean(PUBLIC_URL) && !DEMO_MODE` (`src/server.js`). `robots.txt`
+ne l'annonce donc pas non plus, ce qui est cohérent. `PUBLIC_URL` est bien posée
+— l'adresse canonique, `og:image` et `potentialAction` sont tous dans la page.
+
+### JSON-LD au Rich Results Test de Google
+
+Fait le 12 août 2026, sur `https://letabli-barbier.onrender.com/`. **C'était la
+seule vérification que le § 4 annonçait comme jamais faite.**
+
+**Aucune erreur.** Deux types détectés, 14 éléments valides chacun :
+« Commerces et services à proximité » (LocalBusiness) et « Organisation ».
+
+Deux remarques, aucune bloquante :
+
+1. **« Échec de l'exploration ».** Google n'a pas pu explorer l'adresse — c'est
+   le `noindex` de la démonstration, encore lui. L'outil a tout de même lu et
+   validé les données structurées. Chez un client, l'exploration aboutira.
+
+2. **52 avertissements non critiques, tous le même.** Treize des quatorze
+   éléments portent « champ `priceRange` / `address` / `telephone` / `image`
+   manquant (facultatif) ». Ce sont les treize `provider` imbriqués dans les
+   offres du catalogue : chacun est un `{ "@type": "HairSalon", "name":
+   "L'Établi" }` nu, que Google compte comme un commerce de plus, sans adresse
+   ni téléphone. Le site n'a qu'un commerce et il est complet au premier niveau.
+
+   **Corrigé depuis — voir le § 8.**
+
+### L'agenda de la démonstration — et ce que l'inventaire a appris
+
+**Premier relevé, 12 août 2026, 16 h : 28 rendez-vous, dont 14 de test.** Tous
+reconnaissables au même téléphone `06 12 34 56 78`, qu'aucun rendez-vous
+d'exemple n'utilise :
+
+- `Léo Test` (12/08, annulé) ;
+- **`<img src=x onerror=alert(1)>`** (14/08 11h00, réf. `PG7B9S`) — une sonde
+  XSS restée dans l'agenda. Elle était correctement échappée à l'affichage, donc
+  le test qu'elle documentait était **réussi** ; mais un prospect qui ouvrait
+  l'agenda lisait cette ligne comme un nom de client ;
+- `Rafale0`, `Rafale1`, `Rafale11` (14/08) ;
+- `R0` à `R9` (20/08, de 9 h à 11 h 15 par quarts d'heure) et `R25` — la rafale
+  des tests de plafond.
+
+`EQMHLB`, citée par l'audit, n'y était déjà plus.
+
+**Second relevé, une heure plus tard : 10 rendez-vous, aucun de test.** Les
+quatorze ont disparu sans que personne ne les supprime. L'instance s'était
+rendormie puis relancée entre les deux relevés — l'onglet a affiché
+« Application loading » — et **c'est exactement le comportement décrit dans
+`CLAUDE.md`** : l'offre gratuite de Render n'a pas de disque persistant, la base
+vit dans le conteneur, et un redémarrage la reconstruit depuis `defaults.js`.
+
+L'agenda est donc propre, et il l'est parce que rien n'y survit.
+
+⚠️ **Ce n'est pas une garantie, c'est la limite d'hébergement retournée.** Elle
+nettoie les rendez-vous de test toute seule, mais elle effacera de la même façon
+ce qu'un prospect aura saisi pendant un essai. Les deux faces sont le même fait,
+et c'est celui que le bandeau de démonstration annonce.
+
+**La conclusion pratique n'est donc pas « c'est réglé » mais : ne pas lancer de
+suite de tests contre l'instance déployée.** Les quatorze lignes venaient de là
+— `tests/debit.mjs` envoie quarante-trois réservations depuis la même adresse,
+et `R0`…`R9` en sont la trace. Un prospect qui ouvre l'agenda juste après verrait
+une sonde XSS en guise de nom de client. Les tests tournent en local, contre
+`npm start`, comme le dit `CLAUDE.md`.
+
+⚠️ **Avant un rendez-vous commercial, ouvrir l'agenda et regarder.** Si des lignes
+de test s'y trouvent, le bouton « Remettre à zéro maintenant » de l'espace
+(`POST /api/admin/demo/reset`) rend une vitrine propre sans attendre le
+redémarrage — c'est précisément ce pour quoi il existe.
+
+---
+
+## 8. Les deux corrections issues des mesures du § 7
+
+### Le CLS de l'espace : ce n'était pas la police
+
+Lighthouse accusait `plexcond-600.woff2`. La mesure a dit non : forcer la police
+de repli sur toute la page ne déplace **rien**, ni le titre, ni la boîte, ni le
+formulaire — zéro pixel, à toutes les largeurs essayées.
+
+La vraie cause était à trois lignes de `demarrage.js`. Le bloc des identifiants
+de démonstration partait `hidden` dans le balisage, et le navigateur le révélait
+**après la réponse de `/api/config`** :
+
+```js
+if (CONFIG?.demo) { …; montrer($('#connexionDemo'), true); }
+```
+
+259 px de contenu ajoutés après la première peinture, dans une boîte **centrée
+verticalement** — ce qui ne pousse pas ce qui suit mais **recentre tout**. Le
+formulaire de connexion sautait de **299 px**, mesuré sur l'instance déployée.
+
+Deux choses expliquent qu'il ait vécu si longtemps sans être vu :
+
+- **il n'existe pas en local.** Sans `DEMO_MODE`, `CONFIG.demo` est absent, le
+  bloc ne paraît jamais, et le CLS est de zéro. Le seul environnement où le
+  défaut se produit est celui qu'on montre aux prospects ;
+- **Lighthouse désignait autre chose**, avec assurance et avec une URL.
+
+**Le correctif est celui que l'architecture demandait déjà** : le serveur connaît
+`DEMO_MODE` et les deux identifiants, donc il écrit le bloc dans la page, entre
+les marqueurs `<!--@espace-demo-->`, exactement comme il écrit déjà le titre de
+cette page et comme il vide `<!--@espace-lien-->` hors démonstration. Le bloc est
+là dès le premier octet ; il n'y a plus rien à révéler, et le navigateur ne fait
+plus que lire. Les quatre lignes de JavaScript ont disparu.
+
+**Avant / après, même machine, même serveur, même commande** — le défaut se
+reproduit en local dès qu'on pose `DEMO_MODE=true`, ce qui a permis de le
+mesurer des deux côtés :
+
+| | avant | après |
+|---|---:|---:|
+| CLS | 0,204 | **0** |
+| Élément coupable | `form#formulaireConnexion` | **aucun** |
+
+(0,204 en local contre 0,219 en production : le même défaut, à la latence près.)
+
+### Le JSON-LD : un commerce, pas quatorze
+
+Chaque prestation portait son `provider` recopié en entier :
+
+```js
+provider: { '@type': config.salon.type, name: config.salon.name }
+```
+
+Un objet sans `@id` est un **nœud neuf** pour un moteur. Treize prestations
+fabriquaient donc treize commerces de plus, chacun réduit à son nom — d'où les
+quatorze « Commerces et services à proximité » et les cinquante-deux
+avertissements du Rich Results Test.
+
+La fiche porte maintenant un `@id`, et chaque `provider` n'est plus qu'un renvoi
+vers lui :
+
+```js
+provider: { '@id': idCommerce }
+```
+
+Absolu quand `PUBLIC_URL` est posée (`https://…/#commerce`), relatif sinon
+(`#commerce`) — un `@id` sert à reconnaître la même entité d'un document à
+l'autre, et un identifiant relatif perd ce pouvoir dès qu'on lit le bloc hors de
+sa page ; mais sans `PUBLIC_URL` il n'y a de toute façon aucune base absolue.
+
+Vérifié en parcourant le graphe produit : **1 nœud `HairSalon` complet, 13
+renvois, une seule cible, et cette cible est bien la fiche.**
+
+⚠️ **Le Rich Results Test n'a pas été relancé sur ce résultat.** L'outil
+n'accepte qu'une adresse publique, et la correction n'est pas déployée ; son
+onglet « CODE » refuse une saisie programmée. Ce qui est vérifié est donc la
+**structure** du graphe, pas le verdict de Google. À refaire après la mise en
+ligne — ce sera la vérification d'une minute.
+
+---
+
 *Chaque chiffre de ce rapport a été mesuré sur le serveur qui tourne. Les
 scores Lighthouse ont été relancés après la dernière modification.*

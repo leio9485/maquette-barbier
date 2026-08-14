@@ -2,7 +2,7 @@
    LE TUNNEL DE RÉSERVATION
    --------------------------------------------------------------------------- */
 
-.tunnel { max-width: 42rem; }
+.tunnel { max-width: var(--largeur-colonne); }
 
 /* L'écart sous le titre est celui de toutes les sections — il est posé une
    seule fois dans 04-grille-et-rail.css. */

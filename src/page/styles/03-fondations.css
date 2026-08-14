@@ -8,9 +8,38 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 html {
-  /* Le defilement s'anime quand on clique une ancre du menu — sauf si le
-     systeme demande le contraire, ce que 02-jetons.css applique deja. */
-  scroll-behavior: smooth;
+  /* >>> PAS DE `scroll-behavior: smooth`. LE SAUT D'ANCRE EST INSTANTANE. <<<
+
+     Il y etait, et c'est ce qui a fait remonter d'un audit « les cinq liens du
+     menu ne menent nulle part ». Le diagnostic complet, parce qu'il ne se
+     devine pas :
+
+     Un defilement anime est une ANIMATION. Elle avance a chaque image, donc
+     elle n'avance pas du tout la ou les images ne sont pas peintes — onglet en
+     arriere-plan, navigateur pilote, rendu hors ecran, capture pleine page.
+     Dans ces cas la, `window.scrollTo({ behavior: 'smooth' })` ne bouge JAMAIS,
+     pas meme d'un pixel, et un clic sur `#prestations` ne fait qu'ecrire
+     l'ancre dans la barre d'adresse. Mesure : zero image d'animation en 500 ms,
+     zero pixel de defilement en 1,5 s, sur Chrome 151 comme sur le navigateur
+     embarque de l'outil d'audit. Le meme `scrollTo` en `instant` marche.
+
+     Un visiteur qui a l'onglet devant lui, lui, voyait bien l'animation : ce
+     n'etait pas casse pour tout le monde, ce qui est exactement ce qui rend la
+     panne difficile a croire quand elle est signalee.
+
+     On ne garde pas un confort dont la panne est « la navigation ne fait
+     rien ». Et il n'y avait rien a garder : la charte dit « 150 ms sur les
+     etats interactifs, RIEN D'AUTRE » (02-jetons.css). Un defilement anime de
+     mille cinq cents pixels etait le plus gros mouvement du site, et le seul
+     qui n'etait pas un etat interactif.
+
+     ⚠️ Ne pas la remettre au motif que `prefers-reduced-motion` la neutralise
+        deja : cette preference ne dit rien des contextes ci-dessus, ou les
+        images ne sont pas peintes alors que personne n'a rien demande.
+
+     Le decalage des ancres, lui, reste indispensable — c'est la ligne suivante,
+     et elle n'a rien a voir avec le mouvement. */
+
   /* Le bandeau d'etat est colle en haut, et l'en-tete aussi a partir de
      1000 px : sans cette marge, une ancre poserait le titre de section SOUS
      eux, hors de vue. `--h-entete` vaut 0 tant que l'en-tete defile. */

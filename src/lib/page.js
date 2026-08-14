@@ -21,6 +21,7 @@
 // ---------------------------------------------------------------------------
 
 import { PUBLIC_URL, DEMO_MODE } from '../config.js';
+import { DEMO_USERNAME, DEMO_PASSWORD } from './demo.js';
 import { etatDuMoment } from './etat.js';
 import { loadConfig } from './settings.js';
 import { minifierPage } from './minify.js';
@@ -58,6 +59,10 @@ const ZONES = {
   annulerEntete: ['<!--@annuler-entete-->', '<!--/@annuler-entete-->'],
   espaceEntete: ['<!--@espace-entete-->', '<!--/@espace-entete-->'],
   espaceLien: ['<!--@espace-lien-->', '<!--/@espace-lien-->'],
+  // Les identifiants de la demonstration, sur l'ecran de connexion. Ecrits ici
+  // et non reveles par le navigateur : le motif complet est dans
+  // parties/espace-commercant.html, c'etait le seul CLS du site.
+  espaceDemo: ['<!--@espace-demo-->', '<!--/@espace-demo-->'],
 };
 
 /**
@@ -178,7 +183,7 @@ function horairesStructures(hours) {
  * defini ; sinon, les offres sont posees a plat, exactement comme avant leur
  * arrivee. Un rayon vide est saute — une categorie sans offre n'apprend rien.
  */
-function offresStructurees(config) {
+function offresStructurees(config, idCommerce) {
   const offre = (s) => ({
     '@type': 'Offer',
     itemOffered: {
@@ -192,7 +197,20 @@ function offresStructurees(config) {
       // donc pas diverger. `provider` est le commerce lui-meme, ce que
       // schema.org attend sur un `Service` autonome.
       ...(s.duration ? { estimatedDuration: `PT${s.duration}M` } : {}),
-      provider: { '@type': config.salon.type, name: config.salon.name },
+      // >>> UNE REFERENCE, PAS UNE COPIE. <<<
+      //
+      // C'etait `{ '@type': …, name: … }` recopie a chaque prestation. Un objet
+      // sans `@id` est un NOEUD NEUF pour un moteur : treize prestations
+      // produisaient donc treize commerces de plus, chacun reduit a son nom.
+      // Le Rich Results Test de Google le disait le 12 aout 2026 — quatorze
+      // « Commerces et services a proximite » au lieu d'un, et 4 avertissements
+      // par doublon (`priceRange`, `address`, `telephone`, `image` manquants),
+      // soit cinquante-deux avertissements pour une seule cause.
+      //
+      // Avec `@id`, c'est un RENVOI vers la fiche de tete : le moteur relie les
+      // deux noeuds au lieu d'en creer un second. Le commerce garde son adresse
+      // et son telephone, ecrits une seule fois.
+      provider: { '@id': idCommerce },
     },
     price: s.price.toFixed(2),
     priceCurrency: 'EUR',
@@ -228,8 +246,19 @@ function offresStructurees(config) {
 }
 
 function donneesStructurees(config, photos) {
+  // L'IDENTIFIANT DU COMMERCE, pour que le catalogue puisse le designer sans le
+  // recopier (voir `provider` dans offresStructurees()).
+  //
+  // Absolu quand l'adresse publique est connue : un `@id` sert justement a
+  // reconnaitre la meme entite d'un document a l'autre, et un identifiant
+  // relatif perd ce pouvoir des qu'on lit le bloc hors de sa page. Relatif
+  // sinon — sans PUBLIC_URL il n'y a de toute facon ni adresse canonique ni
+  // base absolue, et `#commerce` se resout alors contre la page servie.
+  const idCommerce = PUBLIC_URL ? `${PUBLIC_URL}/#commerce` : '#commerce';
+
   const fiche = {
     '@context': 'https://schema.org',
+    '@id': idCommerce,
     // LE TYPE VIENT DES REGLAGES, il n'est plus ecrit ici.
     //
     // Une valeur dans les reglages (voir TYPES_DE_COMMERCE dans
@@ -267,7 +296,7 @@ function donneesStructurees(config, photos) {
     };
   }
 
-  if (config.services.length) fiche.hasOfferCatalog = offresStructurees(config);
+  if (config.services.length) fiche.hasOfferCatalog = offresStructurees(config, idCommerce);
 
   if (PUBLIC_URL) fiche.url = PUBLIC_URL;
 
@@ -631,7 +660,38 @@ export async function renderEspace(nonce) {
   }
 
   const entete = `<title>Espace commerçant — ${texte(config.salon.name)}</title>`;
-  return marquer(remplacerZone(fichier, 'espaceEntete', entete));
+  let html = remplacerZone(fichier, 'espaceEntete', entete);
+
+  // Le bloc des identifiants de demonstration. Sur la demonstration il est
+  // ecrit ici, donc present a la premiere peinture ; ailleurs la zone est
+  // videe, exactement comme `espaceLien` sur la vitrine.
+  //
+  // Le balisage doit rester celui de parties/espace-commercant.html — c'est la
+  // meme regle que pour les prestations et les avis, sauf qu'ici il n'y a plus
+  // de second endroit qui l'ecrive : le navigateur ne fait plus que lire.
+  html = remplacerZone(html, 'espaceDemo', DEMO_MODE ? blocDemo() : '');
+
+  return marquer(html);
+}
+
+/**
+ * Les identifiants de la demonstration, tels qu'ils s'affichent sur l'ecran de
+ * connexion de /espace-salon.
+ *
+ * Ils ne sont pas un secret : la demonstration existe pour qu'on entre dedans,
+ * et la page les affiche en clair depuis le premier jour. Ce qui change, c'est
+ * qu'ils partent maintenant AVEC la page au lieu d'arriver apres elle.
+ */
+function blocDemo() {
+  return '<div class="connexion-demo" id="connexionDemo">'
+    + '<p class="etiquette">Démonstration</p>'
+    + '<dl class="fiche">'
+    + `<div><dt>Identifiant</dt><dd id="demoIdentifiant">${texte(DEMO_USERNAME)}</dd></div>`
+    + `<div><dt>Mot de passe</dt><dd id="demoMotDePasse">${texte(DEMO_PASSWORD)}</dd></div>`
+    + '</dl>'
+    + '<p class="petit secondaire">Tout est remis à zéro chaque nuit. '
+    + "Vous pouvez tout essayer, rien n'est définitif.</p>"
+    + '</div>';
 }
 
 /**

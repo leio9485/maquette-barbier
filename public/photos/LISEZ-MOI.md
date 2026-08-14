@@ -36,6 +36,58 @@ dessiné par le serveur pour l'adresse du commerce (voir `src/lib/plan.js`). Ils
 sont livrés pour que le dépôt soit autonome — sans eux, le site n'aurait aucun
 plan tant qu'OpenStreetMap n'aurait pas répondu au premier démarrage.
 
+## ⚠️ DEUX DES TROIS SONT À REMPLACER (audit du 12 août 2026)
+
+Le tri de la section précédente n'était pas allé assez loin. Deux des trois
+photos restantes vendent encore le monde que `CLAUDE.md` refuse.
+
+| Fichier | Légende | Ce qu'elle montre | Verdict |
+|---|---|---|---|
+| `galerie-1.jpg` | Le poste | Un fauteuil de barbier ancien, chrome et cuir capitonné, devant un mur à motif damassé | **À remplacer.** Deux interdits nommés dans `CLAUDE.md` : « fausse ancienneté » et « effet cuir ». C'est aussi l'image la plus reproduite du métier — donc celle qui ne différencie rien. |
+| `galerie-2.jpg` | La coupe | Les mains, la tondeuse et le peigne sur une nuque ; brique floue au fond | **Elle est juste.** Le geste est le sujet, le décor est hors de mise au point. C'est le modèle des deux autres. |
+| `galerie-3.jpg` | La barbe | Un avant-bras lourdement tatoué, ciseaux à la main, sur un client allongé | **À remplacer.** Le tatouage est net et occupe le premier plan : c'est l'iconographie du « gentleman barber ». `CLAUDE.md` n'interdit nommément que les *typographies* tatouage, pas la peau — la décision est donc éditoriale, et elle a été prise. |
+
+### Le cahier des charges des deux remplaçantes
+
+Le sujet, d'abord — c'est la seule partie qui demande un choix :
+
+- **le plan de travail rangé** : outils alignés, peignes, tondeuse au crochet,
+  serviettes pliées. L'établi, pas la vitrine ;
+- **un geste technique en gros plan** : le rasoir, les ciseaux, le blaireau, la
+  mesure au peigne — les mains et l'outil, rien d'autre dans la mise au point.
+
+Et ce qu'aucune des deux ne doit contenir : fauteuil ancien, chrome capitonné,
+enseigne tricolore, lettrage, logo, planches de bois apparentes, papier kraft,
+cuir, tatouage au premier plan, ni personne de reconnaissable.
+
+Le format, ensuite — il n'est pas négociable, le CSS recadre en `cover` :
+
+| | |
+|---|---|
+| Dimensions | **700 × 933 px**, soit **3:4 portrait** |
+| Affichage réel | 325 × 434 px sur un écran de 1440 (trois colonnes), 434 px de haut ; le double en pixels sur un écran dense |
+| Sujet | **au centre.** Les bords sont mangés par le recadrage, qui change avec la largeur |
+| Couleur | **couleur, pas noir et blanc.** Le N&B est appliqué par le site (`filter: grayscale(1)`, `11-galerie.css`). Une photo déjà désaturée s'y ajoute et ressort plate |
+| Bas de l'image | la légende s'y pose sur un aplat encre pleine largeur : ne rien y mettre d'important |
+
+Enfin les variantes, **à régénérer** — voir la section « Les variantes » plus
+bas, qui explique pourquoi ce n'est pas automatique pour les fichiers livrés :
+
+```
+galerie-1.jpg   galerie-1-350.jpg   galerie-1.webp   galerie-1-350.webp
+galerie-3.jpg   galerie-3-350.jpg   galerie-3.webp   galerie-3-350.webp
+```
+
+**Le chemin le plus court est de ne pas toucher au disque** : déposer les deux
+photos depuis l'espace commerçant (Réglages → Photos). Les variantes y sont
+produites par le navigateur, et la légende comme la description lue à voix haute
+se saisissent dans le même écran.
+
+Si les fichiers sont remplacés à la main, les légendes et les `alt` livrés
+vivent dans `galerie()`, `src/lib/photos.js` — et **l'`alt` ne répète jamais la
+légende** : « La barbe » d'un côté, la description de ce qu'on voit de l'autre.
+Un test le vérifie.
+
 ## Le cadrage, et pourquoi il est imposé
 
 Les ratios ci-dessus sont ceux du CSS, et les images sont **recadrées**

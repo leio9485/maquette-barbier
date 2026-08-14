@@ -702,11 +702,41 @@ sa page ; mais sans `PUBLIC_URL` il n'y a de toute façon aucune base absolue.
 Vérifié en parcourant le graphe produit : **1 nœud `HairSalon` complet, 13
 renvois, une seule cible, et cette cible est bien la fiche.**
 
-⚠️ **Le Rich Results Test n'a pas été relancé sur ce résultat.** L'outil
-n'accepte qu'une adresse publique, et la correction n'est pas déployée ; son
-onglet « CODE » refuse une saisie programmée. Ce qui est vérifié est donc la
-**structure** du graphe, pas le verdict de Google. À refaire après la mise en
-ligne — ce sera la vérification d'une minute.
+### Vérifié en ligne le 14 août 2026
+
+Les deux corrections ont été déployées, et les deux vérifications qui
+demandaient une adresse publique ont pu être faites.
+
+**Rich Results Test, sur `https://letabli-barbier.onrender.com/` :**
+
+| | avant | après |
+|---|---:|---:|
+| « Commerces et services à proximité » | 14 éléments valides | **1** |
+| « Organisation » | 14 éléments valides | **1** |
+| Avertissements non critiques | 52 (13 × 4) | **0** |
+
+Un seul élément, « L'Établi », sans une remarque. L'« Échec de l'exploration »
+demeure, et reste voulu : c'est le `noindex` de la démonstration.
+
+**Lighthouse mobile, même commande qu'au § 7 :**
+
+| | vitrine | `/annuler` | `/espace-salon` |
+|---|---:|---:|---:|
+| Performance | 98 → **98** | 91 → **100** | 87 → **100** |
+| CLS | 0 → **0** | 0 → **0** | **0,219 → 0** |
+| LCP | 1,9 s → 1,9 s | 1,1 s → 1,2 s | 1,6 s → **1,4 s** |
+
+⚠️ **La première mesure de la vitrine après déploiement a donné 87, et ce
+n'était pas une régression.** LCP, FCP, CLS et le poids étaient identiques au
+bit près ; seuls le TBT (140 → 480 ms) et le temps de réponse serveur
+(70 → 310 ms) avaient bougé. C'est le premier appel après une mise en ligne :
+le cache d'assemblage est vide, la page doit être recollée et minifiée, et
+l'instance gratuite se réchauffe encore. Trois mesures suivantes sur instance
+chaude : 93, 98, 99, TBT 70 à 120 ms, serveur 70 ms.
+
+**À retenir pour les prochaines mesures : ne jamais lighthouser dans la minute
+qui suit un déploiement.** C'est aussi la raison pour laquelle `render.yaml`
+recommande d'ouvrir le site cinq minutes avant de le montrer.
 
 ---
 

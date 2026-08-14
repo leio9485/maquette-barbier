@@ -168,8 +168,9 @@ function peindrePrestations(config) {
  * son premier prix, et le detail a un clic.
  *
  * `<details>` / `<summary>` : l'ouverture, le clavier et l'annonce « replie /
- * deplie » sont natifs. Le premier rayon part ouvert, pour qu'on voie du
- * premier coup d'oeil ce qu'il y a dedans.
+ * deplie » sont natifs. Tous les rayons partent replies : l'etape montre alors
+ * l'offre entiere en quatre lignes, de la meme hauteur, sans qu'un rayon
+ * ouvert d'office pousse les autres hors de l'ecran.
  *
  * Les lignes sont celles de la vitrine, `ligneTarif()` — meme balisage, donc
  * meme `data-choix="prestation"` et meme ecouteur : cliquer une ligne mene a
@@ -179,7 +180,7 @@ function peindreChoixPrestation(config) {
   const cible = $('#tunnelRayons');
   if (!cible) return;
 
-  cible.innerHTML = grouperParRayon(config).map((g, rang) => {
+  cible.innerHTML = grouperParRayon(config).map((g) => {
     const nom = g.cat && !g.seul ? g.cat.name : 'Toutes les prestations';
 
     // Ce qu'il y a dedans, et a partir de quel prix. C'est l'information qui
@@ -191,7 +192,7 @@ function peindreChoixPrestation(config) {
     const moins = Math.min(...g.services.map((s) => Number(s.price) || 0));
     const resume = `${combien} · dès ${fmtPrix(moins)}`;
 
-    return `<details class="rayon"${rang === 0 ? ' open' : ''}>`
+    return '<details class="rayon">'
       + '<summary class="rayon-tete">'
         + `<span class="rayon-nom">${esc(nom)}</span>`
         + `<span class="rayon-compte donnee">${esc(resume)}</span>`

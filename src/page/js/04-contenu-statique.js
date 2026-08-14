@@ -375,9 +375,8 @@ const GALERIE_MAX = 12;
  *    la mise à jour sans rechargement, et un test vérifie que les deux
  *    coïncident au caractère près. Si vous changez l'un, changez l'autre.
  *
- * Une case n'existe que si sa photo « avant » existe : la galerie se remplit et
- * se vide toute seule, sans que le commerçant ait à déclarer combien de photos
- * il veut.
+ * Une case n'existe que si sa photo existe : la galerie se remplit et se vide
+ * toute seule, sans que le commerçant ait à déclarer combien de photos il veut.
  */
 function peindreGalerie(config) {
   const liste = $('#galerieListe');
@@ -405,7 +404,6 @@ function peindreGalerie(config) {
     const photo = photos[nom];
     if (!photo?.url) continue;
 
-    const apres = photos[`${nom}-apres`];
     const legende = legendes[nom] ?? '';
 
     // Toutes en chargement différé : la galerie n'est jamais dans le premier
@@ -413,16 +411,9 @@ function peindreGalerie(config) {
     // de suite faisait passer le LCP de 2,3 s à 3,9 s.
     const chargement = ' loading="lazy"';
 
-    const images = apres?.url
-      ? '<div class="galerie-paire">'
-        + image(photo, descriptions[nom] ?? '', chargement)
-        + image(apres, descriptions[`${nom}-apres`] ?? '', chargement)
-        + '</div>'
-      : image(photo, descriptions[nom] ?? '', chargement);
-
-    cases.push(`<li class="galerie-case${apres?.url ? ' galerie-case-paire' : ''}" data-photo="${esc(nom)}">`
+    cases.push(`<li class="galerie-case" data-photo="${esc(nom)}">`
       + '<figure>'
-      + images
+      + image(photo, descriptions[nom] ?? '', chargement)
       + (legende
         ? `<figcaption class="galerie-legende etiquette" data-legende="${esc(nom)}">${esc(legende)}</figcaption>`
         : '')

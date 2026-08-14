@@ -204,9 +204,11 @@ trois colonnes, douze en font quatre sur trois rangées. Seules les cases qui
 portent vraiment une photo sont écrites. Les réglages proposent les cases
 remplies **plus une**.
 
-**Mode avant/après** : deux photos dans la même case, sous une seule légende.
-Pas de comparateur à poignée — cent lignes de code, inutilisable au clavier, et
-deux photos côte à côte disent la même chose.
+~~**Mode avant/après** : deux photos dans la même case, sous une seule
+légende.~~ **Retiré depuis.** Aucune photo « après » n'étant livrée, la fonction
+ne se montrait jamais sur la vitrine, pendant qu'elle ajoutait un emplacement
+facultatif par case remplie dans les réglages du barbier. Voir
+`src/lib/galerie.js`.
 
 **La galerie est écrite par le serveur.** Ses images n'avaient aucun `src` dans
 le HTML servi.
@@ -340,7 +342,7 @@ ralentisseur, pas un mur, et c'est assumé.
 ### Lot 6 — finition
 
 - [x] La grille accepte jusqu'à 12 photos et se dégrade proprement à 3 ou 4
-- [x] Mode avant/après
+- [x] ~~Mode avant/après~~ — livré, puis retiré (voir plus haut)
 - [x] Avis gérables depuis les réglages + date de dernière mise à jour
 - [x] Les quatre cas de robustesse du tunnel
 - [x] Lighthouse mobile 95+ (99 / 100 / 100 / 100)

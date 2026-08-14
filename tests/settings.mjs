@@ -839,10 +839,11 @@ try {
     const invente = await salon.appel('PUT', '/api/admin/photos/galerie-99/legende', { texte: 'Non' });
     verifie('un emplacement inconnu est refuse', invente.status === 400, invente.status);
 
-    // Une case « après » n'a pas de légende propre : c'est celle de la case qui
-    // légende les deux, sans quoi on lirait deux titres sous une seule idée.
+    // Le mode avant/après est retiré (voir src/lib/galerie.js) : `-apres` n'est
+    // plus un emplacement du tout. Ce contrôle reste, comme garde-fou — si la
+    // notion revenait par la bande, elle se signalerait ici.
     const apres = await salon.appel('PUT', '/api/admin/photos/galerie-1-apres/legende', { texte: 'Non' });
-    verifie("la seconde photo d'un avant/après refuse une légende", apres.status === 400, apres.status);
+    verifie("« galerie-1-apres » n'est plus un emplacement", apres.status === 400, apres.status);
 
     const chemin = await salon.appel('PUT',
       '/api/admin/photos/' + encodeURIComponent('../../.env') + '/legende', { texte: 'Non' });

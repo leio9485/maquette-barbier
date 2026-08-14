@@ -14,10 +14,17 @@
 //      aucune image, et l'audit l'a releve. Ecrites ici, elles sont dans la
 //      page des le premier octet.
 //
-// LE MODE AVANT/APRES. Une case peut porter une seconde photo. Les deux
-// s'affichent alors cote a cote dans la MEME `<figure>`, sous la meme legende :
-// c'est une seule idee — « voila ce que ca donne » — et deux titres sous une
-// seule idee se lisent mal. La seconde ne s'affiche jamais seule.
+// >>> IL Y A EU UN MODE AVANT/APRES. IL A ETE RETIRE. <<< Une case pouvait
+// porter une seconde photo, affichee a cote de la premiere sous la meme
+// legende. Le raisonnement etait bon et le resultat ne l'etait pas : aucune
+// photo « apres » n'est livree avec le site, donc un prospect n'en voyait
+// jamais une seule — pendant que le barbier, lui, voyait dans ses reglages un
+// emplacement facultatif de plus PAR case remplie. On payait l'encombrement
+// sans jamais montrer la demonstration. Sur la vitrine, la case doublait de
+// largeur et cassait le rythme de la planche.
+//
+// Un commerce qui veut montrer un avant/apres depose deux photos dans deux
+// cases voisines : c'est ce que la grille fait deja, sans notion a apprendre.
 //
 // ⚠️ CE FICHIER PRODUIT EXACTEMENT LE MEME BALISAGE QUE `peindreGalerie()`
 //    (src/page/js/04-contenu-statique.js). Meme regle que pour les prestations
@@ -41,9 +48,9 @@ function esc(valeur) {
 /**
  * Les cases a afficher, dans l'ordre, avec ce qu'il faut pour les dessiner.
  *
- * Une case n'existe que si sa photo « avant » existe. C'est ce qui fait que la
- * galerie se remplit et se vide toute seule, sans que le commercant ait a
- * declarer combien de photos il veut.
+ * Une case n'existe que si sa photo existe. C'est ce qui fait que la galerie se
+ * remplit et se vide toute seule, sans que le commercant ait a declarer combien
+ * de photos il veut.
  */
 export function casesGalerie({ photos = {}, legendes = {}, descriptions = {} } = {}) {
   const cases = [];
@@ -53,8 +60,6 @@ export function casesGalerie({ photos = {}, legendes = {}, descriptions = {} } =
     const photo = photos[nom];
     if (!photo?.url) continue;
 
-    const apres = photos[`${nom}-apres`];
-
     cases.push({
       nom,
       url: photo.url,
@@ -63,15 +68,6 @@ export function casesGalerie({ photos = {}, legendes = {}, descriptions = {} } =
       sizes: photo.sizes,
       alt: descriptions[nom] ?? '',
       legende: legendes[nom] ?? '',
-      apres: apres?.url
-        ? {
-          url: apres.url,
-          srcsetJpg: apres.srcsetJpg,
-          srcsetWebp: apres.srcsetWebp,
-          sizes: apres.sizes,
-          alt: descriptions[`${nom}-apres`] ?? '',
-        }
-        : null,
     });
   }
 
@@ -122,16 +118,9 @@ export function sectionGalerie(donnees) {
     // est.
     const chargement = ' loading="lazy"';
 
-    const images = c.apres
-      ? '<div class="galerie-paire">'
-        + image(c, c.alt, chargement)
-        + image(c.apres, c.apres.alt, chargement)
-        + '</div>'
-      : image(c, c.alt, chargement);
-
-    return `<li class="galerie-case${c.apres ? ' galerie-case-paire' : ''}" data-photo="${esc(c.nom)}">`
+    return `<li class="galerie-case" data-photo="${esc(c.nom)}">`
       + '<figure>'
-      + images
+      + image(c, c.alt, chargement)
       + (c.legende
         ? `<figcaption class="galerie-legende etiquette" data-legende="${esc(c.nom)}">${esc(c.legende)}</figcaption>`
         : '')

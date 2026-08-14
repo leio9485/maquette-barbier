@@ -79,7 +79,7 @@ export const EMPLACEMENTS = {
 };
 
 /**
- * Les douze cases de la galerie, et leur seconde photo « après ».
+ * Les douze cases de la galerie.
  *
  * >>> QUATRE, C'ETAIT TROP PEU POUR UN BARBIER. <<< Quatre photos, c'est ce
  * qu'on montre quand on ouvre ; un commerce qui tourne depuis deux ans en a
@@ -87,30 +87,41 @@ export const EMPLACEMENTS = {
  * nombre reellement depose (voir styles/11-galerie.css) : trois, quatre, huit
  * ou douze tiennent sans qu'on y touche.
  *
- * LES TROIS PREMIERES SONT LIVREES avec le site et portent une legende ; les
- * neuf suivantes arrivent vides et n'apparaissent que si le commercant y met
- * quelque chose. C'est ce qui evite qu'une nouvelle instance affiche neuf
+ * LES QUATRE PREMIERES SONT LIVREES avec le site et portent une legende ; les
+ * huit suivantes arrivent vides et n'apparaissent que si le commercant y met
+ * quelque chose. C'est ce qui evite qu'une nouvelle instance affiche huit
  * rectangles gris.
  *
- * >>> ELLES ETAIENT QUATRE. LA PREMIERE A ETE RETIREE. <<< C'etait un interieur
- * de grand salon americain : enseigne BARBERSHOP en lettres d'un metre, panier
- * de basket, planches de skate, panneau « SORRY WE'RE CLOSED ». Elle etait
- * legendee « La devanture » alors qu'elle montrait un interieur, et elle
- * contredisait frontalement la direction du site — le monde de reference est
- * l'atelier d'artisan, pas le barbershop (voir CLAUDE.md). Aucune photo de
- * remplacement n'etant disponible dans le depot, la galerie en montre trois :
- * mieux vaut trois photos justes qu'une quatrieme qui vend un autre commerce.
+ * >>> LA PREMIERE PHOTO LIVREE A ETE RETIREE, ET REMPLACEE. <<< C'etait un
+ * interieur de grand salon americain : enseigne BARBERSHOP en lettres d'un
+ * metre, panier de basket, planches de skate, panneau « SORRY WE'RE CLOSED ».
+ * Elle etait legendee « La devanture » alors qu'elle montrait un interieur, et
+ * elle contredisait frontalement la direction du site — le monde de reference
+ * est l'atelier d'artisan, pas le barbershop (voir CLAUDE.md). Le depot est
+ * alors tombe a trois photos, faute de remplacante : mieux vaut trois photos
+ * justes qu'une quatrieme qui vend un autre commerce.
  *
- * LA SECONDE PHOTO (« -apres ») est facultative et ne s'affiche jamais seule :
- * sans la premiere, la case n'existe pas. C'est ce qui rend le mode
- * avant/apres indolore — un commerce qui n'en veut pas ne rencontre jamais la
- * notion.
+ * LA QUATRIEME EST DEPUIS ARRIVEE — « Les outils », des ciseaux et des peignes
+ * ranges sur une serviette pliee (Arthur Humeau, licence Unsplash, libre
+ * d'usage commercial sans attribution). Elle a ete choisie contre plusieurs
+ * autres candidates que la charte interdisait : fond de planches de bois,
+ * tondeuses dorees, pots de pommade a marque lisible, enseigne tricolore. Elle
+ * est deja en noir et blanc, comme les trois autres, et elle montre l'outil
+ * range — c'est-a-dire le sujet meme de la direction artistique.
+ *
+ * >>> IL Y A EU UNE SECONDE PHOTO PAR CASE (« -apres »). ELLE A ETE RETIREE. <<<
+ * Elle servait un mode avant/apres. Elle etait facultative, mais elle n'etait
+ * pas gratuite : chaque case remplie en ajoutait une dans les reglages, si bien
+ * qu'un barbier avec trois photos y lisait sept emplacements. Et comme aucune
+ * photo « apres » n'est livree, la fonction ne se montrait jamais sur la
+ * vitrine — que du cout, aucune demonstration. Voir src/lib/galerie.js.
  */
 function galerie() {
   const livrees = [
     ['Le poste', "Un fauteuil de barbier en cuir et chrome, devant le miroir du poste."],
     ['La coupe', "Les mains du barbier dégradant une nuque à la tondeuse et au peigne."],
     ['La barbe', "Une barbe taillée aux ciseaux, le client allongé sous la serviette."],
+    ['Les outils', "Deux paires de ciseaux et deux peignes de coupe, alignés sur une serviette blanche pliée."],
   ];
 
   const cases = {};
@@ -125,19 +136,6 @@ function galerie() {
       alt: alt || `Photo ${n} de la galerie du salon.`,
       largeur: 700,
       hauteur: 933,
-    };
-
-    // La seconde photo d'un avant/apres. Pas de legende propre : c'est celle de
-    // la case qui legende les deux, sans quoi on lirait deux titres sous une
-    // seule idee.
-    cases[`galerie-${n}-apres`] = {
-      titre: `Galerie ${n} — après`,
-      format: 'Portrait',
-      legende: null,
-      alt: `Le résultat, après la prestation (photo ${n}).`,
-      largeur: 700,
-      hauteur: 933,
-      apres: true,
     };
   }
 

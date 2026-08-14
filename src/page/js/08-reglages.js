@@ -590,15 +590,6 @@ async function peindrePhotosReglages() {
     if (!remplie) break;
 
     cases.push({ id, nom: `Galerie — ${n}`, ou: `Vignette ${n} de la planche.` });
-
-    // La seconde photo d'un avant/après, proposée seulement quand la première
-    // existe : sans elle, la case n'apparaît pas sur le site.
-    cases.push({
-      id: `${id}-apres`,
-      nom: `Galerie — ${n} · après`,
-      ou: 'Facultatif. Affiche les deux photos côte à côte, sous la même légende.',
-      apres: true,
-    });
   }
 
   // Aucune photo de galerie : on propose la première case, sinon il n'y aurait

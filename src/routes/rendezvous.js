@@ -86,6 +86,33 @@ export const rendezVousRouter = express.Router();
 const MAX_ECHECS = 5;
 const FENETRE_MS = 15 * 60 * 1000;
 
+/**
+ * Le second compteur : par REFERENCE, et non par adresse.
+ *
+ * >>> LE PREMIER NE PROTEGE PAS DE CE QUI MENACE VRAIMENT. <<<
+ *
+ * La reference vaut trente bits ; les quatre derniers chiffres du telephone
+ * n'en valent que treize — DIX MILLE possibilites, pas une de plus. Quelqu'un
+ * qui a vu une reference sur une capture d'ecran, un courriel transfere ou un
+ * bout de papier n'a donc que dix mille essais a faire pour ouvrir le
+ * rendez-vous de quelqu'un d'autre.
+ *
+ * Le compteur par adresse ne l'arrete pas : il lui suffit de repartir les
+ * essais sur plusieurs adresses, ce qui coute quelques euros. Celui-ci, si —
+ * il compte les echecs SUR CETTE REFERENCE, d'ou qu'ils viennent.
+ *
+ * ⚠️ SON SEUIL EST PLUS HAUT QUE L'AUTRE, ET C'EST DELIBERE. Bloquer par
+ *    reference, c'est aussi ce qui permet a un tiers de fermer la page
+ *    d'annulation d'un client pendant un quart d'heure en se trompant expres.
+ *    Dix essais laissent une marge confortable a qui se trompe de bonne foi, et
+ *    la porte de sortie existe toujours : le numero du salon est ecrit sous le
+ *    formulaire.
+ *
+ * Comme pour l'adresse, un jeton juste efface le compteur : le client legitime
+ * qui clique le lien de son courriel debloque sa propre reference.
+ */
+const MAX_ECHECS_REFERENCE = 10;
+
 // --- Le refus unique -------------------------------------------------------
 
 /**
@@ -216,6 +243,12 @@ function garde(traitement) {
   return async (req, res, next) => {
     const cle = `rdv:${req.ip}`;
 
+    // La reference visee, normalisee comme le fera `authentifier()` : sans
+    // cela, « mqj-ybk » et « MQJYBK » compteraient sur deux compteurs
+    // differents, ce qui reviendrait a n'en avoir aucun.
+    const reference = normaliserReference(req.body?.reference);
+    const cleReference = reference ? `rdv-ref:${reference}` : null;
+
     try {
       // Le lien du courriel passe le blocage — mais seulement s'il porte un
       // jeton, et il devra encore prouver que ce jeton est le bon. Voir le
@@ -223,8 +256,17 @@ function garde(traitement) {
       const parJeton = typeof req.body?.jeton === 'string' && req.body.jeton.length > 0;
 
       if (!parJeton) {
-        const limite = isRateLimited(cle, { max: MAX_ECHECS });
+        const parAdresse = isRateLimited(cle, { max: MAX_ECHECS });
+        const parReference = cleReference
+          ? isRateLimited(cleReference, { max: MAX_ECHECS_REFERENCE })
+          : { bloque: false };
+
+        const limite = parAdresse.bloque ? parAdresse : parReference;
+
         if (limite.bloque) {
+          // La phrase ne dit ni lequel des deux compteurs a parle, ni combien
+          // d'essais restaient : ce sont deux renseignements qui n'aident que
+          // celui qui enumere.
           return res.status(429).json({
             error: `Trop de tentatives. Réessayez dans ${Math.ceil(limite.secondes / 60)} minutes.`,
           });
@@ -235,10 +277,12 @@ function garde(traitement) {
 
       if (authentification.refus) {
         recordFailure(cle, { fenetreMs: FENETRE_MS });
+        if (cleReference) recordFailure(cleReference, { fenetreMs: FENETRE_MS });
         return res.status(authentification.refus.code).json({ error: authentification.refus.message });
       }
 
       resetFailures(cle);
+      if (cleReference) resetFailures(cleReference);
       return await traitement(req, res, authentification.rendezVous);
     } catch (erreur) {
       next(erreur);

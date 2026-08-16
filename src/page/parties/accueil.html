@@ -48,7 +48,17 @@
         <p class="etiquette"><span class="rail-numero">01</span> Accueil</p>
       </div>
 
-      <h1>Coupe, barbe<br>et rasage<br>à <span data-champ="ville">Bavay</span></h1>
+      <!--# UNE ESPACE AVANT CHAQUE <br>, ET CE N'EST PAS UN DÉTAIL.
+
+           Sans elles, `textContent` rend « Coupe, barbeet rasageà Bavay » : les
+           mots se collent. Le rendu à l'écran est identique — un `<br>` coupe
+           la ligne, l'espace qui le précède tombe en fin de ligne et ne se voit
+           pas — mais c'est ce texte-là que reprennent l'extrait Google,
+           l'aperçu d'un partage, et le copier-coller d'un visiteur.
+
+           Un titre de page illisible dans un résultat de recherche est un
+           titre qui ne se clique pas. #-->
+      <h1>Coupe, barbe <br>et rasage <br>à <span data-champ="ville">Bavay</span></h1>
 
       <p class="intro">
         Trois barbiers, du mardi au samedi. Rendez-vous en ligne ou par

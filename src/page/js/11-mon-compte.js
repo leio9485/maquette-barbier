@@ -47,18 +47,30 @@ async function ouvrirEspaceConnecte() {
  * dessus en visant « Reglages » juste a cote. Le bouton dit ensuite ce qu'il
  * fait pendant qu'il le fait — la remise a zero reconstruit une base entiere,
  * ce n'est pas instantane.
+ *
+ * ⚠️ RIEN ICI NE BLOQUE PLUS LE FIL PRINCIPAL. Tout est `await` sur des
+ *    requetes, et la page continue de defiler pendant l'operation. Le seul
+ *    appel qui figeait l'onglet etait la confirmation NATIVE qui ouvrait cette
+ *    fonction : `window.confirm()` arrete tout jusqu'a la reponse, rendu
+ *    compris — c'est ce qui donnait l'impression d'une page plantee.
  */
 async function remettreDemoAZero() {
   const bouton = $('#demoRemiseAZero');
   const message = $('#messageDemo');
 
-  const seul = "Remettre la démonstration dans son état de départ ?\n\n"
-    + "Les réglages, les rendez-vous et les photos saisis depuis la dernière "
-    + "remise à zéro seront effacés.";
-  if (!window.confirm(seul)) return;
+  const accepte = await demanderConfirmation({
+    titre: 'Remettre la démonstration à zéro',
+    phrase: 'Remettre la démonstration dans son état de départ ?',
+    consequence: 'Les réglages, les rendez-vous et les photos saisis depuis la '
+      + 'dernière remise à zéro seront effacés. C\'est sans conséquence : cette '
+      + 'base est faite pour ça.',
+    oui: 'Oui, tout remettre à zéro',
+    non: 'Non, garder ce qu\'il y a',
+  });
+  if (!accepte) return;
 
   bouton.disabled = true;
-  poserTexte(bouton, 'Remise à zéro…');
+  poserTexte(bouton, 'Remise à zéro en cours…');
   afficherMessage(message, '');
 
   try {
@@ -72,8 +84,11 @@ async function remettreDemoAZero() {
     //    vitrine, elle, relira tout a sa prochaine ouverture.
     CONFIG = await lireConfig();
     ESPACE.brouillon = null;
-    await chargerAgenda();
-    if (ESPACE.volet === 'reglages') await chargerReglages();
+
+    // La vue courante, quelle qu'elle soit : le bandeau est en tete des trois
+    // volets, et on remet a zero aussi bien depuis les chiffres que depuis
+    // l'agenda.
+    await rafraichirVoletCourant();
 
     afficherMessage(message, 'La démonstration est repartie de son état de départ.', 'bon');
   } catch (erreur) {
@@ -85,6 +100,121 @@ async function remettreDemoAZero() {
   }
 }
 
+// --- LA SECTION « COMPTE » ---------------------------------------------------
+//
+// >>> ELLE N'EXISTAIT PAS. <<<
+//
+// `PUT /api/admin/password` etait ecrite et testee depuis le debut, et n'avait
+// aucun formulaire. Un commercant a qui l'on livre un identifiant cree en ligne
+// de commande ne pouvait donc jamais changer son mot de passe, ni le renouveler
+// au depart d'un employe. Pour un produit facture, c'est la premiere chose
+// qu'un acheteur oppose.
+
+/** Ce que la section « Compte » affiche : qui, depuis quand, combien d'appareils. */
+function peindreCompte() {
+  const cible = $('#ficheCompte');
+  if (!cible) return;
+
+  const compte = ESPACE.compte;
+  if (!compte) return peindreFicheDeTravail(cible, []);
+
+  const autres = compte.otherSessions ?? 0;
+
+  peindreFicheDeTravail(cible, [
+    ['Identifiant', compte.username],
+    ['Dernière connexion', compte.lastLoginAt
+      ? `${dateCourte(compte.lastLoginAt.slice(0, 10))} ${compte.lastLoginAt.slice(11, 16)}`
+      : 'Première connexion'],
+    ['Autres appareils connectés', autres > 0 ? String(autres) : 'aucun'],
+  ]);
+}
+
+/**
+ * Le changement de mot de passe.
+ *
+ * ⚠️ LES TROIS CHAMPS SONT VIDES DES QUE LA REQUETE EST PARTIE, qu'elle
+ *    aboutisse ou non. Un mot de passe n'a aucune raison de rester dans la page
+ *    — ni pour le prochain qui s'assied devant l'ecran, ni pour le
+ *    gestionnaire de mots de passe du navigateur.
+ */
+async function envoyerMotDePasse(evenement) {
+  evenement.preventDefault();
+
+  const message = $('#messageMotDePasse');
+  const bouton = $('#changerMotDePasse');
+
+  const actuel = $('#motDePasseActuel')?.value ?? '';
+  const nouveau = $('#motDePasseNouveau')?.value ?? '';
+  const confirmation = $('#motDePasseConfirmation')?.value ?? '';
+
+  // Deux controles avant l'aller-retour, et le serveur refait les deux : ils ne
+  // sont ici que pour eviter un aller-retour evident.
+  if (!actuel || !nouveau) {
+    return signalerChampMotDePasse(!actuel ? 'motDePasseActuel' : 'motDePasseNouveau',
+      message, 'Remplissez les trois champs.');
+  }
+  if (nouveau !== confirmation) {
+    return signalerChampMotDePasse('motDePasseConfirmation', message,
+      'Les deux nouveaux mots de passe ne sont pas identiques.');
+  }
+
+  bouton.disabled = true;
+  poserTexte(bouton, 'Changement en cours…');
+  afficherMessage(message, '');
+
+  try {
+    const reponse = await changerMotDePasse(actuel, nouveau, confirmation);
+
+    viderChampsMotDePasse();
+    for (const id of ['motDePasseActuel', 'motDePasseNouveau', 'motDePasseConfirmation']) {
+      marquerRefus($('#' + id), false);
+    }
+
+    // Les autres sessions viennent d'etre fermees : le compte a change, on le
+    // relit plutot que de deviner ce qu'il est devenu.
+    try {
+      ESPACE.compte = await lireCompte();
+      peindreCompte();
+    } catch { /* le compte s'affichera a la prochaine ouverture */ }
+
+    afficherMessage(message, reponse?.message ?? 'Mot de passe modifié.', 'bon');
+  } catch (erreur) {
+    if (erreur.code === 401 && !erreur.message.includes('actuel')) return exigerConnexion();
+
+    viderChampsMotDePasse();
+    signalerChampMotDePasse(
+      erreur.message.includes('actuel') ? 'motDePasseActuel' : 'motDePasseNouveau',
+      message, erreur.message);
+  } finally {
+    bouton.disabled = false;
+    poserTexte(bouton, 'Changer le mot de passe');
+  }
+}
+
+function viderChampsMotDePasse() {
+  for (const id of ['motDePasseActuel', 'motDePasseNouveau', 'motDePasseConfirmation']) {
+    const champ = $('#' + id);
+    if (champ) champ.value = '';
+  }
+}
+
+/**
+ * Le refus d'un champ : il se signale, il s'annonce, et il reprend le focus.
+ *
+ * Les trois comptent, et la troisieme n'est pas un confort : sans elle,
+ * quelqu'un au lecteur d'ecran reste sur le bouton et n'apprend jamais lequel
+ * des trois champs est en cause.
+ */
+function signalerChampMotDePasse(champId, message, texte) {
+  afficherMessage(message, texte);
+
+  for (const id of ['motDePasseActuel', 'motDePasseNouveau', 'motDePasseConfirmation']) {
+    marquerRefus($('#' + id), id === champId);
+  }
+
+  $('#' + champId)?.focus();
+}
+
 /**
  * Y a-t-il encore une session valide ?
  *
@@ -94,7 +224,7 @@ async function remettreDemoAZero() {
  */
 async function verifierSession() {
   try {
-    await lireCompte();
+    ESPACE.compte = await lireCompte();
     await ouvrirEspaceConnecte();
   } catch {
     exigerConnexion();
@@ -153,14 +283,39 @@ function ouvrirVolet(nom) {
   }
 
   if (nom === 'chiffres') chargerChiffres();
-  if (nom === 'reglages') chargerReglages();
+  if (nom === 'reglages') { chargerReglages(); peindreCompte(); }
   if (nom === 'agenda') chargerAgenda();
+}
+
+/**
+ * Relit ce que le volet ouvert affiche, et lui seul.
+ *
+ * ⚠️ L'AGENDA EST TOUJOURS RELU, meme quand on regarde un autre volet : il est
+ *    deja peint derriere, et le laisser sur des rendez-vous effaces est
+ *    exactement ce qui donne l'impression qu'une remise a zero n'a rien remis.
+ *    Les deux autres volets, eux, se relisent seulement s'ils sont a l'ecran —
+ *    reconstruire les 255 champs des reglages pour personne coute cher et ne
+ *    montre rien.
+ */
+function rafraichirVoletCourant() {
+  const attentes = [chargerAgenda()];
+  if (ESPACE.volet === 'chiffres') attentes.push(chargerChiffres());
+  if (ESPACE.volet === 'reglages') attentes.push(chargerReglages());
+  return Promise.all(attentes);
 }
 
 function brancherCompte() {
   $('#formulaireConnexion')?.addEventListener('submit', envoyerConnexion);
   $('#seDeconnecter')?.addEventListener('click', envoyerDeconnexion);
   $('#demoRemiseAZero')?.addEventListener('click', remettreDemoAZero);
+  $('#formulaireMotDePasse')?.addEventListener('submit', envoyerMotDePasse);
+
+  // Un champ corrige cesse d'etre en faute des la frappe : laisser le filet
+  // rouge et `aria-invalid` sur un champ qu'on vient de reecrire ferait dire
+  // « saisie invalide » sur une saisie qui ne l'est plus.
+  for (const id of ['motDePasseActuel', 'motDePasseNouveau', 'motDePasseConfirmation']) {
+    $('#' + id)?.addEventListener('input', (evenement) => marquerRefus(evenement.target, false));
+  }
 
   for (const onglet of $$('.espace-onglet')) {
     onglet.addEventListener('click', () => ouvrirVolet(onglet.dataset.volet));

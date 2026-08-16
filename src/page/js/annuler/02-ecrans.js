@@ -28,12 +28,14 @@ function montrerEcran(id) {
   }
 }
 
-function afficherMessage(element, texte, ton = '') {
-  if (!element) return;
-  poserTexte(element, texte);
-  if (ton) element.dataset.ton = ton; else delete element.dataset.ton;
-  montrer(element, Boolean(texte));
-}
+// >>> `afficherMessage()` N'EST PLUS REDEFINIE ICI. <<<
+//
+// Elle l'etait, mot pour mot identique a celle de js/02-utilitaires.js, que ce
+// document charge deja. La copie l'emportait — meme portee, declaration plus
+// tardive — si bien que la version partagee ne servait a rien sur cette page.
+// C'est passe inapercu tant que les deux etaient identiques ; le jour ou l'une
+// a recu `role="alert"` (lot 5), cette page serait restee muette pour un
+// lecteur d'ecran, sans que rien ne le signale.
 
 // --- LA FICHE ---------------------------------------------------------------
 
@@ -136,15 +138,23 @@ async function chercher(evenement) {
   }
 }
 
+/**
+ * Un champ refuse : le filet change, la phrase d'aide dit pourquoi, le focus y
+ * revient — ET le lecteur d'ecran l'apprend.
+ *
+ * C'est ce dernier point qui manquait : ni `aria-invalid`, ni
+ * `aria-describedby`, nulle part. Tout est desormais dans `marquerRefus()`
+ * (js/02-utilitaires.js), partage par cette page, le tunnel et l'espace.
+ */
 function signaler(champId, aideId, texte) {
   const champ = $('#' + champId);
-  champ?.closest('.champ')?.setAttribute('data-refus', '');
   poserTexte($('#' + aideId), texte);
+  marquerRefus(champ, true, aideId);
   champ?.focus();
 }
 
 function effacer(champId, aideId, texteDeRepos) {
-  $('#' + champId)?.closest('.champ')?.removeAttribute('data-refus');
+  marquerRefus($('#' + champId), false, aideId);
   poserTexte($('#' + aideId), texteDeRepos);
 }
 
@@ -183,7 +193,7 @@ async function annulerVraiment() {
     }
   } finally {
     bouton.disabled = false;
-    poserTexte(bouton, 'Oui, annuler ce rendez-vous');
+    poserTexte(bouton, 'Oui, annuler');
   }
 }
 

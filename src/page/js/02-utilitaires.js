@@ -170,6 +170,57 @@ function afficherMessage(element, texte, ton = '') {
   poserTexte(element, texte);
   if (ton) element.dataset.ton = ton; else delete element.dataset.ton;
   montrer(element, Boolean(texte));
+
+  // ⚠️ LE MESSAGE EST ANNONCE, ET IL NE L'ETAIT PAS.
+  //
+  // La validation etait excellente a l'oeil — le focus part sur le champ fautif,
+  // la phrase dit quoi faire et donne un exemple — et parfaitement MUETTE pour
+  // un lecteur d'ecran : aucune region vivante nulle part. Quelqu'un qui ne voit
+  // pas l'ecran appuyait sur « Réserver ce créneau » et, de son point de vue, il
+  // ne se passait rien.
+  //
+  // `alert` pour un refus (il interrompt : c'est une impasse, il faut le savoir
+  // tout de suite), `status` pour une bonne nouvelle (elle attend la fin de la
+  // phrase en cours). Pose ICI plutot que dans chaque balise : le site compte
+  // une quinzaine de ces messages, et un seul oubli redonnerait un formulaire
+  // muet.
+  element.setAttribute('role', ton === 'bon' ? 'status' : 'alert');
+}
+
+/**
+ * Un champ refuse : il se signale a l'oeil ET au lecteur d'ecran.
+ *
+ * Trois choses, dont deux ne se voient pas :
+ *
+ *   - `data-refus` sur le conteneur `.champ` : le filet du champ change, c'est
+ *     ce qui existait deja ;
+ *   - `aria-invalid` sur le champ : c'est ce qui fait dire « saisie invalide »
+ *     en arrivant dessus. Il manquait partout ;
+ *   - `aria-describedby` vers la phrase d'explication : c'est ce qui fait LIRE
+ *     cette phrase en arrivant sur le champ, plutot que de laisser deviner ce
+ *     qui ne va pas. Il manquait partout aussi.
+ *
+ * `aria-describedby` est POSE ET RETIRE, et non laisse en place : hors refus, la
+ * phrase est un texte d'aide au repos (« Six caractères, par exemple MQJYBK »),
+ * deja lisible a l'ecran, et l'annoncer en boucle a chaque passage sur le champ
+ * ferait du bruit sans rien apprendre.
+ */
+function marquerRefus(champ, enFaute, aideId = '') {
+  if (!champ) return;
+
+  const conteneur = champ.closest('.champ');
+
+  if (enFaute) {
+    conteneur?.setAttribute('data-refus', '');
+    champ.setAttribute('aria-invalid', 'true');
+    if (aideId) champ.setAttribute('aria-describedby', aideId);
+  } else {
+    conteneur?.removeAttribute('data-refus');
+    champ.removeAttribute('aria-invalid');
+    if (aideId && champ.getAttribute('aria-describedby') === aideId) {
+      champ.removeAttribute('aria-describedby');
+    }
+  }
 }
 
 /**

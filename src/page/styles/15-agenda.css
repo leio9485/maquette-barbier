@@ -182,23 +182,111 @@
 .agenda-qui { color: var(--encre); }
 .agenda-tel { color: var(--acier); }
 
-/* Une période bloquée. Ce n'est pas un client : pas de bouton, pas de
-   téléphone, et l'intitulé en gris — c'est du temps retiré, pas du travail. */
-.agenda-ligne-bloc {
+/* Une période bloquée. Ce n'est pas un client : pas de téléphone, et l'intitulé
+   en gris — c'est du temps retiré, pas du travail.
+
+   ⚠️ C'EST UN BOUTON, COMME UN RENDEZ-VOUS, et ça ne l'était pas.
+
+   La ligne n'avait aucune action : créer un blocage demandait un formulaire
+   complet, le lever était tout simplement impossible depuis l'interface. Un
+   barbier qui se trompait d'une semaine en posant ses congés fermait sa
+   boutique en ligne sans recours. Elle ouvre maintenant sa fiche, où « Lever ce
+   blocage » l'attend (lot 1).
+
+   Elle reprend donc la géométrie de `.agenda-rdv` — même hauteur de cible, même
+   survol — sans reprendre sa couleur de personne : le filet reste gris, parce
+   qu'un blocage n'est pas du travail attribué à quelqu'un. */
+.agenda-bloc {
   display: flex;
   align-items: baseline;
   gap: var(--e2);
+  width: 100%;
   min-height: 44px;
   padding: var(--e2) 0 var(--e2) var(--e2);
+
+  background: none;
+  border: 0;
   border-left: 3px solid var(--filet);
+  border-radius: 0;
+
   color: var(--acier);
+  font-family: inherit;
+  font-size: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  transition: background-color var(--transition);
 }
 
-.agenda-ligne-bloc .agenda-nom { font-weight: 400; }
+.agenda-bloc:hover { background: rgba(22, 25, 27, 0.04); }
+
+.agenda-bloc .agenda-nom { font-weight: 400; }
 
 @media (min-width: 560px) {
   .agenda-fin { display: inline; }
   .agenda-heure { min-width: 13ch; }
+}
+
+/* --- LES RENDEZ-VOUS QU'UN BLOCAGE VA RECOUVRIR -----------------------------
+
+   La liste que le commerçant lit avant de poser ses congés sur une semaine
+   remplie : « voilà les trois personnes à rappeler ». Même forme qu'une ligne
+   d'agenda — l'heure en chasse fixe, le nom, ce qui était prévu — mais sans
+   bouton : on ne la clique pas, on la lit et on décroche son téléphone.
+
+   Le numéro est un lien `tel:`, et c'est tout l'intérêt de cet écran. */
+.conflits {
+  margin: var(--e3) 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--filet);
+}
+
+.conflit {
+  display: flex;
+  align-items: baseline;
+  gap: var(--e2);
+  padding: var(--e2) 0;
+  border-bottom: 1px solid var(--filet);
+}
+
+.conflit-quand {
+  flex: none;
+  min-width: 12ch;
+  font-size: var(--t-petit);
+}
+
+.conflit-corps {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.conflit-nom { font-weight: 500; }
+
+.conflit-quoi {
+  font-size: var(--t-petit);
+  color: var(--acier);
+}
+
+/* Le numéro se TOUCHE : il doit tenir les 24 px de WCAG 2.2 (critère 2.5.8),
+   ce qu'une ligne de 13 px ne fait pas. Même correction que `.fiche dd a`. */
+.conflit-tel {
+  flex: none;
+  display: inline-block;
+  padding: 4px 0;
+  font-size: var(--t-petit);
+  text-align: right;
+}
+
+/* Sur téléphone, les trois colonnes ne tiennent pas : le numéro passe sous le
+   nom, là où le pouce l'atteint. */
+@media (max-width: 479px) {
+  .conflit { flex-wrap: wrap; }
+  .conflit-corps { flex-basis: 100%; }
+  .conflit-tel { margin-left: auto; }
 }
 
 /* --- LA VUE SEMAINE --------------------------------------------------------

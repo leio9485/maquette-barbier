@@ -38,7 +38,11 @@ const ICI = path.dirname(fileURLToPath(import.meta.url));
 // /api/rendez-vous, qui porte sur l'adresse IP. Elle la leve avant de rendre la
 // main (voir le commentaire en tete du fichier), mais la placer avant une autre
 // suite ferait dependre celle-ci d'un deblocage.
-const SUITES = ['portees.mjs', 'debit.mjs', 'api.mjs', 'settings.mjs', 'auth.mjs', 'categories.mjs', 'staff.mjs', 'chiffres.mjs', 'espace.mjs', 'seo.mjs', 'tunnel.mjs', 'annulation.mjs'];
+// `demonstration.mjs` ne parle PAS au serveur du terminal d'a cote : elle lance
+// sa propre instance, avec DEMO_MODE et sa propre base. Elle est donc insensible
+// a l'ordre — on la met tot, parce qu'un echec de la remise a zero est ce qu'on
+// veut apprendre en premier.
+const SUITES = ['portees.mjs', 'demonstration.mjs', 'debit.mjs', 'api.mjs', 'settings.mjs', 'auth.mjs', 'categories.mjs', 'staff.mjs', 'blocages.mjs', 'chiffres.mjs', 'espace.mjs', 'seo.mjs', 'francais.mjs', 'tunnel.mjs', 'annulation.mjs'];
 
 /**
  * Lance une suite dans son propre processus, sortie affichee telle quelle.

@@ -26,7 +26,10 @@
     "test:seo": "node tests/seo.mjs",
     "test:portees": "node tests/portees.mjs",
     "test:tunnel": "node tests/tunnel.mjs",
-    "test:debit": "node tests/debit.mjs"
+    "test:debit": "node tests/debit.mjs",
+    "test:demonstration": "node tests/demonstration.mjs",
+    "test:blocages": "node tests/blocages.mjs",
+    "test:francais": "node tests/francais.mjs"
   },
   "engines": {
     "node": ">=20"

@@ -126,11 +126,87 @@
 }
 
 /* Un numero de telephone, une date, une heure : c'est une donnee, elle se
-   saisit en chasse fixe comme elle s'affiche. */
+   saisit en chasse fixe comme elle s'affiche.
+
+   ⚠️ LA DATE ET L'HEURE MANQUAIENT A CETTE LISTE. Les deux fenetres de l'espace
+      commercant — « Noter un rendez-vous », « Bloquer une periode » — affichaient
+      leur date dans la police du texte courant, a quelques centimetres d'un
+      tunnel client ou chaque heure est en chasse fixe. La regle de la charte est
+      pourtant sans exception : IBM Plex Mono pour TOUTE donnee. */
 .champ input[type="tel"],
+.champ input[type="date"],
+.champ input[type="time"],
+.champ select,
 .champ input[inputmode="numeric"] {
   font-family: var(--f-donnee);
   font-variant-numeric: tabular-nums;
+}
+
+/* --- LES CONTROLES NATIFS, HABILLES ---------------------------------------
+
+   >>> ON GARDE LE CONTROLE NATIF. <<< Le `<select>` et le `<input type="date">`
+   du systeme sont excellents sur telephone — roue de selection, calendrier de
+   l'OS, clavier, lecteur d'ecran, tout marche et rien n'est a reecrire. Les
+   remplacer par un composant maison coute trois cents lignes et les rate.
+
+   Ce qui se voyait, c'est qu'ils n'etaient pas HABILLES : chevron du systeme,
+   icone de calendrier bleue, a quelques centimetres d'un tunnel client ou un
+   calendrier a ete dessine a la main. Sur l'ecran qu'on montre au patron pour
+   justifier le prix, le contraste se remarque tout de suite.
+
+   On ne redessine donc que l'habillage — et le comportement reste celui du
+   navigateur. */
+
+/* Le chevron du systeme est retire, et redessine avec les jetons de la charte :
+   deux filets a angle droit, comme tout le reste du site.
+
+   La grille sert a le poser DANS la meme cellule que le champ : sans elle, il
+   faudrait deviner la hauteur de l'intitule au-dessus et celle de l'aide en
+   dessous, ce qui casse des qu'un des deux change. */
+.champ:has(select) {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.champ:has(select) > label { grid-row: 1; }
+.champ:has(select) > select { grid-row: 2; }
+.champ:has(select) > .aide { grid-row: 3; }
+
+.champ select {
+  appearance: none;
+  /* La place du chevron, pour qu'une option longue ne passe pas dessous. */
+  padding-right: var(--e4);
+}
+
+.champ:has(select)::after {
+  content: '';
+  grid-row: 2;
+  justify-self: end;
+  align-self: center;
+  width: 8px;
+  height: 8px;
+  margin-right: var(--e2);
+  border-right: 2px solid var(--encre);
+  border-bottom: 2px solid var(--encre);
+  transform: translateY(-2px) rotate(45deg);
+  /* Le chevron n'intercepte rien : le clic doit ouvrir la liste, comme partout. */
+  pointer-events: none;
+}
+
+/* L'icone du calendrier et celle de l'horloge : conservees — c'est par elles
+   qu'on ouvre le selecteur natif — mais ramenees a l'encre du site. Sans cette
+   ligne, elles arrivent dans le bleu du systeme, qui n'est pas celui de la
+   charte. */
+.champ input[type="date"]::-webkit-calendar-picker-indicator,
+.champ input[type="time"]::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+  transition: opacity var(--transition);
+}
+
+.champ input[type="date"]:hover::-webkit-calendar-picker-indicator,
+.champ input[type="time"]:hover::-webkit-calendar-picker-indicator {
+  opacity: 1;
 }
 
 .champ input:focus,
@@ -330,6 +406,31 @@
 .surimpression-corps {
   padding: var(--e3);
   overflow-y: auto;
+  /* Le defilement s'arrete au bord de la boite : arrive en butee, la molette ne
+     passe pas la main a la page du dessous. C'est la moitie de la correction du
+     lot 8e — l'autre moitie est `.sans-defilement` ci-dessous. */
+  overscroll-behavior: contain;
+}
+
+/* --- LA PAGE NE DEFILE PLUS DERRIERE LA FENETRE ---------------------------
+
+   >>> `body { overflow: hidden }` NE SUFFISAIT PAS, ET LA RAISON EST A DEUX
+       FICHIERS D'ICI. <<<
+
+   Le navigateur ne fait remonter l'`overflow` du `<body>` a la fenetre QUE si
+   le `<html>` a lui-meme un `overflow` a `visible`. Or styles/03-fondations.css
+   pose `html { overflow-x: clip }` — la ligne qui empeche le defilement
+   horizontal et qui a deja coute le decollement du bandeau d'etat. `clip` n'est
+   pas `visible` : la propagation est coupee, et `body { overflow: hidden }`
+   n'arrete plus rien du tout. Le code avait l'air juste, il l'etait meme il y a
+   deux ans, et il ne faisait plus rien.
+
+   La regle est donc posee sur `<html>` directement, le temps qu'une fenetre
+   soit ouverte. `overflow: hidden` y fait de `<html>` une boite de defilement —
+   ce qui decollerait `position: sticky` — mais uniquement pendant que le voile
+   couvre l'ecran, ou plus rien de colle n'est visible. */
+html.sans-defilement {
+  overflow: hidden;
 }
 
 .surimpression-corps h3 {
@@ -345,6 +446,52 @@
   /* Centrée verticalement à partir des écrans où il y a la place. Collée en bas
      sur téléphone : c'est là que le pouce atteint le bouton de fermeture. */
   .surimpression { align-items: center; padding: var(--e3); }
+}
+
+/* --- CE QUI PRECEDE L'IRREVERSIBLE ------------------------------------------
+
+   Pas d'aplat, pas de couleur : un filet epais a gauche et le texte. La charte
+   n'a pas de rouge, et une annulation de rendez-vous chez le barbier n'est pas
+   un evenement qu'il faut dramatiser — elle demande seulement qu'on la lise
+   avant de cliquer.
+
+   >>> VENU DE styles/20-annuler.css (lot 2). <<< C'etait `.annuler-avertissement`,
+   et rien n'y etait propre a la page d'annulation : c'est le dessin d'une
+   confirmation, et l'espace commercant en supprimait sans en avoir aucun.
+*/
+.avertissement {
+  margin: var(--e3) 0 var(--e4);
+  padding-left: var(--e2);
+  border-left: 3px solid var(--filet);
+  color: var(--acier);
+  font-size: var(--t-petit);
+  line-height: 1.5;
+}
+
+/* --- LA PAIRE DE BOUTONS D'UNE DECISION -------------------------------------
+
+   Empiles sur telephone, cote a cote des qu'il y a la place. L'action
+   principale d'abord dans le balisage : c'est l'ordre du clavier, et sur
+   telephone c'est le premier bouton sous le pouce.
+
+   ⚠️ LES DEUX BOUTONS PORTENT UN VERBE, jamais « OK » et « Annuler ». Ici
+      « Annuler » designe deja une action metier — annuler un rendez-vous — et
+      un bouton qui dirait « Annuler » pour « ne rien faire » serait exactement
+      a l'envers.
+
+   `flex: 1 1 14rem` plutot qu'une largeur : les deux boutons gardent la meme
+   hauteur quand le libelle de l'un passe sur deux lignes.
+*/
+.actions-paire {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e2);
+  margin-top: var(--e4);
+}
+
+@media (min-width: 34rem) {
+  .actions-paire { flex-direction: row; flex-wrap: wrap; }
+  .actions-paire > * { flex: 1 1 14rem; }
 }
 
 /* --- LE LIEN NU ------------------------------------------------------------

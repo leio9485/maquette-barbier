@@ -69,30 +69,330 @@ function isoDate(date) {
   return `${an}-${mois}-${jour}`;
 }
 
-/** Les `n` prochains jours d'ouverture, a partir de demain. */
-function prochainsJoursOuverts(n) {
-  const jours = [];
-  const curseur = new Date();
-  let garde = 0;
+// ---------------------------------------------------------------------------
+// LA GRAINE DE DEMONSTRATION
+//
+// >>> ELLE PLAIDAIT CONTRE LE PRODUIT. <<<
+//
+// Le volet « Chiffres » est, sur le fond, le meilleur argument commercial du
+// site : du temps rempli compte en minutes sur le temps reellement ouvert
+// (conges deduits), des prestations classees par ce qu'elles rapportent, des
+// heures creuses sur huit semaines, des nouveaux clients distingues des
+// habitues par leur numero. De la gestion, pas de la statistique decorative.
+//
+// Voici pourtant ce qu'un prospect y lisait :
+//
+//     Rendez-vous cette semaine      4
+//     Chiffre d'affaires prevu       89 €
+//     Temps rempli                   2 %
+//     Ecart avec le mois dernier     —
+//     Mois dernier                   0 rendez-vous · 0 €
+//     Heures les plus creuses        mardi 09:00 · aucun  (×5)
+//     Clientele                      Nouveaux 100 % · Deja venus 0 %
+//     Absences                       Taux —
+//
+// Quatre-vingt-neuf euros de chiffre d'affaires hebdomadaire POUR TROIS
+// BARBIERS. Un commercant qui regarde cet ecran voit un salon a l'agonie, pas
+// un outil qui va l'aider. Le tableau de bord disait « ce salon ne marche pas »
+// la ou il devait dire « voila ce que je vais vous montrer sur VOTRE activite ».
+//
+// La graine couvre donc huit semaines glissantes plus le mois en cours, avec
+// des habitues qui reviennent, des absences pointees, une semaine de conges
+// passee, et un vrai creux le mardi matin.
+//
+// ⚠️ TOUT EST RELATIF AU JOUR OU ELLE EST JOUEE. Aucune date en dur : elle sera
+//    rejouee dans six mois, et un agenda qui parle d'aout 2026 en fevrier 2027
+//    est pire qu'un agenda vide.
+//
+// ⚠️ ELLE EST REPRODUCTIBLE. Le tirage part d'une graine fixe : deux appels
+//    successifs le meme jour donnent EXACTEMENT la meme demonstration. Ce n'est
+//    pas un raffinement — c'est ce qui permet de promettre que le bouton
+//    « Remettre a zero » rend la meme chose que le redemarrage du serveur, et
+//    c'est verifie par tests/demonstration.mjs.
+// ---------------------------------------------------------------------------
 
-  while (jours.length < n && garde < 60) {
-    curseur.setDate(curseur.getDate() + 1);
-    garde++;
-    if (DEFAULT_CONFIG.hours[curseur.getDay()]) jours.push(isoDate(curseur));
-  }
-  return jours;
+/** Sur combien de semaines la graine remonte. Le tableau de bord en lit huit. */
+const SEMAINES_PASSEES = 8;
+
+/**
+ * Le tirage : reproductible, et bon marche.
+ *
+ * `Math.random()` donnerait une demonstration differente a chaque appel, ce qui
+ * rendrait invérifiable la promesse « le bouton fait la meme chose que le
+ * redemarrage ». Ce generateur (mulberry32) tient en six lignes, ne depend de
+ * rien, et rend toujours la meme suite pour la meme graine.
+ */
+function tirage(graine) {
+  let etat = graine >>> 0;
+  return function suivant() {
+    etat = (etat + 0x6D2B79F5) >>> 0;
+    let t = etat;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// --- LA CLIENTELE ----------------------------------------------------------
+//
+// >>> ELLE EST ENGENDREE, ET NON ECRITE A LA MAIN. <<<
+//
+// Onze semaines de trois barbiers font environ mille sept cents visites. Une
+// liste ecrite a la main en aurait compte une vingtaine, et le meme monsieur
+// serait passe cinquante fois en deux mois — trois fois dans la meme journee.
+// L'agenda, qui est le premier ecran qu'un prospect ouvre, aurait montre un
+// carnet de rendez-vous impossible.
+//
+// Quarante prenoms croises avec quarante-cinq noms du Nord donnent mille huit
+// cents personnes distinctes en vingt lignes de code. Chacune garde le meme
+// numero d'une visite a l'autre — c'est ce numero, et lui seul, qui distingue
+// un nouveau client d'un habitue (voir src/lib/statistiques.js).
+
+const PRENOMS = [
+  'Damien', 'Anthony', 'Bruno', 'Sébastien', 'Ludovic', 'Jordan', 'Mickaël',
+  'Olivier', 'Pascal', 'Fabrice', 'Kévin', 'Thierry', 'Nicolas', 'Julien',
+  'Grégory', 'Adrien', 'Romain', 'Cédric', 'Maxime', 'Guillaume', 'Alexandre',
+  'Benoît', 'Étienne', 'Florian', 'Hugo', 'Loïc', 'Mathieu', 'Quentin',
+  'Sylvain', 'Vincent', 'Yannick', 'Christophe', 'Frédéric', 'Jérôme',
+  'Laurent', 'Marc', 'Patrick', 'Stéphane', 'Xavier', 'Antoine',
+];
+
+const NOMS = [
+  'Carpentier', 'Vasseur', 'Leclercq', 'Mahieu', 'Wattiez', 'Delattre',
+  'Dhaine', 'Fontaine', 'Dhennin', 'Leroy', 'Legrand', 'Bouchez', 'Wauquier',
+  'Delcourt', 'Masclet', 'Deloffre', 'Lheureux', 'Vanhove', 'Descamps',
+  'Petit', 'Ruffin', 'Cardon', 'Duhamel', 'Béghin', 'Trélat', 'Bracq',
+  'Wallers', 'Sauvage', 'Poteau', 'Lemaire', 'Dubois', 'Caudron', 'Hennion',
+  'Lecomte', 'Framery', 'Delsart', 'Bouquet', 'Moreau', 'Danjou', 'Vermeersch',
+  'Lespagnol', 'Herbaut', 'Coulon', 'Mairesse', 'Bocquet',
+];
+
+/**
+ * Combien de personnes reviennent regulierement.
+ *
+ * ⚠️ CE NOMBRE DECIDE DU RYTHME DE RETOUR, et donc de la credibilite de
+ *    l'agenda. Trop peu, et le meme client repasse toutes les semaines ; trop,
+ *    et plus personne n'est un habitue — la ligne « Deja venus » retombe a zero,
+ *    ce qui etait le defaut constate. A trois cents, chacun revient toutes les
+ *    trois semaines environ : le rythme d'un barbier.
+ */
+const NOMBRE_HABITUES = 300;
+
+/** Ou commencent les clients qu'on ne voit qu'une fois. */
+const PREMIER_DE_PASSAGE = NOMBRE_HABITUES;
+const NOMBRE_DE_PASSAGE = 700;
+
+/**
+ * Ou commencent les clients qui n'apparaissent QUE dans le mois en cours.
+ *
+ * ⚠️ SANS EUX, « NOUVEAUX CLIENTS » AFFICHE ZERO. Le tableau de bord compare
+ *    les numeros du mois a TOUT ce que la base contient avant lui : une graine
+ *    qui tire ses clients dans un seul sac fait de chacun un habitue, et la
+ *    ligne se lit « Nouveaux 0 % · Deja venus 100 % » — l'inverse exact du
+ *    defaut d'origine, tout aussi faux, et tout aussi visible.
+ */
+const PREMIER_NOUVEAU = PREMIER_DE_PASSAGE + NOMBRE_DE_PASSAGE;
+const NOMBRE_NOUVEAUX = 60;
+
+/**
+ * Une personne, designee par son rang.
+ *
+ * ⚠️ LES NUMEROS RESTENT DANS LA PLAGE RESERVEE A LA FICTION
+ *    (06/07 39 98 XX XX) : une demonstration ne fait sonner le telephone de
+ *    personne. Deux mille rangs y tiennent largement.
+ */
+function personneDeRang(rang) {
+  const nom = `${PRENOMS[rang % PRENOMS.length]} ${NOMS[Math.floor(rang / PRENOMS.length) % NOMS.length]}`;
+
+  const prefixe = rang % 2 ? '07' : '06';
+  const reste = Math.floor(rang / 2);
+  const ab = String(Math.floor(reste / 100) % 100).padStart(2, '0');
+  const cd = String(reste % 100).padStart(2, '0');
+
+  return [nom, `${prefixe} 39 98 ${ab} ${cd}`];
 }
 
 /**
- * Des rendez-vous credibles pour la semaine qui vient.
+ * Ce que les gens prennent, et a quelle frequence.
+ *
+ * Les poids ne sont pas decoratifs : ils decident de ce que montre le classement
+ * « prestations par chiffre d'affaires », qui est l'un des blocs qu'on commente
+ * devant un prospect. Une coupe homme toutes les trois visites, un forfait de
+ * temps en temps, un soin rarement — c'est la forme d'un carnet de barbier.
+ */
+const FREQUENCES = [
+  ['coupe-homme', 30],
+  ['coupe-tondeuse', 14],
+  ['coupe-barbe', 13],
+  ['barbe-taille', 10],
+  ['coupe-shampooing', 8],
+  ['contours', 7],
+  ['barbe-serviette', 5],
+  ['coupe-enfant', 5],
+  ['rasage-coupe-chou', 4],
+  ['coupe-rasage', 2],
+  ['pere-fils', 2],
+  ['coloration-barbe', 2],
+  ['soin-visage', 1],
+];
+
+/** Le tarif et la duree d'une prestation, lus dans les valeurs livrees. */
+const PRESTATION = new Map(DEFAULT_CONFIG.services.map((s) => [s.id, s]));
+
+/**
+ * Qui peut assurer quoi.
+ *
+ * La regle du produit se lit depuis la prestation : une prestation que personne
+ * ne coche revient a TOUTE l'equipe ; des qu'une seule personne la coche, elle
+ * n'est plus qu'a elle. La graine doit la respecter, sans quoi l'agenda
+ * montrerait Yanis en train de faire un rasage au coupe-chou alors que les
+ * reglages, deux onglets plus loin, disent que c'est reserve a Remi.
+ */
+const ASSUREE_PAR = new Map();
+for (const service of DEFAULT_CONFIG.services) {
+  const reserves = DEFAULT_CONFIG.staff.filter((p) => (p.services ?? []).includes(service.id));
+  ASSUREE_PAR.set(service.id, reserves.length ? reserves.map((p) => p.id) : null);
+}
+
+/** Les horaires propres a une personne, quand elle en a. */
+const HORAIRES_PROPRES = new Map(
+  DEFAULT_CONFIG.staff.filter((p) => p.hours).map((p) => [p.id, p.hours])
+);
+
+/** Les plages continues travaillees par quelqu'un ce jour-la, en minutes. */
+function plagesDe(staffId, dateIso) {
+  const jour = new Date(`${dateIso}T12:00:00`).getDay();
+  const horaires = (staffId && HORAIRES_PROPRES.get(staffId)) || DEFAULT_CONFIG.hours;
+  const h = horaires[jour];
+  if (!h) return [];
+
+  return h.pause
+    ? [[toMin(h.open), toMin(h.pause[0])], [toMin(h.pause[1]), toMin(h.close)]]
+    : [[toMin(h.open), toMin(h.close)]];
+}
+
+/**
+ * Une semaine de conges, DANS LE PASSE.
+ *
+ * ⚠️ ELLE EST LA POUR ETRE MONTREE. La phrase sous « Temps rempli » promet que
+ *    les conges sont deduits du temps a vendre — c'est ce qui evite qu'un taux
+ *    s'effondre chaque mois d'aout. Sans une seule periode bloquee dans
+ *    l'historique, cette phrase reste une promesse invérifiable.
+ *
+ * Posee cinq semaines en arriere : assez loin pour etre dans les huit semaines
+ * que lit le tableau de bord, assez pres pour tomber dans le mois precedent ou
+ * dans le mois en cours selon la date — dans les deux cas, elle se voit.
+ */
+function congesPasses(depart) {
+  const blocs = [];
+
+  const debut = new Date(depart);
+  debut.setDate(debut.getDate() - 5 * 7);
+
+  for (let n = 0; n < 7; n++) {
+    const jour = new Date(debut);
+    jour.setDate(debut.getDate() + n);
+
+    // Les jours de fermeture habituelle ne recoivent rien : c'est exactement ce
+    // que fait la route de blocage, et la graine ne doit pas raconter autre
+    // chose que le produit.
+    const horaire = DEFAULT_CONFIG.hours[jour.getDay()];
+    if (!horaire) continue;
+
+    blocs.push({
+      kind: 'block',
+      date: isoDate(jour),
+      startMin: toMin(horaire.open),
+      durationMin: toMin(horaire.close) - toMin(horaire.open),
+      staffId: null,
+      notes: 'Congés',
+      source: 'phone',
+    });
+  }
+
+  return blocs;
+}
+
+/**
+ * Combien de temps le commerce cherche a remplir, ce jour-la.
+ *
+ * ⚠️ CE N'EST PAS UNE CONSTANTE, ET C'EST TOUT L'INTERET.
+ *
+ *   - LES TROIS PROCHAINS JOURS SONT PLUS CREUX. Un prospect qui veut essayer
+ *     la reservation depuis la vitrine tombe sur ces jours-la : un agenda plein
+ *     a 70 % trois semaines a l'avance est credible, mais il ne laisse plus de
+ *     place pour une « coupe + rasage » d'une heure, et la demonstration
+ *     buterait sur son propre realisme.
+ *   - LE SAMEDI DEBORDE, le mardi traine. C'est la semaine d'un barbier.
+ */
+function tauxDuJour({ dateIso, joursDIci }) {
+  // ⚠️ CE N'EST PAS UN TAUX DE REMPLISSAGE, C'EST UNE PROBABILITE DE POSER a
+  //    chaque quart d'heure. Le remplissage qui en resulte est plus eleve : une
+  //    prestation dure en moyenne deux quarts d'heure, un refus n'en coute
+  //    qu'un. 0,55 donne environ 66 % de temps rempli — mesure, pas estime.
+  if (joursDIci > 0 && joursDIci <= 3) return 0.42;
+
+  const jour = new Date(`${dateIso}T12:00:00`).getDay();
+
+  if (jour === 6) return 0.74;  // samedi, le gros jour
+  if (jour === 5) return 0.72;  // vendredi, nocturne
+  if (jour === 2) return 0.55;  // mardi, le jour creux
+  return 0.67;
+}
+
+/**
+ * Le creux du mardi matin, appuye.
+ *
+ * >>> LE BLOC « HEURES LES PLUS CREUSES » EST LE PLUS ACTIONNABLE DU TABLEAU DE
+ *     BORD, et il affichait cinq fois « aucun ». <<< Un patron ne peut pas
+ *     grand-chose de son chiffre d'affaires du mois ; il peut fermer le mardi
+ *     matin, decaler son ouverture, ou y poser une promotion. Encore faut-il
+ *     que le bloc designe de VRAIES heures creuses plutot que des heures sans
+ *     aucune donnee — cinq lignes a zero ne se distinguent pas d'une base vide.
+ *
+ * Le mardi de 9 h a 11 h recoit donc trois fois moins que le reste : assez pour
+ * sortir en tete du classement, jamais zero.
+ */
+function creuxDeLaSemaine(dateIso, minute) {
+  const jour = new Date(`${dateIso}T12:00:00`).getDay();
+  if (jour === 2 && minute < 11 * 60) return 0.3;
+  // La derniere heure d'une nocturne se remplit mal partout.
+  if (jour === 5 && minute >= 20 * 60) return 0.5;
+  return 1;
+}
+
+/**
+ * Des rendez-vous credibles sur huit semaines passees, la semaine en cours, et
+ * la fin du mois.
  *
  * Ni trop peu (un agenda desert ne donne pas envie), ni complet (le visiteur
  * doit pouvoir reserver et voir son rendez-vous apparaitre). Un melange de
  * « en ligne » et de « telephone », pour montrer que les deux coexistent.
  */
-export function rendezVousDemo({ equipe = [] } = {}) {
-  const j = prochainsJoursOuverts(4);
-  const rdv = [];
+export function rendezVousDemo({ equipe = [], maintenant = new Date() } = {}) {
+  const lignes = [];
+  const hasard = tirage(20260817);
+
+  const aujourdhui = isoDate(maintenant);
+
+  // Le dernier jour couvert : la fin du mois en cours. Le taux de remplissage
+  // du mois se calcule sur le mois ENTIER, jours a venir compris — s'arreter a
+  // aujourd'hui donnerait un mois a moitie vide le 5 du mois.
+  //
+  // ⚠️ A 23 H 59, ET NON A MINUIT. Le curseur de la boucle garde l'heure de
+  //    `maintenant` ; borne a minuit, la comparaison `jour <= finDuMois` etait
+  //    fausse des le dernier jour du mois, et ce jour-la ne recevait rien. Une
+  //    demonstration remise a zero un 31 affichait alors « Rien de prevu ».
+  const finDuMois = new Date(maintenant.getFullYear(), maintenant.getMonth() + 1, 0, 23, 59, 59);
+
+  const debut = new Date(maintenant);
+  debut.setDate(debut.getDate() - SEMAINES_PASSEES * 7);
+
+  // Les conges d'abord : les journees qu'ils couvrent ne recoivent aucun
+  // rendez-vous, exactement comme dans la realite.
+  const blocs = congesPasses(maintenant);
+  const joursBloques = new Set(blocs.map((b) => b.date));
+  lignes.push(...blocs);
 
   // Chaque rendez-vous designe la personne qui l'assure — mais seulement si
   // l'equipe existe. Sur une base sans equipe (le cas d'un commerce qui travaille
@@ -103,91 +403,147 @@ export function rendezVousDemo({ equipe = [] } = {}) {
   // « bloque toute l'equipe » et donnerait a voir un defaut, pas une fonction.
   const qui = (id) => (equipe.includes(id) ? id : null);
 
-  // ⚠️ LES JOURNEES N'ONT PAS TOUTES LES MEMES HEURES ICI : nocturne le vendredi
-  // jusqu'a 21h, samedi en journee continue qui ferme a 17h, et Yanis a ses
-  // propres horaires (absent le mardi, part a 18h).
-  //
-  // Or `j[0]`... `j[3]` designent les quatre prochains jours d'ouverture : selon
-  // le jour ou la demonstration est remise a zero, le meme rendez-vous tombe un
-  // mercredi ou un samedi. Ecrit a l'aveugle, un rendez-vous de 18h00 finirait
-  // regulierement une heure apres la fermeture — et c'est l'agenda, la premiere
-  // chose qu'un prospect ouvre, qui montrerait l'incoherence.
-  //
-  // On verifie donc que chaque rendez-vous tient reellement dans une plage
-  // ouverte, pour la personne qui l'assure. Ceux qui ne tiennent pas sont
-  // simplement omis : un agenda un peu plus creux vaut mieux qu'un agenda faux.
-  const HORAIRES_PROPRES = new Map(
-    DEFAULT_CONFIG.staff.filter((p) => p.hours).map((p) => [p.id, p.hours])
-  );
+  // L'equipe reellement disponible pour la graine. Sur une base sans equipe, on
+  // pose une ressource unique, sans identifiant : c'est le commerce qui
+  // travaille seul, et le calcul de disponibilite le lit exactement ainsi.
+  const personnes = DEFAULT_CONFIG.staff.filter((p) => equipe.includes(p.id));
+  const ressources = personnes.length ? personnes.map((p) => p.id) : [null];
 
-  /** Les plages continues d'une journee, en minutes : [[debut, fin], ...]. */
-  function plages(staffId, dateIso) {
-    const jour = new Date(`${dateIso}T12:00:00`).getDay();
-    const horaires = (staffId && HORAIRES_PROPRES.get(staffId)) || DEFAULT_CONFIG.hours;
-    const h = horaires[jour];
-    if (!h) return [];
-
-    return h.pause
-      ? [[toMin(h.open), toMin(h.pause[0])], [toMin(h.pause[1]), toMin(h.close)]]
-      : [[toMin(h.open), toMin(h.close)]];
-  }
-
-  /** Pose un rendez-vous, sauf s'il ne tient pas dans une plage ouverte. */
-  const poser = (date, heure, duree, serviceId, staffId, nom, tel, source) => {
-    const debut = toMin(heure);
-    const tient = plages(staffId, date).some(([o, f]) => debut >= o && debut + duree <= f);
-    if (!tient) return;
-    rdv.push({
-      date,
-      startMin: debut,
-      durationMin: duree,
-      serviceId,
-      staffId: qui(staffId),
-      customerName: nom,
-      customerPhone: tel,
-      source,
+  /** Une prestation tiree au sort, que cette personne-la peut assurer. */
+  function prestationPour(staffId, placeRestante) {
+    const possibles = FREQUENCES.filter(([id, poids]) => {
+      const reserves = ASSUREE_PAR.get(id);
+      if (reserves && staffId && !reserves.includes(staffId)) return false;
+      return poids > 0 && PRESTATION.get(id).duration <= placeRestante;
     });
-  };
+    if (!possibles.length) return null;
 
-  // Les numeros sont dans la plage reservee a la fiction (06/07 39 98 XX XX) :
-  // une demonstration ne fait sonner le telephone de personne.
-  if (j[0]) {
-    poser(j[0], '09:00', 25, 'coupe-homme', 'stf-remi',
-      'Damien Carpentier', '06 39 98 14 07', 'phone');
-    // Meme heure, quelqu'un d'autre : c'est ce qui montre d'un coup d'oeil que
-    // le commerce recoit plusieurs clients a la fois.
-    poser(j[0], '09:00', 45, 'coupe-barbe', 'stf-karim',
-      'Anthony Vasseur', '06 39 98 52 31', 'online');
-    poser(j[0], '14:00', 40, 'rasage-coupe-chou', 'stf-remi',
-      'Bruno Leclercq', '07 39 98 03 66', 'online');
-    poser(j[0], '17:30', 15, 'coupe-tondeuse', 'stf-yanis',
-      'Kévin Legrand', '06 39 98 77 12', 'online');
+    const total = possibles.reduce((somme, [, poids]) => somme + poids, 0);
+    let seuil = hasard() * total;
+    for (const [id, poids] of possibles) {
+      seuil -= poids;
+      if (seuil <= 0) return PRESTATION.get(id);
+    }
+    return PRESTATION.get(possibles[0][0]);
   }
-  if (j[1]) {
-    poser(j[1], '10:00', 20, 'barbe-taille', 'stf-karim',
-      'Sébastien Mahieu', '06 39 98 41 90', 'phone');
-    // Une heure pleine : la plus longue prestation du catalogue, qui fait voir
-    // que les creneaux tiennent compte de la duree reelle.
-    poser(j[1], '14:00', 60, 'coupe-rasage', 'stf-remi',
-      'Ludovic Wattiez', '07 39 98 25 48', 'online');
-    poser(j[1], '16:00', 25, 'coupe-homme', 'stf-yanis',
-      'Jordan Delattre', '06 39 98 60 15', 'online');
+
+  const premierDuMois = `${aujourdhui.slice(0, 7)}-01`;
+
+  /**
+   * Le rang de la personne qui vient.
+   *
+   * Trois sacs, et les trois comptent pour ce que le tableau de bord affiche :
+   *
+   *   - LES HABITUES, deux visites sur trois. Ils reviennent toutes les trois
+   *     semaines environ, et font la ligne « Deja venus » ;
+   *   - LES CLIENTS DE PASSAGE, le reste de l'historique ;
+   *   - LES NOUVEAUX DU MOIS, tires seulement a partir du premier du mois et
+   *     jamais avant. Sans eux, tout le monde a deja un antecedent en base et
+   *     la clientele s'affiche « Nouveaux 0 % ».
+   */
+  function rangDuClient(dateIso) {
+    if (dateIso >= premierDuMois && hasard() < 0.05) {
+      return PREMIER_NOUVEAU + Math.floor(hasard() * NOMBRE_NOUVEAUX);
+    }
+    if (hasard() < 0.66) return Math.floor(hasard() * NOMBRE_HABITUES);
+    return PREMIER_DE_PASSAGE + Math.floor(hasard() * NOMBRE_DE_PASSAGE);
   }
-  if (j[2]) {
-    poser(j[2], '09:30', 20, 'coupe-enfant', 'stf-yanis',
-      'Nathan (9 ans)', '06 39 98 88 04', 'phone');
-    poser(j[2], '11:00', 30, 'barbe-serviette', 'stf-karim',
-      'Mickaël Dhaine', '06 39 98 19 73', 'online');
-    poser(j[2], '15:00', 45, 'pere-fils', 'stf-remi',
-      'Olivier Fontaine', '07 39 98 34 21', 'online');
+
+  for (const jour = new Date(debut); jour <= finDuMois; jour.setDate(jour.getDate() + 1)) {
+    const dateIso = isoDate(jour);
+    if (!DEFAULT_CONFIG.hours[jour.getDay()]) continue;
+    if (joursBloques.has(dateIso)) continue;
+
+    const joursDIci = Math.round(
+      (new Date(`${dateIso}T12:00:00`) - new Date(`${aujourdhui}T12:00:00`)) / 86400000
+    );
+    const taux = tauxDuJour({ dateIso, joursDIci });
+
+    // Personne ne passe deux fois chez le barbier le meme jour. Sans ce
+    // garde-fou, le tirage produisait deux ou trois doublons par journee — et
+    // c'est le genre de detail qu'un prospect remarque tout de suite en
+    // parcourant l'agenda, parce que c'est la premiere chose qu'il y lit.
+    const dejaVenusAujourdhui = new Set();
+
+    for (const staffId of ressources) {
+      for (const [ouverture, fermeture] of plagesDe(staffId, dateIso)) {
+        let curseur = ouverture;
+
+        while (curseur + 10 <= fermeture) {
+          const chance = taux * creuxDeLaSemaine(dateIso, curseur);
+
+          // Le pas de quinze minutes est celui du commerce : un agenda dont les
+          // rendez-vous tombent a 09:07 se lit comme un agenda faux.
+          if (hasard() > chance) { curseur += 15; continue; }
+
+          const prestation = prestationPour(staffId, fermeture - curseur);
+          if (!prestation) { curseur += 15; continue; }
+
+          let rang = rangDuClient(dateIso);
+          for (let essai = 0; essai < 5 && dejaVenusAujourdhui.has(rang); essai++) {
+            rang = rangDuClient(dateIso);
+          }
+          dejaVenusAujourdhui.add(rang);
+
+          const [nom, telephone] = personneDeRang(rang);
+
+          lignes.push({
+            date: dateIso,
+            startMin: curseur,
+            durationMin: prestation.duration,
+            serviceId: prestation.id,
+            staffId: qui(staffId),
+            customerName: nom,
+            customerPhone: telephone,
+            // Deux sur trois pris en ligne : c'est ce qu'on vend, et le reste
+            // montre que le telephone continue d'exister.
+            source: hasard() < 0.66 ? 'online' : 'phone',
+            ...pointage({ dateIso, aujourdhui, hasard }),
+          });
+
+          // ⚠️ LE CURSEUR REVIENT SUR LA GRILLE DU QUART D'HEURE, TOUJOURS.
+          //
+          // Il avancait de la duree exacte, plus un « souffle » de cinq minutes
+          // une fois sur deux. Deux consequences, toutes deux visibles :
+          //
+          //   - des rendez-vous a 09:05 et 14:35, alors que le commerce propose
+          //     ses creneaux au quart d'heure (`slotStep`). Un agenda dont les
+          //     heures ne tombent pas sur la grille se lit comme un agenda faux ;
+          //   - des trous de CINQ MINUTES entre deux clients. Le taux de
+          //     remplissage etait juste, et pourtant il ne restait plus une
+          //     seule place vendable : un samedi affichait 74 % de temps rempli
+          //     et zero creneau libre pour une coupe. La demonstration butait
+          //     sur son propre realisme.
+          //
+          // Sur la grille, ce qui reste libre est reservable.
+          curseur = Math.ceil((curseur + prestation.duration) / 15) * 15;
+        }
+      }
+    }
   }
-  if (j[3]) {
-    poser(j[3], '10:30', 30, 'coloration-barbe', 'stf-karim',
-      'Pascal Dhennin', '06 39 98 07 55', 'online');
-    poser(j[3], '18:00', 45, 'coupe-barbe', 'stf-remi',
-      'Fabrice Leroy', '06 39 98 92 38', 'phone');
-  }
-  return rdv;
+
+  return lignes;
+}
+
+/**
+ * « Venu », « pas venu », ou rien.
+ *
+ * ⚠️ SEULS LES RENDEZ-VOUS PASSES SONT POINTES, et pas tous : le taux d'absence
+ *    se calcule sur CE QUI A ETE POINTE, pas sur ce qui est passe (voir
+ *    src/lib/statistiques.js). Pointer tout ferait mentir la phrase qui
+ *    l'explique ; ne rien pointer laissait le taux a « — », ce qui etait le
+ *    defaut constate.
+ *
+ * Une visite sur douze finit en absence : credible pour un barbier sans acompte
+ * ni carte bancaire — et c'est justement l'argument de vente du produit, donc
+ * le chiffre qu'un prospect regarde.
+ */
+function pointage({ dateIso, aujourdhui, hasard }) {
+  if (dateIso >= aujourdhui) return {};
+
+  const tirageDuPointage = hasard();
+  if (tirageDuPointage > 0.82) return {};              // pas encore pointe
+  return { presence: hasard() < 0.11 ? 'absent' : 'venu' };
 }
 
 /**
@@ -238,8 +594,13 @@ export async function resetDemo() {
     return candidate;
   };
 
-  const rdv = rendezVousDemo({ equipe: config.staff.map((p) => p.id) })
-    .map((r) => ({
+  // ⚠️ LA GRAINE REND AUSSI DES BLOCAGES — une semaine de conges passee, qui
+  //    fait la demonstration de la phrase « les congés sont déduits du temps à
+  //    remplir ». Ils n'ont ni tarif, ni reference, ni jeton : ce ne sont pas
+  //    des rendez-vous, et leur en donner ferait apparaitre des references
+  //    annulables sur des journees fermees.
+  const lignes = rendezVousDemo({ equipe: config.staff.map((p) => p.id) })
+    .map((r) => (r.kind === 'block' ? r : {
       ...r,
       priceCents: tarif(r.serviceId),
       ...(r.source === 'online'
@@ -247,7 +608,7 @@ export async function resetDemo() {
         : {}),
     }));
 
-  await prisma.booking.createMany({ data: rdv });
+  await prisma.booking.createMany({ data: lignes });
   await ensureDemoAccount();
 }
 

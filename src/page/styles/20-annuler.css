@@ -12,14 +12,36 @@
    a une page d'erreur.
    --------------------------------------------------------------------------- */
 
-/* La colonne unique. `--marge` de chaque cote, jamais plus large que la mesure
-   confortable : cette page n'a qu'une seule chose a montrer a la fois. */
+/* --- L'ENVELOPPE -----------------------------------------------------------
+
+   >>> ELLE CENTRAIT SA COLONNE, ET C'ETAIT LE SEUL ECRAN DU SITE A LE FAIRE. <<<
+
+   `max-width: var(--largeur-colonne)` avec `margin: 0 auto` : le contenu
+   demarrait a 489 px sur un ecran de 1536, la ou toute la vitrine demarre a la
+   gouttiere de la grille. La charte est explicite — « aligne a gauche, jamais
+   centre, ET aligne sur la meme abscisse : bandeau, nom du commerce, rails de
+   section, bande de reperes et pied de page demarrent tous a la gouttiere ».
+
+   C'est la page qu'un client atteint quand il a un souci : le pire endroit pour
+   donner l'impression d'avoir change de site.
+
+   L'enveloppe est donc CELLE DE LA VITRINE (`.bloc-corps`, styles/04-grille-et-
+   rail.css) : meme largeur maximale, meme marge. Ce qui reste borne a la mesure
+   de lecture, c'est le TEXTE — et il l'est a gauche, sans etre centre. */
 .annuler-largeur {
   width: 100%;
-  max-width: var(--largeur-colonne);
+  max-width: var(--largeur-max);
   margin: 0 auto;
   padding-left: var(--marge);
   padding-right: var(--marge);
+}
+
+/* La colonne de lecture : bornee, alignee a gauche. Une ligne de formulaire de
+   1320 px de large serait illisible, et l'etirer n'etait jamais l'objet — c'est
+   le CENTRAGE qui posait probleme, pas la largeur. */
+.annuler-corps h1,
+.annuler-ecran {
+  max-width: var(--largeur-colonne);
 }
 
 /* --- LA BARRE DU HAUT ------------------------------------------------------
@@ -112,39 +134,13 @@
   text-transform: uppercase;
 }
 
-/* --- CE QUI PRECEDE L'IRREVERSIBLE ------------------------------------------
+/* >>> L'AVERTISSEMENT ET LA PAIRE DE BOUTONS ONT DEMENAGE. <<<
 
-   Pas d'aplat, pas de couleur : un filet epais a gauche et le texte. La charte
-   n'a pas de rouge, et une annulation de rendez-vous chez le barbier n'est pas
-   un evenement qu'il faut dramatiser — elle demande seulement qu'on la lise
-   avant de cliquer.
-*/
-.annuler-avertissement {
-  margin: var(--e3) 0 var(--e4);
-  padding-left: var(--e2);
-  border-left: 3px solid var(--filet);
-  color: var(--acier);
-  font-size: var(--t-petit);
-  line-height: 1.5;
-}
-
-/* --- LES BOUTONS EN PIED D'ECRAN --------------------------------------------
-
-   Empiles sur telephone, cote a cote des qu'il y a la place. L'action
-   principale d'abord dans le balisage : c'est l'ordre du clavier, et sur
-   telephone c'est le premier bouton sous le pouce.
-*/
-.annuler-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--e2);
-  margin-top: var(--e4);
-}
-
-@media (min-width: 34rem) {
-  .annuler-actions { flex-direction: row; flex-wrap: wrap; }
-  .annuler-actions > * { flex: 1 1 14rem; }
-}
+   `.annuler-avertissement` et `.annuler-actions` sont devenus `.avertissement`
+   et `.actions-paire`, dans styles/05-controles.css. Ils n'avaient jamais rien
+   eu de propre a cette page : c'est le dessin d'une confirmation avant
+   l'irreversible, et l'espace commercant en avait besoin mot pour mot (lot 2).
+   Le recopier aurait fait deux dessins a maintenir pour la meme chose. */
 
 /* Le numero de telephone est ce qu'on TOUCHE sur un telephone — c'est meme
    tout l'interet de `tel:`. A 14 px de texte, la ligne fait 18 px de haut : en

@@ -881,6 +881,59 @@ bookingsRouter.post('/admin/day-block', requireAdmin, async (req, res, next) => 
 
     const horaires = await loadOpeningHours();
 
+    // ⚠️ LE MOTIF SAISI EST CONSERVE, ET IL NE L'ETAIT PAS.
+    //
+    // Le formulaire proposait « Motif (facultatif) », le commercant y ecrivait
+    // « Conges » ou « Formation Karim »... et cette ligne ecrasait sa saisie par
+    // un libelle fixe. L'agenda affichait ensuite « Journee bloquee » pour tout,
+    // et le motif n'etait visible nulle part. Un champ qu'on propose, qu'on
+    // remplit et qu'on jette est pire que pas de champ du tout.
+    //
+    // Le libelle de repli, lui, s'ecrit en francais : « Journee bloquee » sans
+    // accents etait la seule chaine du produit a s'en passer.
+    const motif = texte(req.body?.notes, 80) || (staffId ? 'Absence' : 'Journée bloquée');
+
+    // --- LES RENDEZ-VOUS QUE LE BLOCAGE VA RECOUVRIR ------------------------
+    //
+    // >>> C'EST LE MOMENT OU LE PRODUIT REND SON PLUS GRAND SERVICE. <<<
+    //
+    // Poser des conges sur une semaine deja remplie ne disait rien : le blocage
+    // s'ajoutait a cote des rendez-vous, sans hierarchie ni signalement, et le
+    // commercant decouvrait trois clients a rappeler le jour meme — ou pas.
+    //
+    // La demande est donc REFUSEE tant qu'elle n'est pas confirmee, et le refus
+    // porte la liste : nom, heure, prestation, personne, telephone. C'est
+    // « voila les trois personnes a rappeler », qui est exactement ce qu'on
+    // attend d'un agenda.
+    //
+    // Un blocage nominatif ne recouvre QUE les rendez-vous de cette personne :
+    // les autres continuent de recevoir. Une fermeture du commerce les recouvre
+    // tous, y compris ceux que personne n'assure encore.
+    const conflits = await prisma.booking.findMany({
+      where: {
+        kind: 'appt',
+        date: { gte: date, lte: fin },
+        ...(staffId ? { staffId } : {}),
+        ...OCCUPENT,
+      },
+      orderBy: [{ date: 'asc' }, { startMin: 'asc' }],
+    });
+
+    if (conflits.length && req.body?.confirmConflicts !== true) {
+      return res.status(409).json({
+        error: conflits.length > 1
+          ? `${conflits.length} rendez-vous sont déjà pris sur cette période.`
+          : 'Un rendez-vous est déjà pris sur cette période.',
+        conflicts: conflits.map((b) => toApiBooking(b)),
+      });
+    }
+
+    // Le second choix explicite : les annuler en bloc. Avant les blocages, pour
+    // qu'un echec plus bas ne laisse pas un agenda a moitie vide.
+    if (conflits.length && req.body?.cancelConflicts === true) {
+      await prisma.booking.deleteMany({ where: { id: { in: conflits.map((b) => b.id) } } });
+    }
+
     // Les jours de fermeture habituelle sont simplement sautes : poser des
     // conges du lundi au dimanche ne doit pas echouer parce que le commerce
     // ferme le lundi.
@@ -903,7 +956,7 @@ bookingsRouter.post('/admin/day-block', requireAdmin, async (req, res, next) => 
           startMin: jour.openMin,
           durationMin: jour.closeMin - jour.openMin,
           staffId,
-          notes: staffId ? 'Absence' : 'Journee bloquee',
+          notes: motif,
           source: 'phone',
         },
       }));
@@ -916,6 +969,79 @@ bookingsRouter.post('/admin/day-block', requireAdmin, async (req, res, next) => 
     if (date === fin) return res.status(201).json(toApiBooking(poses[0]));
 
     res.status(201).json({ blocks: poses.map((b) => toApiBooking(b)), skipped: ignores });
+  } catch (erreur) {
+    next(erreur);
+  }
+});
+
+/**
+ * GET /api/admin/day-block/:id — le blocage, ET LA PERIODE A LAQUELLE IL TIENT.
+ *
+ * >>> POURQUOI CETTE ADRESSE EXISTE. <<< Un blocage n'est pas une plage de
+ * dates en base : c'est UNE LIGNE PAR JOUR (voir le POST ci-dessus). Le
+ * commercant, lui, a saisi « du 12 au 22 aout, conges » et c'est ce qu'il
+ * s'attend a relire — et a lever d'un geste. Sans cette adresse, la fiche du
+ * lot 2 afficherait « le 15 aout » d'une semaine de conges, et le bouton
+ * « Lever ce blocage » n'en rouvrirait qu'un jour sur onze.
+ *
+ * ⚠️ LES JOURS DE FERMETURE HABITUELLE NE COUPENT PAS LA PERIODE. Poser des
+ *    conges du samedi au mardi n'ecrit rien le dimanche ni le lundi — le
+ *    commerce y est deja ferme. Remonter la periode doit donc les enjamber,
+ *    sans quoi une semaine de conges se lirait comme quatre blocages separes.
+ */
+bookingsRouter.get('/admin/day-block/:id', requireAdmin, async (req, res, next) => {
+  try {
+    const bloc = await prisma.booking.findUnique({ where: { id: req.params.id } });
+    if (!bloc || bloc.kind !== 'block') return refus(res, 404, 'Blocage introuvable.');
+
+    const horaires = await loadOpeningHours();
+    const ferme = (iso) => {
+      const jour = horaires[weekdayOf(iso)];
+      return !jour || jour.closed;
+    };
+
+    // Tout ce qui pourrait appartenir a la meme periode, en une seule requete :
+    // meme personne (ou meme absence de personne), autour de ce jour-la.
+    const voisins = await prisma.booking.findMany({
+      where: {
+        kind: 'block',
+        staffId: bloc.staffId,
+        date: {
+          gte: addDaysIso(bloc.date, -FENETRE_MAX_JOURS),
+          lte: addDaysIso(bloc.date, FENETRE_MAX_JOURS),
+        },
+      },
+    });
+
+    // Le motif fait partie de l'identite d'une periode : deux blocages voisins
+    // qui ne disent pas la meme chose sont deux periodes.
+    const parJour = new Map(voisins.filter((b) => b.notes === bloc.notes).map((b) => [b.date, b]));
+
+    /** Le bord de la periode dans un sens, en enjambant les jours fermes. */
+    const bord = (pas) => {
+      let extreme = bloc.date;
+      let curseur = bloc.date;
+
+      for (let n = 0; n < FENETRE_MAX_JOURS; n++) {
+        curseur = addDaysIso(curseur, pas);
+        if (ferme(curseur)) continue;
+        if (!parJour.has(curseur)) break;
+        extreme = curseur;
+      }
+      return extreme;
+    };
+
+    const du = bord(-1);
+    const au = bord(1);
+
+    res.json({
+      ...toApiBooking(bloc),
+      from: du,
+      to: au,
+      // Le nombre de journees reellement bloquees, et non l'ecart entre les deux
+      // dates : c'est ce qu'on annonce avant de tout lever.
+      days: [...parJour.keys()].filter((d) => d >= du && d <= au).length,
+    });
   } catch (erreur) {
     next(erreur);
   }

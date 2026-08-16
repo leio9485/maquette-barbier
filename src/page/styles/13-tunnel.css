@@ -98,7 +98,22 @@
       tenir en JavaScript. Un accordéon écrit à la main coûte cinquante lignes
       et rate l'un des trois.
 */
-.rayons { margin-top: var(--e4); }
+/* ⚠️ `overflow-anchor: none` : SANS LUI, OUVRIR UN RAYON LE FAIT DISPARAITRE.
+
+   L'ancrage de defilement du navigateur choisit un element de reference et
+   conserve SA position quand le contenu grandit au-dessus de lui. Ici, deplier
+   « COUPE » ajoute quatre lignes au-dessus de « BARBE » : le navigateur fait
+   alors defiler la page d'autant pour que « BARBE » ne bouge pas — et le rayon
+   qu'on vient d'ouvrir sort par le haut. Il ne reste a l'ecran que les rayons
+   qu'on n'a PAS choisis, et il faut remonter pour trouver ce qu'on cherchait.
+
+   Sur telephone, ou le pouce est deja en bas de l'ecran, c'est franchement
+   penible. Le comportement est utile ailleurs (il evite qu'une image qui se
+   charge fasse sauter le texte) ; ici il travaille exactement a l'envers. */
+.rayons {
+  margin-top: var(--e4);
+  overflow-anchor: none;
+}
 
 .rayon { border-bottom: 1px solid var(--filet); }
 

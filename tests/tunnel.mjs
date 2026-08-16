@@ -135,7 +135,14 @@ try {
     verifie('un creneau est retenu par le client', Number.isInteger(creneau), creneau);
 
     // Le client a vu ce creneau. Le salon ferme la journee.
-    const blocage = await salon.appel('POST', '/api/admin/day-block', { date: JOUR });
+    //
+    // ⚠️ `confirmConflicts` : des rendez-vous ont ete pris plus haut dans cette
+    //    suite. Depuis le lot 3c, un blocage pose par-dessus est refuse tant
+    //    qu'on n'a pas dit quoi en faire. Ici, le commercant les garde — c'est
+    //    d'ailleurs le sujet du test : la journee ferme, les rendez-vous deja
+    //    pris restent.
+    const blocage = await salon.appel('POST', '/api/admin/day-block',
+      { date: JOUR, confirmConflicts: true });
     verifie('le salon bloque la journee', blocage.status === 201, blocage.status);
 
     const r = await alice.appel('POST', '/api/bookings', {

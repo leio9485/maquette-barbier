@@ -178,10 +178,25 @@
           Deux champs, et c'est réservé. Rien à payer maintenant.
         </p>
 
-        <!--# Le rendez-vous retenu, rappelé avec son chemin de retour. C'était
+        <!--# Le rendez-vous retenu, rappelé avec ses chemins de retour. C'était
              l'étape sans porte de sortie : on y arrivait en cliquant une heure,
-             et plus rien ne permettait d'en changer. #-->
+             et plus rien ne permettait d'en changer.
+
+             ⚠️ LA PRESTATION Y FIGURE DEPUIS LE LOT 8F, et elle y manquait.
+                Le rappel n'affichait que « sam. 15 août à 09:30 » : au moment
+                où l'on saisit son numéro de téléphone, on ne voyait plus ni ce
+                qu'on avait choisi, ni ce que ça coûte. Les deux ne
+                réapparaissaient que plus bas, sous le pli, dans la fiche de
+                travail — c'est-à-dire après un défilement, sur l'écran où l'on
+                hésite le plus. #-->
         <dl class="fiche tunnel-rappel">
+          <div>
+            <dt>Prestation</dt>
+            <dd>
+              <span id="rappelPrestationEtape3">—</span>
+              <button type="button" class="lien-nu tunnel-changer" data-retour="1">Changer de prestation</button>
+            </dd>
+          </div>
           <div>
             <dt>Rendez-vous</dt>
             <dd>
@@ -205,7 +220,13 @@
 
             <div class="champ">
               <label for="clientTel">Téléphone</label>
-              <input type="tel" id="clientTel" name="telephone" autocomplete="tel" required maxlength="20" inputmode="tel">
+              <!--# `aria-describedby` DÈS LE DÉPART sur ce champ-là, et sur lui
+                   seul : son aide est permanente — elle dit pourquoi on demande
+                   un numéro — et se lit donc en arrivant dessus. Les deux
+                   autres aides n'existent qu'en cas de refus ; leur association
+                   est posée et retirée par `marquerRefus()`. #-->
+              <input type="tel" id="clientTel" name="telephone" autocomplete="tel" required maxlength="20" inputmode="tel"
+                     aria-describedby="aideTel">
               <p class="aide" id="aideTel">Pour vous prévenir si quelque chose change.</p>
             </div>
 

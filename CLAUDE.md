@@ -49,6 +49,21 @@ vieillies, papier kraft, effet cuir, planches de bois, typographies western ou
 tatouage, fausse ancienneté (« Est. 1923 »), vocabulaire « gentleman »,
 « grooming », « bespoke ».
 
+⚠️ **Cette liste porte sur le traitement graphique — matières, couleurs,
+typographies, vocabulaire — et non sur les sujets photographiés.** Les
+photographies du lieu, de l'outil, du fauteuil, du geste ou du client sont des
+documents du commerce réel : elles ne relèvent pas de cette interdiction et
+n'ont pas à être écartées parce qu'un objet du cadre évoque un barbier. Le noir
+et blanc du site les tient déjà à distance du cliché. Ce qui est proscrit, c'est
+de **rejouer ces matières dans l'habillage** : un fond en fausses planches de
+bois, une texture de cuir, une police tatouage.
+
+La précision est écrite parce que la règle a été lue à l'envers **deux audits de
+suite** : les vignettes « LE POSTE » (un fauteuil de barbier devant un lambris)
+et « LA BARBE » (un avant-bras tatoué) ont été signalées comme des violations de
+charte, et proposées au remplacement. Elles n'en sont pas, et **les
+photographies actuelles sont conservées** — décision du propriétaire, août 2026.
+
 **Les tics qui datent une page** (ils vieillissent en dix-huit mois) : dégradés,
 halos néon, verre dépoli, neumorphisme, ombres portées diffuses, grands rayons
 d'arrondi, cartes flottantes, parallaxe, apparitions au défilement, compteurs
@@ -417,7 +432,7 @@ Changer l'un sans l'autre remet les titres de section sous la barre.
 npm test
 ```
 
-**634 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
+**776 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
 `.env`.
 
 ⚠️ **`npm run dev` ne convient pas pour lancer la suite.** `node --watch`
@@ -426,17 +441,32 @@ base et `data/equipe-mise-de-cote.json`. La connexion est coupée en plein
 milieu et `npm test` échoue sur un `ECONNRESET` qui n'a rien à voir avec le
 code. Lancer `npm start`.
 
-Onze suites, dont quatre ajoutées après la première livraison :
+Quinze suites, dont sept ajoutées après la première livraison :
 
 | Suite | Ce qu'elle protège |
 |---|---|
 | `portees.mjs` | chaque document n'appelle que ce qu'il embarque |
-| `debit.mjs` | les plafonds de réservation, et la règle d'exemption |
+| `debit.mjs` | les plafonds de réservation, la règle d'exemption, `trust proxy` |
 | `chiffres.mjs` | le tableau de bord, le pointage, l'export CSV |
 | `espace.mjs` | la séparation vitrine / espace, au poids et à la chaîne près |
-| `seo.mjs` | un seul `h1`, les `alt`, le JSON-LD, le rendu hors écran |
+| `seo.mjs` | un seul `h1`, les `alt`, le JSON-LD, le rendu hors écran, les refus annoncés |
 | `tunnel.mjs` | les quatre cas de collision, et jamais deux rendez-vous |
-| `annulation.mjs` | annuler, déplacer, et l'absence d'oracle |
+| `annulation.mjs` | annuler, déplacer, l'absence d'oracle, les deux compteurs |
+| `demonstration.mjs` | la remise à zéro, et ce que le tableau de bord montre |
+| `blocages.mjs` | poser, relire et **lever** une période bloquée |
+| `francais.mjs` | aucune chaîne visible écrite sans accents |
+
+⚠️ **`demonstration.mjs` est la seule suite à lancer son propre serveur.** Ce
+qu'elle vérifie n'existe qu'avec `DEMO_MODE=true`, variable qui ne doit jamais
+figurer dans le `.env` d'une machine de développement. Elle démarre donc une
+instance sur son propre port et **sa propre base**, et efface les deux en
+partant — la variable d'environnement l'emporte sur le `.env`, vérifié.
+
+⚠️ **Trois suites tirent une référence au hasard à chaque exécution**
+(`annulation.mjs`, `debit.mjs`). Ce n'est pas de la coquetterie : depuis que les
+échecs sont comptés **par référence** autant que par adresse, une référence
+figée accumulait ses échecs d'une exécution à l'autre et bloquait le second
+`npm test` lancé dans le quart d'heure.
 
 État au moment de la livraison — Lighthouse mobile : performance 99,
 accessibilité 100, bonnes pratiques 100, SEO 100. LCP 2,0 s en 4G lente simulée,

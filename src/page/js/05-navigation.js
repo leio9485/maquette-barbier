@@ -25,13 +25,40 @@ function ouvrirSurimpression(id) {
 
   elementAvantSurimpression = document.activeElement;
   montrer(boite, true);
-
-  // Le fond ne defile plus derriere le voile : sur telephone, defiler dans une
-  // boite fait autrement bouger la page en dessous.
-  document.body.style.overflow = 'hidden';
+  bloquerLeDefilement(true);
 
   const premier = $(FOCUSABLES, boite);
   if (premier) premier.focus();
+}
+
+/**
+ * Empeche la page de defiler derriere le voile.
+ *
+ * ⚠️ SUR `<html>`, ET PLUS SUR `<body>`. C'etait `document.body.style.overflow
+ *    = 'hidden'`, et cette ligne ne faisait plus rien : le navigateur ne fait
+ *    remonter l'overflow du body a la fenetre que si le `<html>` a le sien a
+ *    `visible`. Or styles/03-fondations.css pose `html { overflow-x: clip }`,
+ *    la ligne du garde-fou horizontal. La propagation etait coupee, et
+ *    l'arriere-plan defilait derriere chaque fenetre — molette et geste
+ *    tactile.
+ *
+ * ⚠️ LA BARRE DE DEFILEMENT EST COMPENSEE. La faire disparaitre elargit la
+ *    page d'une quinzaine de pixels, et tout le contenu saute lateralement au
+ *    moment ou la fenetre s'ouvre. On rend cette largeur en marge interieure,
+ *    et on la reprend a la fermeture.
+ */
+function bloquerLeDefilement(bloquer) {
+  const racine = document.documentElement;
+
+  if (bloquer) {
+    const barre = window.innerWidth - racine.clientWidth;
+    if (barre > 0) document.body.style.paddingRight = `${barre}px`;
+    racine.classList.add('sans-defilement');
+    return;
+  }
+
+  racine.classList.remove('sans-defilement');
+  document.body.style.paddingRight = '';
 }
 
 function fermerSurimpression(id) {
@@ -39,7 +66,11 @@ function fermerSurimpression(id) {
   if (!boite) return;
 
   montrer(boite, false);
-  document.body.style.overflow = '';
+
+  // Une seule fenetre a la fois dans ce site, mais la verification coute une
+  // ligne : rendre le defilement alors qu'une autre boite est encore ouverte
+  // ferait defiler la page derriere elle.
+  if (!surimpressionOuverte()) bloquerLeDefilement(false);
 
   if (elementAvantSurimpression) {
     elementAvantSurimpression.focus();

@@ -35,6 +35,19 @@ console.log('1. La structure des titres');
   verifie('la vitrine ne porte qu\'un seul <h1>', h1 === 1, h1);
   verifie('et il est celui du titre d\'accueil',
     /<h1>Coupe, barbe/.test(vitrine), 'titre inattendu');
+
+  // ⚠️ LES MOTS NE SE COLLENT PLUS AUTOUR DES `<br>` (lot 8a).
+  //
+  // Le titre se lisait « Coupe, barbeet rasageà Bavay » une fois les balises
+  // retirees. Le rendu a l'ecran etait juste — une espace en fin de ligne ne se
+  // voit pas — mais c'est ce texte-la que reprennent l'extrait Google, l'apercu
+  // d'un partage et le copier-coller. Un titre illisible dans un resultat de
+  // recherche est un titre qui ne se clique pas.
+  const titre = /<h1>([\s\S]*?)<\/h1>/.exec(vitrine)?.[1] ?? '';
+  const lu = titre.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+
+  verifie('les mots du <h1> ne se collent pas autour des <br>',
+    lu === 'Coupe, barbe et rasage à Bavay', lu);
 }
 {
   // L'espace a le sien, et c'est normal : c'est un autre document.
@@ -323,6 +336,60 @@ console.log('\n8. Les mentions legales et la confidentialite');
   verifie('le tunnel aussi, pour la mention de confidentialite',
     /<a class="lien-nu" href="\/confidentialite" data-legal="confidentialite">confidentialité<\/a>/.test(vitrine),
     'lien absent');
+}
+
+// --- 9. Les refus de formulaire s'annoncent (lot 5) -------------------------
+//
+// >>> LA VALIDATION ETAIT PARFAITE A L'OEIL ET MUETTE AU LECTEUR D'ECRAN. <<<
+//
+// Champ vide → le focus part sur le champ et « Il nous faut un nom pour vous
+// appeler » s'affiche dessous. Telephone « abc » → « Ce numéro n'a pas l'air
+// complet. Exemple : 06 12 34 56 78. » Message utile, exemple concret, ton
+// juste. Et, releve sur les trois champs du tunnel : `aria-invalid` absent,
+// `aria-describedby` absent, aucune region vivante dans la section. Quelqu'un
+// qui ne voit pas l'ecran appuyait sur « Réserver ce créneau » et, de son point
+// de vue, il ne se passait rien.
+//
+// ⚠️ CE QUI SE TESTE ICI EST CE QUI EST SERVI, pas ce que fait le DOM apres un
+//    clic — ce projet n'embarque pas de navigateur sans tete, et n'en
+//    embarquera pas pour trois attributs. La suite verifie donc que le
+//    mecanisme PART bien dans chaque document : les attributs statiques, et la
+//    presence du code qui pose les autres. Le comportement, lui, se verifie a
+//    l'ecran, aux trois largeurs, comme le reste de la charte.
+console.log('\n9. Les refus de formulaire s\'annoncent');
+
+const espaceHtml = await fetch(`${BASE}/espace-salon`).then((r) => r.text());
+const annulerHtml = await fetch(`${BASE}/annuler`).then((r) => r.text());
+
+{
+  // L'aide PERMANENTE du telephone est associee des le depart : elle dit
+  // pourquoi on demande ce numero, et se lit en arrivant sur le champ.
+  verifie('le champ telephone du tunnel porte son aide en `aria-describedby`',
+    /id="clientTel"[^>]*aria-describedby="aideTel"|aria-describedby="aideTel"[^>]*id="clientTel"/.test(vitrine)
+    || /<input[^>]*id="clientTel"[\s\S]{0,200}?aria-describedby="aideTel"/.test(vitrine),
+    'association absente');
+
+  verifie('et l\'aide qu\'il designe existe',
+    /id="aideTel"/.test(vitrine), 'aide absente');
+}
+
+for (const [nom, html] of [['la vitrine', vitrine], ['l\'espace', espaceHtml], ['/annuler', annulerHtml]]) {
+  verifie(`${nom} embarque de quoi marquer un champ invalide`,
+    html.includes('aria-invalid'), 'aria-invalid introuvable');
+  verifie(`${nom} embarque de quoi rattacher l'explication au champ`,
+    html.includes('aria-describedby'), 'aria-describedby introuvable');
+  verifie(`${nom} annonce ses messages (role alert / status)`,
+    html.includes("'alert'") && html.includes("'status'"), 'role absent');
+}
+
+{
+  // Le piege du lot 4 : `afficherMessage()` etait redefinie a l'identique dans
+  // js/annuler/02-ecrans.js, et la copie l'emportait sur la version partagee.
+  // Le jour ou celle-ci a recu `role`, la page d'annulation serait restee muette
+  // sans que rien ne le signale.
+  const definitions = (annulerHtml.match(/function afficherMessage\(/g) ?? []).length;
+  verifie('`afficherMessage` n\'est definie qu\'une fois dans /annuler',
+    definitions === 1, definitions);
 }
 
 process.exitCode = bilan() === 0 ? 0 : 1;

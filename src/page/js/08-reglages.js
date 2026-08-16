@@ -838,7 +838,16 @@ async function envoyerReglages() {
 }
 
 async function demanderReinitialisation() {
-  if (!window.confirm('Revenir aux valeurs d\'origine ? Vos réglages actuels seront remplacés. Les rendez-vous ne sont pas touchés.')) return;
+  const accepte = await demanderConfirmation({
+    titre: 'Revenir aux valeurs d\'origine',
+    phrase: 'Remplacer vos coordonnées, vos horaires, vos prestations, votre '
+      + 'équipe et vos avis par les valeurs livrées avec le site ?',
+    consequence: 'Les rendez-vous déjà pris ne sont pas touchés. Vos réglages '
+      + 'actuels, eux, ne se récupèrent pas.',
+    oui: 'Oui, tout remettre aux valeurs d\'origine',
+    non: 'Non, garder mes réglages',
+  });
+  if (!accepte) return;
 
   try {
     await reinitialiser();

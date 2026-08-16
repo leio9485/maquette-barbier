@@ -35,6 +35,7 @@ import express from 'express';
 import { creerVerificateur, prochainJourOuvert } from './helpers.mjs';
 import { prisma } from '../src/db.js';
 import { bookingsRouter } from '../src/routes/bookings.js';
+import { rendezVousRouter } from '../src/routes/rendezvous.js';
 import {
   limiteApplicable,
   passageDisponible,
@@ -207,6 +208,9 @@ const app = express();
 app.set('trust proxy', 1);
 app.use(express.json());
 app.use('/api', bookingsRouter);
+// La recherche de rendez-vous vit dans son propre routeur : la section 5 la
+// sonde derriere le meme `trust proxy`.
+app.use('/api', rendezVousRouter);
 
 const serveur = app.listen(PORT_SONDE);
 const BASE = `http://127.0.0.1:${PORT_SONDE}`;
@@ -282,6 +286,76 @@ try {
 
   verifie('la machine elle-meme passe encore (exemption hors production)',
     locale.status === 201, [locale.status, locale.donnees.error]);
+
+  // --- 5. La recherche de rendez-vous, derriere le meme relais (lot 6) -----
+  //
+  // >>> LE PIEGE HABITUEL, VERIFIE PLUTOT QUE SUPPOSE. <<<
+  //
+  // Un compteur « par adresse » pose derriere un relais compte l'adresse DU
+  // RELAIS : tous les visiteurs tombent alors dans le meme panier, le premier
+  // programme venu ferme la porte a tout le monde, et rien ne le signale. La
+  // seule facon de le savoir est de se presenter avec DEUX adresses differentes
+  // et de verifier qu'elles ne se genent pas.
+  //
+  // ⚠️ ON EPUISE D'ABORD UNE ADRESSE, ET ON VERIFIE QUE L'AUTRE PASSE ENCORE.
+  //    L'inverse — deux adresses qui echouent — ne prouverait rien.
+  console.log('\n5. La recherche de rendez-vous, par adresse et par reference');
+
+  const IP_AUTRE = '92.184.1.3';
+
+  const chercher = async (reference, ip) => {
+    const r = await fetch(`${BASE}/api/rendez-vous/retrouver`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip },
+      body: JSON.stringify({ reference, telephone: '0000' }),
+    });
+    return r.status;
+  };
+
+  // Une reference differente a chaque execution : les compteurs vivent un quart
+  // d'heure en memoire du serveur, et une valeur figee ferait echouer deux
+  // executions rapprochees.
+  const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+  const tirer = () => Array.from({ length: 6 },
+    () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join('');
+
+  {
+    const refA = tirer();
+    let bloqueA = null;
+
+    for (let essai = 1; essai <= 8 && bloqueA === null; essai++) {
+      if (await chercher(refA, IP_PUBLIQUE) === 429) bloqueA = essai;
+    }
+
+    verifie('une adresse publique acharnee finit par etre bloquee',
+      bloqueA !== null, bloqueA);
+
+    // La MEME reference, depuis une AUTRE adresse : le compteur par reference
+    // n'a pas encore atteint son seuil (dix), celui par adresse est neuf. Elle
+    // doit donc passer — sinon `trust proxy` n'est pas pris en compte et les
+    // deux adresses partagent le meme compteur.
+    verifie('>>> UNE AUTRE ADRESSE N\'EST PAS PRISE DANS LE MEME PANIER <<<',
+      await chercher(refA, IP_AUTRE) === 404,
+      'les deux adresses partagent un compteur : `trust proxy` ne mord pas');
+  }
+  {
+    // Et le compteur par REFERENCE, lui, traverse les adresses : c'est tout son
+    // objet. Les quatre derniers chiffres d'un telephone ne valent que dix mille
+    // possibilites, et les repartir sur plusieurs adresses ne doit pas suffire.
+    const refB = tirer();
+    let bloqueA = null;
+
+    for (let essai = 1; essai <= 14 && bloqueA === null; essai++) {
+      // Une adresse differente a chaque essai : le compteur par adresse ne peut
+      // donc jamais mordre.
+      const ip = `92.184.2.${essai}`;
+      if (await chercher(refB, ip) === 429) bloqueA = essai;
+    }
+
+    verifie('>>> UNE REFERENCE ACHARNEE EST BLOQUEE MEME DEPUIS DIX ADRESSES <<<',
+      bloqueA !== null, bloqueA);
+    verifie('et cela survient au onzieme essai', bloqueA === 11, bloqueA);
+  }
 } finally {
   for (const id of crees) {
     await prisma.booking.delete({ where: { id } }).catch(() => {});

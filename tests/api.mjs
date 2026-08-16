@@ -277,7 +277,14 @@ try {
       r.donnees.bookings.some((b) => b.id === idReserve));
   }
   {
-    const r = await salon.appel('POST', '/api/admin/day-block', { date: JOUR });
+    // ⚠️ `confirmConflicts` EST OBLIGATOIRE DES QU'UN RENDEZ-VOUS EST PRIS SUR
+    //    LA PERIODE, et c'en est un cas : la reservation de la section 4 tient
+    //    sur cette journee. Sans lui, le serveur repond 409 avec la liste des
+    //    rendez-vous qu'il aurait recouverts — c'est ce qui alimente l'ecran
+    //    « voila les trois personnes a rappeler » (lot 3c), et c'est verifie
+    //    dans tests/blocages.mjs.
+    const r = await salon.appel('POST', '/api/admin/day-block',
+      { date: JOUR, confirmConflicts: true });
     verifie('la journee peut etre bloquee', r.status === 201 && r.donnees.type === 'block', r);
   }
   {
@@ -336,7 +343,7 @@ try {
     verifie('prestation inconnue refusee', r.status === 404, r.status);
   }
   {
-    await salon.appel('POST', '/api/admin/day-block', { date: JOUR });
+    await salon.appel('POST', '/api/admin/day-block', { date: JOUR, confirmConflicts: true });
     const r = await visiteur.appel('GET', `/api/days?from=${JOUR}&to=${JOUR}&serviceId=coupe-barbe`);
     verifie('une journee bloquee est annoncee complete',
       r.donnees.days[0]?.state === 'full', r.donnees.days[0]);

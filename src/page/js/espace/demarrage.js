@@ -14,6 +14,7 @@
 
 async function demarrerEspace() {
   brancherNavigation();
+  brancherConfirmation();
   brancherAgenda();
   brancherReglages();
   brancherCompte();

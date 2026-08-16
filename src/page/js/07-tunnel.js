@@ -129,6 +129,23 @@ function defilerVersTunnel() {
 
 // --- ETAPE 1 : la prestation ------------------------------------------------
 
+/**
+ * Le rappel de la prestation, AUX DEUX ENDROITS OU IL EST ECRIT.
+ *
+ * ⚠️ L'ETAPE 3 N'EN AVAIT PAS. Son rappel n'affichait que « sam. 15 aout a
+ *    09:30 » : au moment ou l'on saisit son numero de telephone, on ne voyait
+ *    plus ni ce qu'on avait choisi, ni ce que ca coute. Les deux ne
+ *    reapparaissaient que plus bas, sous le pli, dans la fiche de travail.
+ *
+ * Une fonction plutot que deux appels recopies : le jour ou la formulation
+ * change, elle ne peut pas changer d'un cote seulement.
+ */
+function poserRappelPrestation(prestation) {
+  const texte = `${prestation.name} · ${fmtDuree(prestation.duration)} · ${fmtPrix(prestation.price)}`;
+  poserTexte($('#rappelPrestation'), texte);
+  poserTexte($('#rappelPrestationEtape3'), texte);
+}
+
 function choisirPrestation(id) {
   const prestation = CONFIG?.services.find((s) => s.id === id);
   if (!prestation) return;
@@ -137,8 +154,7 @@ function choisirPrestation(id) {
   RESERVATION.date = '';
   RESERVATION.creneau = null;
 
-  poserTexte($('#rappelPrestation'),
-    `${prestation.name} · ${fmtDuree(prestation.duration)} · ${fmtPrix(prestation.price)}`);
+  poserRappelPrestation(prestation);
 
   peindreQui();
 
@@ -603,11 +619,28 @@ function courrielPlausible(brut) {
   return /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)*\.[^\s@.\d]{2,}$/.test(propre);
 }
 
+/**
+ * Un champ refuse.
+ *
+ * ⚠️ CETTE VALIDATION ETAIT PARFAITE A L'OEIL ET MUETTE AU LECTEUR D'ECRAN.
+ *
+ * Le focus partait bien sur le champ fautif, la phrase disait quoi faire et
+ * donnait un exemple (« Ce numéro n'a pas l'air complet. Exemple :
+ * 06 12 34 56 78 »). Mais aucun `aria-invalid`, aucun `aria-describedby`,
+ * aucune region vivante : quelqu'un qui ne voit pas l'ecran appuyait sur
+ * « Réserver ce créneau » et, de son point de vue, il ne se passait rien.
+ *
+ * Les trois manques sont combles ailleurs, une seule fois pour tout le site :
+ * `marquerRefus()` pose les deux attributs (js/02-utilitaires.js), et
+ * `afficherMessage()` fait de l'aide une region `role="alert"`, ce qui la fait
+ * lire au moment ou elle apparait.
+ */
 function signalerChamp(champId, aideId, texte) {
   const champ = $('#' + champId);
   const aide = $('#' + aideId);
-  champ?.closest('.champ')?.setAttribute('data-refus', '');
+
   afficherMessage(aide, texte);
+  marquerRefus(champ, true, aideId);
   champ?.focus();
 }
 
@@ -622,7 +655,8 @@ function signalerChamp(champId, aideId, texte) {
 const AIDES_AU_REPOS = new Map();
 
 function effacerChamp(champId, aideId) {
-  $('#' + champId)?.closest('.champ')?.removeAttribute('data-refus');
+  const champ = $('#' + champId);
+  marquerRefus(champ, false, aideId);
 
   const aide = $('#' + aideId);
   if (!aide) return;
@@ -633,6 +667,15 @@ function effacerChamp(champId, aideId) {
     if (!AIDES_AU_REPOS.has(aideId)) AIDES_AU_REPOS.set(aideId, aide.textContent);
     poserTexte(aide, AIDES_AU_REPOS.get(aideId));
     montrer(aide, true);
+
+    // ⚠️ ELLE REDEVIENT UNE DESCRIPTION, ET CESSE D'ETRE UNE ALERTE. Elle a pu
+    //    porter un refus il y a un instant : la laisser en `role="alert"` ferait
+    //    reannoncer « Pour vous prévenir si quelque chose change » a chaque
+    //    correction, et l'association permanente, elle, doit rester — c'est la
+    //    raison pour laquelle on demande ce numero, et elle se lit en arrivant
+    //    sur le champ.
+    aide.removeAttribute('role');
+    champ?.setAttribute('aria-describedby', aideId);
     return;
   }
 
@@ -769,8 +812,7 @@ async function reprendreDeplacement() {
   RESERVATION.date = '';
   RESERVATION.creneau = null;
 
-  poserTexte($('#rappelPrestation'),
-    `${prestation.name} · ${fmtDuree(prestation.duration)} · ${fmtPrix(prestation.price)}`);
+  poserRappelPrestation(prestation);
 
   peindreQui();
 
@@ -944,6 +986,29 @@ function brancherTunnel() {
     const ligne = evenement.target.closest('[data-choix="prestation"]');
     if (ligne) choisirPrestation(ligne.dataset.id);
   });
+
+  // Ouvrir un rayon amene son contenu dans la vue.
+  //
+  // ⚠️ EN CAPTURE, ET C'EST OBLIGATOIRE : l'evenement `toggle` d'un `<details>`
+  //    NE REMONTE PAS. Un ecouteur ordinaire pose sur le conteneur ne le verrait
+  //    jamais. La capture, elle, descend jusqu'a la cible.
+  //
+  // Pose sur le conteneur plutot que sur chaque rayon : ils sont repeints a
+  // chaque enregistrement des reglages.
+  //
+  // `block: 'nearest'` ne bouge RIEN quand le rayon est deja entierement
+  // visible — le cas courant sur un ecran d'ordinateur — et fait le minimum
+  // sinon. C'est le complement de `overflow-anchor: none` (styles/13-tunnel.css) :
+  // celui-la empeche la page de partir toute seule, celui-ci va chercher le
+  // contenu quand il depasse par le bas.
+  //
+  // ⚠️ AUCUN `behavior: 'smooth'`. Le saut est instantane, comme celui des
+  //    ancres du sommaire : styles/03-fondations.css explique pourquoi le site
+  //    n'a pas de defilement anime, et une exception ici serait la premiere.
+  $('#tunnelRayons')?.addEventListener('toggle', (evenement) => {
+    const rayon = evenement.target;
+    if (rayon.open) rayon.scrollIntoView({ block: 'nearest' });
+  }, true);
 
   // Les retours en arriere, depuis n'importe quelle etape.
   document.addEventListener('click', (evenement) => {

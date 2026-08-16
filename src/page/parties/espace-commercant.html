@@ -336,6 +336,61 @@
           </div>
         </section>
 
+        <!--# LE COMPTE.
+
+             ⚠️ CETTE SECTION N'EXISTAIT PAS, et la route non plus côté écran :
+                `PUT /api/admin/password` était écrite, testée, et n'avait
+                aucun formulaire. Un commerçant à qui l'on livre un identifiant
+                créé en ligne de commande (`npm run admin:create`) ne pouvait
+                donc JAMAIS changer son mot de passe, ni le renouveler quand un
+                employé partait. Pour un produit facturé, c'est la première
+                chose qu'un acheteur oppose.
+
+             Aucune règle de composition — pas de « une majuscule, un chiffre et
+             un caractère spécial ». Ces règles produisent des mots de passe
+             notés sur un papier collé à la caisse, ce qui est exactement ce
+             qu'on cherche à éviter. Une longueur minimale, et c'est tout.
+
+             ⚠️ CE FORMULAIRE NE PASSE PAS PAR LE BROUILLON. Un mot de passe
+                n'est pas un réglage : il ne s'accumule pas avec d'autres
+                changements en attente d'un « Enregistrer » commun, et il ne
+                doit pas rester en mémoire dans la page. Il part seul, et les
+                trois champs sont vidés aussitôt. #-->
+        <section class="reglages-bloc" id="reglagesCompte">
+          <h2>Compte</h2>
+
+          <dl class="fiche" id="ficheCompte"></dl>
+
+          <h3>Changer le mot de passe</h3>
+          <p class="secondaire petit">
+            Toutes les autres sessions seront fermées : c'est le geste à faire
+            quand quelqu'un s'en va, ou quand vous vous êtes connecté sur un
+            ordinateur qui n'est pas le vôtre. La vôtre reste ouverte.
+          </p>
+
+          <form id="formulaireMotDePasse" novalidate>
+            <div class="champ">
+              <label for="motDePasseActuel">Mot de passe actuel</label>
+              <input type="password" id="motDePasseActuel" autocomplete="current-password" required>
+            </div>
+            <div class="champ">
+              <label for="motDePasseNouveau">Nouveau mot de passe</label>
+              <input type="password" id="motDePasseNouveau" autocomplete="new-password" required>
+              <p class="aide" id="aideMotDePasse">Au moins 10 caractères. Une phrase courte fait un très bon mot de passe.</p>
+            </div>
+            <div class="champ">
+              <label for="motDePasseConfirmation">Le retaper</label>
+              <input type="password" id="motDePasseConfirmation" autocomplete="new-password" required>
+            </div>
+
+            <p class="message" id="messageMotDePasse" hidden></p>
+
+            <button type="submit" class="action" id="changerMotDePasse">
+              Changer le mot de passe
+            </button>
+          </form>
+        </section>
+
         <section class="reglages-bloc">
           <h2>Remise à zéro</h2>
           <p class="secondaire petit">
@@ -351,6 +406,77 @@
 
     </main>
   </div>
+
+  <!-- LA FICHE D'UNE LIGNE D'AGENDA ------------------------------------------
+
+       ⚠️ CE QU'UN CLIC SUR UNE LIGNE FAISAIT AVANT : il demandait
+          « Annuler le rendez-vous de X ? » dans une fenêtre native, et
+          supprimait. Ce n'est pas ce qu'on veut en cliquant sur une ligne
+          d'agenda — on veut le téléphone en entier, la prestation, la
+          référence, et savoir si le rendez-vous a été pris en ligne ou noté à
+          la main. La suppression vit maintenant ici, derrière un bouton nommé.
+
+       Une seule boîte pour les deux variantes — rendez-vous et période
+       bloquée : c'est la même fiche, et le seul bouton d'action change de
+       libellé. Deux boîtes auraient fait deux dessins à tenir d'accord. -->
+  <div class="surimpression" id="surimpressionFiche" hidden>
+    <div class="surimpression-boite" role="dialog" aria-modal="true" aria-labelledby="titreFicheAgenda">
+      <div class="surimpression-tete">
+        <h2 class="surimpression-titre" id="titreFicheAgenda"></h2>
+        <button type="button" class="surimpression-fermer" data-fermer="surimpressionFiche" aria-label="Fermer">×</button>
+      </div>
+      <div class="surimpression-corps">
+        <dl class="fiche" id="ficheAgenda"></dl>
+
+        <p class="message" id="messageFicheAgenda" hidden></p>
+
+        <div class="actions-paire">
+          <button type="button" class="action-douce" id="ficheSupprimer"></button>
+          <button type="button" class="action-douce" data-fermer="surimpressionFiche">Fermer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LES RENDEZ-VOUS QU'UN BLOCAGE VA RECOUVRIR ----------------------------
+
+       ⚠️ C'EST LE MOMENT OÙ LE PRODUIT REND SON PLUS GRAND SERVICE, et il ne
+          disait rien. Poser des congés sur une semaine déjà remplie ajoutait le
+          blocage à côté des trois rendez-vous, sans hiérarchie ni signalement :
+          le commerçant découvrait les gens à rappeler le jour même, ou pas.
+
+       Deux choix, tous deux explicites, et aucun n'est « OK ». Le téléphone est
+       un lien `tel:` : c'est un écran depuis lequel on rappelle. -->
+  <div class="surimpression" id="surimpressionConflits" hidden>
+    <div class="surimpression-boite" role="dialog" aria-modal="true" aria-labelledby="titreConflits">
+      <div class="surimpression-tete">
+        <h2 class="surimpression-titre" id="titreConflits">Des rendez-vous sont déjà pris</h2>
+        <button type="button" class="surimpression-fermer" data-fermer="surimpressionConflits" aria-label="Fermer">×</button>
+      </div>
+      <div class="surimpression-corps">
+        <p class="intro" id="phraseConflits"></p>
+
+        <ul class="conflits" id="listeConflits"></ul>
+
+        <p class="avertissement">
+          Rien n'est envoyé à personne : si vous annulez ces rendez-vous, c'est à
+          vous de prévenir. Gardez cette liste sous les yeux, elle disparaît en
+          fermant cette fenêtre.
+        </p>
+
+        <div class="actions-paire">
+          <button type="button" class="action" id="conflitsGarder">
+            Bloquer et garder ces rendez-vous
+          </button>
+          <button type="button" class="action-douce" id="conflitsAnnuler">
+            Bloquer et les annuler tous
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!--@inclure parties/confirmation.html-->
 
   <!-- LES DEUX FORMULAIRES EN SURIMPRESSION --------------------------------- -->
 

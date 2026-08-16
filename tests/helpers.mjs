@@ -25,8 +25,12 @@ const MOT_DE_PASSE_TEST = 'mot-de-passe-de-test-jetable-9471';
 /**
  * Un "navigateur" simplifie : il retient les cookies que le serveur lui donne
  * et les renvoie ensuite, ce que fetch ne fait pas tout seul.
+ *
+ * `base` vaut le serveur ouvert dans le terminal d'a cote, sauf pour
+ * tests/demonstration.mjs : cette suite lance sa propre instance, sur son propre
+ * port, parce que ce qu'elle verifie n'existe qu'avec DEMO_MODE.
  */
-export function creerClient() {
+export function creerClient(base = BASE) {
   const cookies = new Map();
 
   async function appel(methode, chemin, corps) {
@@ -38,7 +42,7 @@ export function creerClient() {
     const options = { method: methode, headers: entetes };
     if (corps !== undefined) options.body = JSON.stringify(corps);
 
-    const reponse = await fetch(BASE + chemin, options);
+    const reponse = await fetch(base + chemin, options);
     const cookiesRecus = reponse.headers.getSetCookie?.() ?? [];
 
     for (const brut of cookiesRecus) {

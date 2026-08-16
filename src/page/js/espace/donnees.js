@@ -26,9 +26,26 @@ function seDeconnecterServeur() {
   return api('/api/admin/logout', { methode: 'POST' });
 }
 
-/** Qui est connecte. Sert au demarrage : une session encore valide rouvre l'espace. */
+/**
+ * Qui est connecte, depuis quand, et combien d'autres appareils sont ouverts.
+ *
+ * Sert au demarrage — une session encore valide rouvre l'espace — et a la
+ * section « Compte » des reglages.
+ */
 function lireCompte() {
   return api('/api/admin/me');
+}
+
+/** Change le mot de passe, et ferme toutes les autres sessions au passage. */
+function changerMotDePasse(actuel, nouveau, confirmation) {
+  return api('/api/admin/password', {
+    methode: 'PUT',
+    corps: {
+      currentPassword: actuel,
+      newPassword: nouveau,
+      confirmPassword: confirmation,
+    },
+  });
 }
 
 /** Les reglages complets, prestations en pause comprises. */
@@ -80,8 +97,30 @@ function bloquerPeriode(corps) {
   return api('/api/admin/day-block', { methode: 'POST', corps });
 }
 
-function debloquerPeriode(corps) {
-  return api('/api/admin/day-block', { methode: 'DELETE', corps });
+/**
+ * Un blocage, ET LA PERIODE A LAQUELLE IL TIENT.
+ *
+ * Un blocage est une ligne par jour en base ; le commercant, lui, a saisi
+ * « du 12 au 22 aout ». C'est le serveur qui recompose la periode, parce que
+ * c'est lui qui sait quels jours sont deja fermes et n'ont donc rien recu.
+ */
+function lireBlocage(id) {
+  return api(`/api/admin/day-block/${encodeURIComponent(id)}`);
+}
+
+/**
+ * Leve un blocage, ou toute la periode a laquelle il appartient.
+ *
+ * ⚠️ EN PARAMETRES D'ADRESSE, PAS EN CORPS DE REQUETE. Cette fonction envoyait
+ *    un corps JSON a une route qui lit `req.query` : elle n'a jamais rien leve.
+ *    Personne ne s'en est apercu parce qu'aucun ecran ne l'appelait — une
+ *    periode bloquee ne pouvait pas se lever du tout (lot 1).
+ */
+function debloquerPeriode({ date, to, staffId } = {}) {
+  const p = new URLSearchParams({ date });
+  if (to) p.set('to', to);
+  if (staffId) p.set('staffId', staffId);
+  return api(`/api/admin/day-block?${p}`, { methode: 'DELETE' });
 }
 
 /**

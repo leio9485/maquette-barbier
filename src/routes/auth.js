@@ -134,8 +134,41 @@ authRouter.post('/admin/logout', async (req, res, next) => {
  * Permet au site de savoir, au chargement, s'il doit afficher l'ecran de
  * connexion ou directement l'agenda. Repond 401 si personne n'est connecte.
  */
-authRouter.get('/admin/me', requireAdmin, (req, res) => {
-  res.json({ authenticated: true, username: req.admin.username });
+authRouter.get('/admin/me', requireAdmin, async (req, res, next) => {
+  try {
+    // La DERNIERE CONNEXION en plus de l'identifiant : c'est la seule chose que
+    // le commercant peut relire pour savoir si quelqu'un d'autre est entre. Sans
+    // elle, la section « Compte » n'aurait rien a montrer entre deux changements
+    // de mot de passe.
+    //
+    // ⚠️ C'est celle d'AVANT la connexion en cours, et c'est ce qui la rend
+    //    utile : `POST /api/admin/login` ecrit `lastLoginAt` en se connectant.
+    //    Renvoyer telle quelle, elle afficherait « votre derniere connexion :
+    //    il y a deux secondes » a chaque ouverture, ce qui n'apprend rien.
+    //    On renvoie donc la DEUXIEME session la plus recente.
+    const [compte, sessions] = await Promise.all([
+      prisma.adminUser.findUnique({ where: { id: req.admin.id } }),
+      prisma.session.findMany({
+        where: { adminUserId: req.admin.id },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true, createdAt: true },
+      }),
+    ]);
+
+    const precedente = sessions.find((s) => s.id !== req.sessionToken);
+
+    res.json({
+      authenticated: true,
+      username: req.admin.username,
+      createdAt: compte?.createdAt ?? null,
+      lastLoginAt: precedente?.createdAt ?? null,
+      // Combien d'autres appareils sont ouverts sur ce compte. « Se déconnecter
+      // partout » n'a de sens que si l'on sait qu'il y a un « partout ».
+      otherSessions: Math.max(sessions.length - 1, 0),
+    });
+  } catch (erreur) {
+    next(erreur);
+  }
 });
 
 /**
@@ -159,16 +192,52 @@ authRouter.put('/admin/password', requireAdmin, async (req, res, next) => {
 
     const actuel = typeof req.body?.currentPassword === 'string' ? req.body.currentPassword : '';
     const nouveau = typeof req.body?.newPassword === 'string' ? req.body.newPassword : '';
+    const confirmation = typeof req.body?.confirmPassword === 'string' ? req.body.confirmPassword : null;
+
+    // ⚠️ LE MEME COMPTEUR QUE LA CONNEXION, ET POUR LA MEME RAISON. Le mot de
+    //    passe actuel est redemande ici : sans plafond, quelqu'un installe
+    //    devant un ordinateur reste connecte pourrait l'essayer a la chaine
+    //    depuis cette route, alors que la porte d'entree, elle, compte.
+    const cleCompte = `motdepasse:${req.ip}:${req.admin.username.toLowerCase()}`;
+    const cleAdresse = `motdepasse-adresse:${req.ip}`;
+
+    const limiteCompte = isRateLimited(cleCompte, { max: MAX_ECHECS_COMPTE });
+    const limiteAdresse = isRateLimited(cleAdresse, { max: MAX_ECHECS_ADRESSE });
+    const limite = limiteCompte.bloque ? limiteCompte : limiteAdresse;
+
+    if (limite.bloque) {
+      return res.status(429).json({
+        error: `Trop de tentatives. Réessayez dans ${Math.ceil(limite.secondes / 60)} minutes.`,
+      });
+    }
 
     const compte = await prisma.adminUser.findUnique({ where: { id: req.admin.id } });
     if (!compte) return res.status(401).json({ error: 'Compte introuvable.' });
 
     if (!(await verifyPassword(actuel, compte.passwordHash))) {
+      recordFailure(cleCompte, { fenetreMs: FENETRE_MS });
+      recordFailure(cleAdresse, { fenetreMs: FENETRE_MS });
       return res.status(401).json({ error: 'Le mot de passe actuel est incorrect.' });
+    }
+
+    resetFailures(cleCompte);
+    resetFailures(cleAdresse);
+
+    // La confirmation est verifiee ici AUSSI, et pas seulement dans le
+    // formulaire : c'est la seule facon d'en faire une regle du produit plutot
+    // qu'un confort de saisie, et donc de la tester.
+    if (confirmation !== null && confirmation !== nouveau) {
+      return res.status(400).json({
+        error: 'Les deux nouveaux mots de passe ne sont pas identiques.',
+      });
     }
 
     const faiblesse = checkPasswordStrength(nouveau);
     if (faiblesse) return res.status(400).json({ error: faiblesse });
+
+    if (nouveau === actuel) {
+      return res.status(400).json({ error: 'Le nouveau mot de passe est identique à l\'ancien.' });
+    }
 
     await prisma.adminUser.update({
       where: { id: compte.id },

@@ -144,8 +144,13 @@ try {
   let refusInconnue = null;
   let refusMauvaisTelephone = null;
   {
+    // Tiree au hasard plutot que figee a « ZZZZZZ » : depuis le lot 6, les
+    // echecs sont comptes par reference sur un quart d'heure, et une reference
+    // figee finissait bloquee au bout de trois executions de la suite. Elle
+    // repondait alors 429 la ou ce test attend le refus ordinaire — c'est-a-dire
+    // qu'il ne verifiait plus du tout ce qu'il annonce.
     const r = await visiteur.appel('POST', '/api/rendez-vous/retrouver', {
-      reference: 'ZZZZZZ', telephone: QUATRE,
+      reference: referenceJetable(), telephone: QUATRE,
     });
     refusInconnue = r;
     verifie('une reference inconnue est refusee', r.status === 404, r.status);
@@ -343,6 +348,89 @@ try {
   // qui est la meme pour toute la suite. Tout ce qui precede doit donc etre
   // passe avant qu'on le declenche.
   console.log('\n9. La limitation des tentatives');
+
+  // --- 9 a. Le compteur PAR REFERENCE (lot 6) ------------------------------
+  //
+  // >>> LE COMPTEUR PAR ADRESSE NE PROTEGE PAS DE CE QUI MENACE VRAIMENT. <<<
+  //
+  // La reference vaut trente bits, mais les quatre derniers chiffres du
+  // telephone n'en valent que treize : DIX MILLE possibilites. Qui a vu une
+  // reference — capture d'ecran, courriel transfere, bout de papier — n'a que
+  // dix mille essais a faire. Repartis sur plusieurs adresses, le compteur par
+  // adresse ne les voit jamais.
+  //
+  // CE QUE CE TEST DEMONTRE, et c'est tout son interet : le blocage survient
+  // ALORS QUE LE COMPTEUR PAR ADRESSE EST BAS. On le remet a zero toutes les
+  // quatre tentatives — une saisie juste sur une AUTRE reference suffit — et
+  // le blocage tombe quand meme.
+  {
+    const cible = referenceJetable();
+
+    const client = creerClient();
+
+    /**
+     * Une saisie JUSTE sur une AUTRE reference.
+     *
+     * Elle remet a zero le compteur d'adresse — et lui seul, puisque l'autre
+     * est indexe par reference. C'est ce qui permet de faire onze tentatives
+     * sur `cible` sans jamais approcher le seuil par adresse.
+     */
+    const remettreLAdresseAZero = async () => {
+      const r = await client.appel('POST', '/api/rendez-vous/retrouver', {
+        reference: aDeplacer.reference, telephone: QUATRE,
+      });
+      return r.status === 200;
+    };
+
+    // ⚠️ AVANT DE COMMENCER : les sections precedentes ont produit des refus, et
+    //    le compteur d'adresse n'est donc pas a zero. Sans cette remise a zero,
+    //    c'est lui qui bloquerait en premier et le test ne mesurerait rien de ce
+    //    qu'il pretend mesurer.
+    const depart = await remettreLAdresseAZero();
+    verifie('le compteur par adresse repart de zero', depart, 'remise a zero impossible');
+
+    let bloqueA = null;
+    let adresseAuBlocage = null;
+    let echecsDepuisLaRemiseAZero = 0;
+
+    for (let essai = 1; essai <= 20 && bloqueA === null; essai++) {
+      const r = await client.appel('POST', '/api/rendez-vous/retrouver', {
+        reference: cible, telephone: '0000',
+      });
+
+      if (r.status === 429) {
+        bloqueA = essai;
+        adresseAuBlocage = echecsDepuisLaRemiseAZero;
+        break;
+      }
+
+      echecsDepuisLaRemiseAZero++;
+
+      // Toutes les trois tentatives : le seuil par adresse est a cinq, on reste
+      // donc large. Le compteur par reference, lui, continue de monter.
+      if (echecsDepuisLaRemiseAZero >= 3) {
+        if (!await remettreLAdresseAZero()) break;
+        echecsDepuisLaRemiseAZero = 0;
+      }
+    }
+
+    verifie('>>> UNE REFERENCE ACHARNEE FINIT PAR ETRE BLOQUEE <<<',
+      bloqueA !== null, bloqueA);
+    verifie('le blocage survient au onzieme essai sur cette reference',
+      bloqueA === 11, bloqueA);
+    verifie('et le compteur par adresse etait loin du seuil a ce moment-la',
+      adresseAuBlocage !== null && adresseAuBlocage < 5, adresseAuBlocage);
+    console.log(`     bloque a la tentative n°${bloqueA} sur la reference ${cible}`);
+  }
+  {
+    // Le blocage vise CETTE reference, pas le service : une autre s'ouvre encore.
+    const r = await visiteur.appel('POST', '/api/rendez-vous/retrouver', {
+      reference: aDeplacer.reference, telephone: QUATRE,
+    });
+    verifie('une autre reference reste accessible', r.status === 200, r.status);
+  }
+
+  // --- 9 b. Le compteur PAR ADRESSE ----------------------------------------
   {
     // Le compteur repart de zero : les sections precedentes ont produit des
     // refus, et une reussite les efface (`resetFailures`). Sans cette ligne, on
@@ -355,9 +443,17 @@ try {
     const client = creerClient();
     let bloqueAu = null;
 
+    // ⚠️ UNE REFERENCE DIFFERENTE A CHAQUE EXECUTION, et non « ZZZZZZ ».
+    //    Depuis le lot 6, les echecs sont AUSSI comptes par reference, sur un
+    //    quart d'heure : une reference figee accumulait ses echecs d'une
+    //    execution a l'autre, et deux `npm test` d'affilee bloquaient des le
+    //    troisieme essai au lieu du sixieme. Le test mesurait alors l'autre
+    //    compteur que celui qu'il annonce.
+    const jetable = referenceJetable();
+
     for (let essai = 1; essai <= 10 && bloqueAu === null; essai++) {
       const r = await client.appel('POST', '/api/rendez-vous/retrouver', {
-        reference: 'ZZZZZZ', telephone: '0000',
+        reference: jetable, telephone: '0000',
       });
       if (r.status === 429) bloqueAu = essai;
     }
@@ -397,6 +493,22 @@ try {
     await salon.appel('DELETE', `/api/admin/bookings/${id}`);
   }
   await supprimerCompteDeTest();
+}
+
+/**
+ * Une reference du bon alphabet, differente a chaque execution.
+ *
+ * ⚠️ INDISPENSABLE DEPUIS LE LOT 6. Les echecs sont desormais comptes par
+ *    reference autant que par adresse, sur un quart d'heure. Une reference
+ *    figee dans le test accumulerait ses echecs d'une execution a l'autre : le
+ *    second `npm test` lance dans le quart d'heure verrait le blocage tomber
+ *    trois essais trop tot, et l'echec ressemblerait a un bogue du produit.
+ */
+function referenceJetable() {
+  const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+  let sortie = '';
+  for (let i = 0; i < 6; i++) sortie += ALPHABET[Math.floor(Math.random() * ALPHABET.length)];
+  return sortie;
 }
 
 /** Le jour ouvert suivant celui passe, dans la meme fenetre mardi-jeudi. */

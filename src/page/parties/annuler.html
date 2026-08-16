@@ -88,7 +88,7 @@
 
       <p class="message" id="messageFiche" hidden></p>
 
-      <div class="annuler-actions" id="ficheActions">
+      <div class="actions-paire" id="ficheActions">
         <button type="button" class="action" id="boutonDeplacer">
           Déplacer ce rendez-vous
         </button>
@@ -104,16 +104,29 @@
 
       <dl class="fiche" id="confirmationRendezVous"></dl>
 
-      <p class="annuler-avertissement">
+      <p class="avertissement">
         Le créneau repartira aussitôt à quelqu'un d'autre. Cette action ne se
         défait pas.
       </p>
 
       <p class="message" id="messageConfirmation" hidden></p>
 
-      <div class="annuler-actions">
+      <div class="actions-paire">
+        <!--# ⚠️ « OUI, ANNULER » ET NON « OUI, ANNULER CE RENDEZ-VOUS ».
+
+             En capitales, le libellé long passait sur deux lignes quand son
+             voisin en gardait une : deux boutons côte à côte dont l'un porte
+             deux lignes de texte et l'autre une, c'est un alignement rompu au
+             moment précis où l'on demande une décision irréversible.
+
+             Le complément n'est perdu pour personne : la fiche juste au-dessus
+             nomme le rendez-vous, et l'intro dit « Confirmez l'annulation ».
+             Ce qu'il fallait garder, c'est le VERBE dans les deux boutons —
+             jamais « OK » et « Annuler », qui ne disent pas ce qu'ils font et
+             qui seraient ici doublement trompeurs, « annuler » étant aussi le
+             nom de l'action métier. #-->
         <button type="button" class="action" id="boutonAnnulerVraiment">
-          Oui, annuler ce rendez-vous
+          Oui, annuler
         </button>
         <button type="button" class="action-douce" id="boutonRenoncer">
           Non, le garder
@@ -126,7 +139,7 @@
       <h2 id="finiTitre">C'est annulé</h2>
       <p class="intro" id="finiPhrase"></p>
 
-      <div class="annuler-actions">
+      <div class="actions-paire">
         <a class="action" href="/#reserver">Prendre un autre rendez-vous</a>
         <a class="action-douce" href="/">Retour au site</a>
       </div>

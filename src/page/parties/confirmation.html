@@ -1,0 +1,58 @@
+<!--# --------------------------------------------------------------------------
+   LA CONFIRMATION AVANT L'IRRÉVERSIBLE — composant partagé.
+
+   >>> IL REMPLACE LES `window.confirm()` DU DÉPÔT. <<<
+
+   Ce que le commerçant voyait avant, au milieu d'un produit dont c'est
+   précisément le soin qui justifie le prix :
+
+       letabli-barbier.onrender.com indique :
+       Supprimer ce rendez-vous ?
+       [ Annuler ]  [ OK ]
+
+   Police du système, couleurs du système, position imposée par le navigateur,
+   le nom de domaine technique en en-tête, et deux libellés qui ne disent pas
+   ce qu'ils font. « Annuler » y est même doublement faux : c'est le nom d'une
+   action métier du site.
+
+   ⚠️ LE DESSIN N'EST PAS INVENTÉ ICI : c'est celui de l'écran 3 de /annuler —
+      ce qui va disparaître, énoncé ligne à ligne ; la conséquence, écrite ;
+      deux boutons portant chacun un verbe. Les styles sont les mêmes objets
+      (`.fiche`, `.avertissement`, `.actions-paire`), remontés dans
+      styles/05-controles.css pour que les deux pages s'en servent au lieu de
+      les recopier.
+
+      /annuler garde sa confirmation en PLEIN ÉCRAN et non en surimpression :
+      c'est la seule chose que cette page fait, elle a la place, et une fenêtre
+      par-dessus une page qui ne contient qu'elle n'apporterait rien.
+
+   ⚠️ AUCUN CONTENU EN DUR ICI. Tout est écrit par `demanderConfirmation()`
+      (js/confirmation.js), qui NOMME ce qui va disparaître : « Supprimer le
+      rendez-vous de Damien Carpentier, samedi 15 août à 09:00 avec Rémi ? »,
+      jamais « Supprimer ce rendez-vous ? ».
+   -------------------------------------------------------------------------- #-->
+<div class="surimpression" id="surimpressionConfirmation" hidden>
+  <div class="surimpression-boite" role="dialog" aria-modal="true"
+       aria-labelledby="titreConfirmation">
+    <div class="surimpression-tete">
+      <h2 class="surimpression-titre" id="titreConfirmation"></h2>
+      <button type="button" class="surimpression-fermer"
+              data-fermer="surimpressionConfirmation" aria-label="Fermer">×</button>
+    </div>
+
+    <div class="surimpression-corps">
+      <p class="intro" id="phraseConfirmation"></p>
+
+      <!--# Ce qui va disparaître, ligne à ligne, dans la fiche de travail du
+           site. Masquée quand il n'y a rien à détailler. #-->
+      <dl class="fiche" id="ficheConfirmation" hidden></dl>
+
+      <p class="avertissement" id="avertissementConfirmation"></p>
+
+      <div class="actions-paire">
+        <button type="button" class="action" id="confirmationOui"></button>
+        <button type="button" class="action-douce" id="confirmationNon"></button>
+      </div>
+    </div>
+  </div>
+</div>

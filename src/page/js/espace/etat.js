@@ -22,4 +22,8 @@ const ESPACE = {
   // c'est ce qui distingue « aucun brouillon » de « brouillon identique a
   // l'enregistre ».
   brouillon: null,
+  // Qui est connecte : identifiant, derniere connexion, autres appareils
+  // ouverts. Lu une fois a l'ouverture de l'espace, relu apres un changement de
+  // mot de passe. AUCUN MOT DE PASSE N'ENTRE ICI, jamais.
+  compte: null,
 };

@@ -347,7 +347,12 @@ try {
   // --- 8. Absence d'une personne vs fermeture du commerce -----------------
   console.log('\n8. Absence et fermeture');
   {
-    const pose = await salon.appel('POST', '/api/admin/day-block', { date: JOUR, staffId: camille.id });
+    // ⚠️ `confirmConflicts` : cette journee porte deja les rendez-vous des
+    //    sections precedentes. Depuis le lot 3c, poser un blocage par-dessus
+    //    est REFUSE tant qu'on n'a pas dit quoi en faire — le refus porte la
+    //    liste des gens a rappeler. Ici, on les garde.
+    const pose = await salon.appel('POST', '/api/admin/day-block',
+      { date: JOUR, staffId: camille.id, confirmConflicts: true });
     if (pose.donnees?.id) aNettoyer.push(pose.donnees.id);
     verifie('l\'absence est enregistree',
       pose.status === 201 && pose.donnees?.staffId === camille.id, pose.donnees);
@@ -363,7 +368,8 @@ try {
       jours.donnees?.days?.[0]?.state === 'open', jours.donnees?.days?.[0]);
 
     // Une fermeture du commerce, elle, vaut pour tout le monde.
-    const ferme = await salon.appel('POST', '/api/admin/day-block', { date: JOUR });
+    const ferme = await salon.appel('POST', '/api/admin/day-block',
+      { date: JOUR, confirmConflicts: true });
     if (ferme.donnees?.id) aNettoyer.push(ferme.donnees.id);
     verifie('la fermeture du commerce est distincte de l\'absence',
       ferme.status === 201 && ferme.donnees?.staffId === null, ferme.donnees);

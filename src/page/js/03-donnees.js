@@ -59,6 +59,10 @@ async function api(chemin, options = {}) {
     // Le code HTTP sert a distinguer les refus qui demandent une reaction
     // particuliere : 409 sur un creneau pris, 401 sur une session expiree.
     erreur.code = reponse.status;
+    // Le CORPS du refus, quand il en dit plus que sa phrase. Un blocage de
+    // periode refuse joint la liste des rendez-vous qu'il aurait recouverts,
+    // et c'est cette liste que le commercant doit lire avant de decider.
+    erreur.donnees = donnees;
     throw erreur;
   }
 

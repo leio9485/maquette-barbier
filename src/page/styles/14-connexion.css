@@ -27,6 +27,21 @@
    gauche, filet en bas. Le commerçant passe de l'un à l'autre par « Voir le
    site » — les deux doivent se ressembler.
 */
+/* ⚠️ LE RETRAIT DES ANCRES EST CELUI DE CET ESPACE, PAS CELUI DE LA VITRINE.
+
+   styles/03-fondations.css — partagé par les trois documents — pose
+   `scroll-padding-top: --h-bandeau + --h-entete`. Ces deux barres n'existent
+   pas ici : l'espace n'a ni bandeau d'état ni en-tête de vitrine, il a SA barre,
+   dont la hauteur se mesure (voir js/espace/demarrage.js). La valeur héritée
+   n'était donc pas fausse par hasard, elle décrivait une autre page.
+
+   Elle vaut pour TOUT ce que le navigateur amène à l'écran : une ancre du
+   sommaire, mais aussi un champ qui reçoit le focus après un refus. Sans elle,
+   le champ fautif atterrit derrière la barre du haut. */
+html {
+  scroll-padding-top: calc(var(--h-barre, 64px) + var(--e2));
+}
+
 .espace-barre {
   position: sticky;
   top: 0;
@@ -216,4 +231,12 @@
 @media print {
   .espace-barre,
   .brouillon { display: none !important; }
+
+  /* ⚠️ RIEN NE COLLE SUR DU PAPIER. Un `position: sticky` à l'impression fait
+     réapparaître l'élément en tête de CHAQUE page dans certains navigateurs, et
+     le calage se fait sur une barre qui, elle, ne s'imprime plus. L'en-tête de
+     journée et le sommaire des réglages redeviennent donc du texte dans le
+     flux — c'est ce qu'on veut d'une journée scotchée près de la caisse. */
+  .agenda-jour-tete,
+  .reglages-sommaire { position: static !important; }
 }

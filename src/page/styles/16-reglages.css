@@ -7,13 +7,68 @@
   padding: 7px 0;
 }
 
+/* --- LE SOMMAIRE SUIT LE DÉFILEMENT -----------------------------------------
+
+   >>> IL FALLAIT REMONTER TOUT EN HAUT POUR CHANGER DE SECTION. <<<
+
+   Les réglages font neuf sections et près de deux cents champs : le sommaire
+   défilait hors de l'écran au bout de deux tours de molette, et passer des
+   Prestations à l'Équipe demandait de remonter le chercher. Il reste donc
+   visible, collé sous la barre du haut.
+
+   Pleine largeur du conteneur, comme la barre de brouillon en bas : les marges
+   négatives lui font franchir le rembourrage de `.espace-corps`, si bien que
+   son aplat couvre toute la bande et qu'aucun champ ne défile en transparence
+   à côté des liens.
+
+   ⚠️ `top` VIENT D'UNE MESURE. Même raison que pour l'en-tête de journée : la
+      barre du haut passe à la ligne selon la largeur, sa hauteur n'est pas
+      décidable d'avance. `--h-barre` est posé par js/espace/demarrage.js. */
 .reglages-sommaire {
   display: flex;
   flex-wrap: wrap;
   gap: 0 var(--e3);
-  padding-bottom: var(--e2);
+  margin: 0 calc(var(--marge) * -1) var(--e4);
+  padding: var(--e1) var(--marge) var(--e2);
+  background: var(--craie);
   border-bottom: 1px solid var(--filet);
-  margin-bottom: var(--e4);
+}
+
+/* ⚠️ IL NE COLLE QU'À PARTIR DE 640 px, ET LE MOTIF EST MESURÉ.
+
+   À 390 px, la barre du haut passe sur trois lignes et fait 187 px à elle
+   seule ; le sommaire en ajoute 85. Deux cent soixante-douze pixels de mobilier
+   fixe sur un écran de 844, c'est un tiers de la page confisqué pour une
+   navigation de second rang. C'est exactement l'argument qui interdit à
+   l'en-tête de la vitrine de coller sous 1000 px (voir CLAUDE.md).
+
+   À 640 px et au-delà, la barre tient sur une ou deux lignes et l'ensemble
+   redescend sous le cinquième de l'écran : là, le sommaire gagne à rester.
+
+   L'en-tête de journée de l'agenda, lui, colle À TOUTES LES LARGEURS — il fait
+   quarante pixels, et c'est précisément l'information qu'on perd le plus vite
+   sur un téléphone. */
+@media (min-width: 640px) {
+  .reglages-sommaire {
+    position: sticky;
+    top: var(--h-barre, 64px);
+    /* Au-dessus des en-têtes de journée (5), sous la barre du haut (10). */
+    z-index: 6;
+  }
+
+  .reglages-bloc {
+    /* ⚠️ LE DÉCALAGE DES ANCRES, OBLIGATOIRE DÈS QUE LE SOMMAIRE COLLE. Sans
+       lui, cliquer « Équipe » amenait le titre de la section exactement
+       DERRIÈRE le sommaire : on atterrissait sur le premier champ, sans le
+       titre, et on croyait s'être trompé de lien.
+
+       LA HAUTEUR DU SOMMAIRE SEULE, et pas la somme des deux barres : celle du
+       haut est déjà déduite par le `scroll-padding-top` posé sur `<html>`
+       (styles/14-connexion.css), qui protège toutes les mises à l'écran de cet
+       espace, ancres comme champs qui prennent le focus. Les additionner ici
+       compterait la barre deux fois. */
+    scroll-margin-top: var(--h-sommaire, 44px);
+  }
 }
 
 .reglages-bloc { margin-bottom: var(--e5); }

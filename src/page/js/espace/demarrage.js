@@ -12,10 +12,67 @@
 //    l'espace n'a ni tunnel, ni bandeau d'etat, ni photos a poser.
 // ---------------------------------------------------------------------------
 
+/**
+ * La hauteur des barres collees en haut, publiee en jetons CSS.
+ *
+ * >>> POURQUOI C'EST MESURE ET NON ECRIT DANS LES JETONS. <<<
+ *
+ * La vitrine peut se permettre `--h-entete: 64px` : son en-tete a une hauteur
+ * decidee, sur une seule ligne. La barre de l'espace, non — elle porte le nom
+ * du commerce, trois onglets et deux actions, et elle PASSE A LA LIGNE selon la
+ * largeur. Une valeur ecrite a la main serait fausse a une largeur sur deux, et
+ * elle le deviendrait pour de bon le jour ou un onglet s'ajoute.
+ *
+ * Ce qui en depend :
+ *   - `--h-barre`    : le `top` de l'en-tete de journee et du sommaire ;
+ *   - `--h-sommaire` : le retrait des ancres, pour qu'un titre de section
+ *                      atterrisse SOUS le sommaire et non derriere.
+ *
+ * ⚠️ APPELEE AUX MOMENTS OU LA MISE EN PAGE CHANGE, ET NON PAR UN
+ *    `ResizeObserver`.
+ *
+ *    C'etait un observateur, et c'est plus elegant sur le papier : il voit le
+ *    passage a la ligne, la revelation d'un element masque, tout. Mais ses
+ *    rappels sont livres pendant les etapes de rendu — un onglet qui ne rend
+ *    pas ne les recoit jamais. Constate, pas suppose : dans un navigateur
+ *    pilote dont le panneau n'est pas affiche, PAS UN SEUL rappel n'arrive, pas
+ *    meme l'observation initiale, et les jetons restaient vides.
+ *
+ *    Les trois moments qui comptent sont connus et peu nombreux : l'ouverture
+ *    de l'espace, le changement de volet, le redimensionnement de la fenetre.
+ *    Les mesurer la est moins malin, et ca marche partout.
+ */
+function mesurerLesBarresCollees() {
+  const racine = document.documentElement;
+
+  const mesurer = (selecteur, jeton) => {
+    const element = $(selecteur);
+    if (!element) return;
+
+    const hauteur = Math.round(element.getBoundingClientRect().height);
+    // Zero veut dire « masque », pas « plus rien a decaler » : on garde alors
+    // la derniere hauteur connue plutot que de coller les titres au bord.
+    if (hauteur > 0) racine.style.setProperty(jeton, `${hauteur}px`);
+  };
+
+  mesurer('.espace-barre', '--h-barre');
+  mesurer('.reglages-sommaire', '--h-sommaire');
+}
+
 async function demarrerEspace() {
   brancherNavigation();
   brancherConfirmation();
   brancherAgenda();
+
+  // La largeur change : la barre du haut peut passer a la ligne, et tout ce qui
+  // se cale dessous doit suivre.
+  window.addEventListener('resize', mesurerLesBarresCollees);
+
+  // Les polices arrivent apres le premier rendu et peuvent changer la hauteur
+  // de la barre d'un ou deux pixels. Une ligne pour ne pas laisser un decalage
+  // permanent au premier chargement.
+  document.fonts?.ready.then(mesurerLesBarresCollees);
+
   brancherReglages();
   brancherCompte();
 

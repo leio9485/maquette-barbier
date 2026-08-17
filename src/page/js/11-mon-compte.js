@@ -36,6 +36,10 @@ async function ouvrirEspaceConnecte() {
   // vrai client, `CONFIG.demo` n'existe pas et rien ne s'affiche.
   montrer($('#demoBandeau'), Boolean(CONFIG?.demo));
 
+  // La barre du haut vient d'apparaitre : c'est maintenant qu'elle a une
+  // hauteur, et tout ce qui se colle dessous en depend.
+  mesurerLesBarresCollees();
+
   await chargerAgenda();
 }
 
@@ -285,6 +289,10 @@ function ouvrirVolet(nom) {
   if (nom === 'chiffres') chargerChiffres();
   if (nom === 'reglages') { chargerReglages(); peindreCompte(); }
   if (nom === 'agenda') chargerAgenda();
+
+  // Le sommaire des reglages n'a de hauteur que son volet ouvert, et la barre
+  // du haut peut changer de hauteur d'un volet a l'autre.
+  mesurerLesBarresCollees();
 }
 
 /**

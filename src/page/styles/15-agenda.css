@@ -70,13 +70,42 @@
 
 .agenda-jour + .agenda-jour { margin-top: var(--e4); }
 
+/* --- LA DATE SUIT LE DÉFILEMENT ---------------------------------------------
+
+   >>> ON NE SAVAIT PLUS QUEL JOUR ON REGARDAIT. <<<
+
+   Une journée de barbier fait trente lignes ; au troisième écran de défilement,
+   l'en-tête était sorti par le haut et il ne restait que des heures et des noms.
+   En vue Semaine, deux colonnes de trente lignes chacune : on lisait un
+   rendez-vous sans savoir de quel jour il était.
+
+   L'en-tête reste donc collé sous la barre du haut tant que sa journée est à
+   l'écran. En vue Semaine, chaque colonne garde le sien — c'est exactement la
+   réponse à « lequel des deux jours est-ce que je lis », et ça ne coûte pas un
+   second dessin : c'est le même en-tête.
+
+   ⚠️ `top` VIENT D'UNE MESURE, PAS D'UN JETON ÉCRIT À LA MAIN. La barre de
+      l'espace passe à la ligne selon la largeur (nom, trois onglets, deux
+      actions) : sa hauteur n'est pas décidable d'avance. `--h-barre` est posé
+      par js/espace/demarrage.js, et la valeur de repli couvre le cas où le
+      JavaScript ne serait pas passé.
+
+   ⚠️ IL LUI FAUT UN APLAT. Sans `background`, les lignes défileraient en
+      transparence derrière le nom du jour. */
 .agenda-jour-tete {
+  position: sticky;
+  top: var(--h-barre, 64px);
+  /* Sous la barre du haut (10), au-dessus des lignes. */
+  z-index: 5;
+
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: var(--e1) var(--e2);
+  padding-top: var(--e1);
   padding-bottom: var(--e1);
+  background: var(--craie);
   border-bottom: 1px solid var(--filet);
 }
 

@@ -120,6 +120,46 @@ html {
   gap: var(--e3);
 }
 
+/* --- LA BARRE, RESSERRÉE SUR TÉLÉPHONE -------------------------------------
+
+   >>> ELLE FAISAIT 187 px À 390 px. <<<
+
+   Elle est collée en haut, et depuis que l'en-tête de journée se colle sous
+   elle, ce qu'elle prend est pris deux fois. Cent quatre-vingt-sept pixels sur
+   un écran de 844, c'est le quart de la page avant d'avoir lu un seul
+   rendez-vous.
+
+   Trois rangées empilées, mesurées : la marque (39), les onglets (44), les
+   actions (40), plus 32 de rembourrage et 32 de gouttières.
+
+   >>> CE QUI LES EMPILAIT, C'ÉTAIT LE SUR-TITRE. <<< Il rendait la marque large
+   de 146 px — plus large que « L'ÉTABLI » — et 146 + 237 (les onglets) ne
+   tenaient pas dans les 342 disponibles. Retiré, la marque tombe à 67 px, les
+   onglets remontent à côté d'elle, et il ne reste que deux rangées. Le
+   sur-titre coûtait donc deux fois : sa propre ligne, et le retour à la ligne
+   des onglets.
+
+   ON NE RÉORDONNE PAS le balisage pour gagner la rangée qui reste. Mettre les
+   actions à côté de la marque demanderait un `order` : l'ordre de tabulation ne
+   suivrait plus l'ordre lu, et on échangerait quarante pixels contre un critère
+   d'accessibilité (WCAG 2.4.3).
+
+   109 px au lieu de 187, soit 13 % de l'écran au lieu de 22 %. Les cibles
+   tactiles ne bougent pas : les onglets gardent leurs 44 px. */
+@media (max-width: 639px) {
+  .espace-barre-corps {
+    padding-top: var(--e1);
+    padding-bottom: var(--e1);
+    gap: var(--e1) var(--e3);
+  }
+
+  /* Le sur-titre « Espace commerçant » coûte une ligne entière pour dire ce que
+     l'écran dit déjà : l'onglet de la page le porte, l'écran de connexion en
+     fait son titre, et il n'y a rien d'autre ici que l'espace commerçant. Sur
+     un écran d'ordinateur il a la place, et il reste. */
+  .espace-marque .etiquette { display: none; }
+}
+
 .espace-corps {
   max-width: var(--largeur-max);
   margin: 0 auto;

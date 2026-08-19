@@ -162,15 +162,32 @@
 
    La grille sert a le poser DANS la meme cellule que le champ : sans elle, il
    faudrait deviner la hauteur de l'intitule au-dessus et celle de l'aide en
-   dessous, ce qui casse des qu'un des deux change. */
+   dessous, ce qui casse des qu'un des deux change.
+
+   ⚠️ >>> LA COLONNE S'ECRIT SUR CHAQUE ENFANT, ET C'EST TOUT L'ENJEU. <<<
+
+   Elle ne l'etait pas, et le chevron se dessinait A COTE du champ au lieu
+   d'etre dedans : un rectangle borde, puis une fleche posee dans le blanc a sa
+   droite, hors du cadre. La date d'a cote gardait son icone a l'interieur, si
+   bien que les deux champs n'avaient meme plus la meme largeur.
+
+   La cause est le placement automatique de la grille. Ces regles fixent une
+   LIGNE (`grid-row`) sans fixer de COLONNE ; le `::after` demande la ligne 2,
+   ou le `<select>` occupe deja la colonne 1, et la grille lui en fabrique donc
+   une SECONDE — `grid-template-columns` calcule vaut alors « 568px 24px » au
+   lieu de « 592px ». Le champ retrecit d'exactement la largeur du chevron.
+
+   `grid-column: 1` sur les quatre remet tout le monde dans la meme colonne : le
+   chevron se superpose au champ, qui reprend toute la largeur. Ne jamais poser
+   `grid-row` seul ici. */
 .champ:has(select) {
   display: grid;
   grid-template-columns: 1fr;
 }
 
-.champ:has(select) > label { grid-row: 1; }
-.champ:has(select) > select { grid-row: 2; }
-.champ:has(select) > .aide { grid-row: 3; }
+.champ:has(select) > label { grid-row: 1; grid-column: 1; }
+.champ:has(select) > select { grid-row: 2; grid-column: 1; }
+.champ:has(select) > .aide { grid-row: 3; grid-column: 1; }
 
 .champ select {
   appearance: none;
@@ -181,6 +198,7 @@
 .champ:has(select)::after {
   content: '';
   grid-row: 2;
+  grid-column: 1;
   justify-self: end;
   align-self: center;
   width: 8px;

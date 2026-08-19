@@ -521,6 +521,18 @@ model AdminUser {
   /// nulle part : meme en lisant toute la base, on ne peut pas le retrouver.
   passwordHash String
 
+  /// >>> POSEE VIDE, ET DELIBEREMENT INUTILISEE. <<<
+  ///
+  /// Aucun code ne la lit : tous les comptes peuvent tout faire. C'est le choix
+  /// assume pour un salon de trois personnes — des roles demandent un ecran de
+  /// permissions, et personne ne l'a demande.
+  ///
+  /// Elle est la parce qu'une SECONDE migration sur la base d'un client qui
+  /// tourne coute bien plus cher que cette colonne vide : le jour ou
+  /// « l'employe ne voit ni les Chiffres ni les Reglages » sera demande, il n'y
+  /// aura qu'a la remplir. Valeurs prevues : "" (tout), puis "employe".
+  role String @default("")
+
   createdAt   DateTime  @default(now())
   lastLoginAt DateTime?
 

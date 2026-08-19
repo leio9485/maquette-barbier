@@ -142,8 +142,20 @@
   color: var(--encre);
 }
 
+/* ⚠️ IL RETRECIT, ET IL NE LE FAISAIT PAS. `flex: none` convenait tant que
+      l'appui tenait en deux mots — « Barbier », « 4 prestations ». La liste des
+      accès en écrit de bien plus longs, parce que c'est ce qu'on vient y lire :
+      « vous, en ce moment · dernière entrée le 19 août · 1 appareil ouvert ».
+      À 390 px, cette ligne SORTAIT DE L'ÉCRAN — mesuré, pas déduit — et
+      emportait la page dans un défilement horizontal.
+
+      `0 1 auto` le laisse rétrécir sans jamais grandir : le titre garde sa
+      place, et l'appui se replie sous lui grâce au `flex-wrap` de la tête de
+      ligne. `min-width: 0` est indispensable — sans lui, la largeur minimale
+      d'un élément flex reste celle de son contenu, et il déborde quand même. */
 .reglages-ligne-appui {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
   font-size: var(--t-petit);
   color: var(--acier);
 }

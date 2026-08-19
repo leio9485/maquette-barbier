@@ -48,6 +48,35 @@ function changerMotDePasse(actuel, nouveau, confirmation) {
   });
 }
 
+// --- LES PERSONNES AUTORISEES ----------------------------------------------
+//
+// Un acces par personne, plutot qu'un mot de passe partage ecrit pres de la
+// caisse. Voir le commentaire en tete de la section dans src/routes/auth.js.
+
+/** Qui a le droit d'entrer. Aucune empreinte de mot de passe n'en sort. */
+function lireComptes() {
+  return api('/api/admin/users');
+}
+
+/** Cree un acces. Le mot de passe initial se communique de vive voix. */
+function creerCompte(identifiant, motDePasse) {
+  return api('/api/admin/users', {
+    methode: 'POST',
+    corps: { username: identifiant, password: motDePasse },
+  });
+}
+
+/**
+ * Coupe un acces, et ferme les sessions de ce compte — celles-la seules.
+ *
+ * Le serveur refuse le dernier compte et le sien propre : l'ecran retire deja
+ * le bouton dans ces deux cas, mais la regle est du cote du serveur, ou elle ne
+ * depend pas de ce que la page a bien voulu dessiner.
+ */
+function revoquerCompte(id) {
+  return api(`/api/admin/users/${encodeURIComponent(id)}`, { methode: 'DELETE' });
+}
+
 /** Les reglages complets, prestations en pause comprises. */
 function lireReglages() {
   return api('/api/admin/settings');
@@ -77,15 +106,39 @@ function lireRendezVous(du, au) {
   return api(`/api/admin/bookings?${p}`);
 }
 
-/** Les creneaux vus par le commercant : sans delai minimum, pauses comprises. */
-function lireCreneauxAdmin(date, serviceId, staffId) {
+/**
+ * Les creneaux vus par le commercant : sans delai minimum, pauses comprises.
+ *
+ * `exclure` retire un rendez-vous du calcul, et ne sert qu'au deplacement : sans
+ * lui, le rendez-vous qu'on deplace s'affiche comme obstacle a lui-meme et son
+ * heure actuelle sort de la liste, si bien qu'on ne peut plus changer la seule
+ * personne ni la seule prestation.
+ */
+function lireCreneauxAdmin(date, serviceId, staffId, exclure) {
   const p = new URLSearchParams({ date, serviceId });
   if (staffId) p.set('staffId', staffId);
+  if (exclure) p.set('exclude', exclure);
   return api(`/api/admin/slots?${p}`);
 }
 
 function poserRendezVous(corps) {
   return api('/api/admin/bookings', { methode: 'POST', corps });
+}
+
+/**
+ * DEPLACE UN RENDEZ-VOUS SANS LE RECREER.
+ *
+ * >>> C'EST LA DIFFERENCE ENTRE DEPLACER ET SUPPRIMER-PUIS-RE-NOTER. <<< Le
+ * second etait le seul chemin possible avant que cet appel n'existe, et il
+ * cassait tout ce qui tient a l'identite du rendez-vous : la reference que le
+ * client a notee, son jeton d'annulation, le bandeau « Votre rendez-vous » sur
+ * son telephone, et la provenance qui alimente le tableau de bord.
+ *
+ * Seules les cles envoyees changent : `{ staffId }` seul reattribue sans rien
+ * decaler, `{ date, start }` decale sans toucher a qui s'en occupe.
+ */
+function deplacerRendezVous(id, corps) {
+  return api(`/api/admin/bookings/${encodeURIComponent(id)}`, { methode: 'PATCH', corps });
 }
 
 function supprimerRendezVous(id) {

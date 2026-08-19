@@ -29,6 +29,8 @@
     "test:debit": "node tests/debit.mjs",
     "test:demonstration": "node tests/demonstration.mjs",
     "test:blocages": "node tests/blocages.mjs",
+    "test:deplacement": "node tests/deplacement.mjs",
+    "test:comptes": "node tests/comptes.mjs",
     "test:francais": "node tests/francais.mjs"
   },
   "engines": {

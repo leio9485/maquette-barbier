@@ -40,6 +40,7 @@ import {
   pickStaff,
   isBookableStart,
   isFree,
+  reservationsDe,
 } from '../lib/availability.js';
 import { etatDuMoment } from '../lib/etat.js';
 
@@ -601,6 +602,14 @@ bookingsRouter.delete('/bookings/:id', async (req, res, next) => {
  * une personne en pause aussi, et le delai minimum ne s'applique pas — un client
  * peut se presenter a la boutique et repartir avec un rendez-vous dans le quart
  * d'heure.
+ *
+ * `exclude=<id>` RETIRE UN RENDEZ-VOUS DU CALCUL, et ne sert qu'au deplacement.
+ *
+ * Sans lui, l'ecran « Deplacer » affiche le creneau actuel du rendez-vous comme
+ * pris — pris par lui-meme — et le desactive. Consequence concrete : on ne peut
+ * plus changer la personne ni la prestation sans changer aussi l'heure, alors
+ * que c'est justement le cas le plus courant. C'est le pendant, cote liste, de
+ * l'auto-collision que la transaction du PATCH ecarte deja.
  */
 bookingsRouter.get('/admin/slots', requireAdmin, async (req, res, next) => {
   try {
@@ -616,10 +625,14 @@ bookingsRouter.get('/admin/slots', requireAdmin, async (req, res, next) => {
     });
     if (equipe.erreur) return refus(res, equipe.erreur.code, equipe.erreur.message);
 
+    const ignore = identifiantOptionnel(req.query.exclude);
+
     const [settings, horaires, reservations] = await Promise.all([
       loadSettings(),
       loadOpeningHours(),
-      prisma.booking.findMany({ where: { date, ...OCCUPENT } }),
+      prisma.booking.findMany({
+        where: { date, ...(ignore ? { id: { not: ignore } } : {}), ...OCCUPENT },
+      }),
     ]);
 
     const creneaux = computeSlots({
@@ -760,24 +773,116 @@ bookingsRouter.post('/admin/bookings', requireAdmin, async (req, res, next) => {
 });
 
 /**
- * PATCH /api/admin/bookings/:id  { staffId }
+ * PATCH /api/admin/bookings/:id  { staffId?, date?, start?, serviceId? }
  *
- * Confie un rendez-vous a quelqu'un, ou le rend a personne (`staffId: null`).
+ * DEPLACE UN RENDEZ-VOUS, ou le confie a quelqu'un d'autre. Les deux passent
+ * par ici, et c'est le meme geste vu de l'agenda : « Madame Dupont passe a 15 h
+ * au lieu de 14 h », « finalement ce sera avec Remi ».
  *
- * Sert surtout au passage d'un commerce seul a une equipe : les rendez-vous
- * pris avant n'ont pas de personne attribuee et occupent donc TOUT LE MONDE.
- * Sans cette adresse, l'agenda paraitrait complet et il faudrait tout ressaisir.
+ * >>> UN DEPLACEMENT N'EST PAS UNE SUPPRESSION SUIVIE D'UNE CREATION. <<<
  *
- * Le controle "cette personne est-elle libre a cette heure" se fait dans la
- * transaction, comme a la creation — et en s'excluant soi-meme, sans quoi un
- * rendez-vous se verrait toujours comme un obstacle.
+ * C'etait pourtant le seul chemin possible, faute de cette adresse cote
+ * interface, et il cassait une chaine entiere en silence : le rendez-vous
+ * recree recevait une NOUVELLE reference et un NOUVEAU jeton, si bien que la
+ * reference notee par la cliente ne fonctionnait plus sur /annuler, que le
+ * bandeau « Votre rendez-vous » de son telephone pointait dans le vide, et que
+ * la ligne repassait en `source: 'phone'` — faussant la statistique de
+ * provenance du tableau de bord. La cliente voyait son rendez-vous disparaitre
+ * pendant que le commercant croyait l'avoir simplement decale.
+ *
+ * `id`, `reference`, `cancelToken`, `source` et `createdAt` sont donc
+ * CONSERVES : c'est tout l'interet de l'operation, et un `update` partiel n'y
+ * touche pas. Ne jamais les ajouter aux champs ecrits plus bas.
+ *
+ * CHAQUE CHAMP EST FACULTATIF, ET SEULS LES CHAMPS PRESENTS CHANGENT. Une
+ * requete `{ staffId: null }` rend le rendez-vous a personne sans deplacer quoi
+ * que ce soit ; une requete `{ date, start }` le decale sans toucher a qui s'en
+ * occupe. C'est la CLE qui compte, pas sa valeur — `staffId: null` est un ordre,
+ * `staffId` absent n'en est pas un.
+ *
+ * ⚠️ `start` EST LE VOCABULAIRE DU SITE, `startMin` CELUI DE LA BASE. Les deux
+ *    sont acceptes ici parce que les deux se lisent dans le depot : le site
+ *    envoie `start` (POST /api/bookings), la base stocke `startMin`. N'en
+ *    accepter qu'un aurait fait echouer l'autre SANS UN MOT — un champ inconnu
+ *    est ignore en silence, et le rendez-vous serait revenu inchange avec un
+ *    honnete 200.
  */
 bookingsRouter.patch('/admin/bookings/:id', requireAdmin, async (req, res, next) => {
   try {
     const rendezVous = await prisma.booking.findUnique({ where: { id: req.params.id } });
     if (!rendezVous) return refus(res, 404, 'Rendez-vous introuvable.');
 
-    const staffId = identifiantOptionnel(req.body?.staffId);
+    const corps = req.body ?? {};
+    const demande = (cle) => Object.prototype.hasOwnProperty.call(corps, cle);
+
+    // --- CE QUI CHANGE, ET CE QUI RESTE -------------------------------------
+
+    const staffId = demande('staffId') ? identifiantOptionnel(corps.staffId) : rendezVous.staffId;
+
+    const changeJour = demande('date');
+    if (changeJour && !isValidIso(corps.date)) return refus(res, 400, 'Date invalide.');
+    const date = changeJour ? corps.date : rendezVous.date;
+
+    const cleHeure = demande('start') ? 'start' : (demande('startMin') ? 'startMin' : null);
+    const changeHeure = cleHeure !== null;
+    if (changeHeure) {
+      const valeur = corps[cleHeure];
+      if (!Number.isInteger(valeur) || valeur < 0 || valeur > 1439) {
+        return refus(res, 400, 'Heure invalide.');
+      }
+    }
+    const startMin = changeHeure ? corps[cleHeure] : rendezVous.startMin;
+
+    const changePrestation = demande('serviceId') && corps.serviceId !== rendezVous.serviceId;
+
+    // Le deplacement proprement dit : tout ce qui touche a la case occupee dans
+    // l'agenda. Changer la seule personne n'en est pas un — et la distinction
+    // decide du controle applique plus bas, qui n'est pas le meme.
+    const deplace = changeJour || changeHeure || changePrestation;
+
+    if (deplace && rendezVous.kind !== 'appt') {
+      return refus(res, 409, 'Une période bloquée ne se déplace pas : levez-la, puis reposez-la.');
+    }
+    if (deplace && rendezVous.annuleLe) {
+      return refus(res, 409, 'Ce rendez-vous a été annulé par le client.');
+    }
+
+    // --- LA PRESTATION, ET CE QU'ELLE ENTRAINE ------------------------------
+    //
+    // Changer de prestation change la DUREE et le TARIF. Tous deux sont recopies
+    // depuis la prestation et jamais recus de la requete : meme regle qu'a la
+    // creation, et pour la meme raison.
+    //
+    // ⚠️ LE TARIF EST CELUI DE LA PRESTATION, PAS DE LA PERSONNE. Le depot a
+    //    connu un tarif par personne pendant une demi-journee
+    //    (migration 20260804010708_tarif_par_personne), retire par la suivante
+    //    le jour meme (20260804014224_photo_equipe_et_tarif_unique). Il n'y a
+    //    donc rien a lire du cote de `staffId` : une coupe vaut le meme prix
+    //    pour tout le monde, et `attribuer()` en dit autant a la creation.
+    const serviceId = demande('serviceId') ? identifiantOptionnel(corps.serviceId) : rendezVous.serviceId;
+
+    let prestation = null;
+    if (serviceId) {
+      // En pause y compris : cote commercant, une prestation retiree du site
+      // reste calable a la main, comme a la creation.
+      prestation = await loadService(serviceId);
+      if (!prestation) return refus(res, 404, 'Prestation inconnue.');
+    }
+
+    // Sans changement de prestation, la duree et le tarif CONVENUS ne bougent
+    // pas — meme si le commerce a change ses prix depuis. C'est la regle du
+    // champ `priceCents` (voir prisma/schema.prisma) : le rendez-vous garde ce
+    // qui avait ete annonce a la cliente.
+    //
+    // ⚠️ `prestation` EST TESTE, ET PAS SEULEMENT `changePrestation`. Les deux ne
+    //    disent pas la meme chose : `{ serviceId: null }` DETACHE la prestation
+    //    — c'est un changement, mais il n'y a plus rien a lire. Sur le seul
+    //    `changePrestation`, la ligne suivante dereferencait `null` et rendait
+    //    500 la ou le rendez-vous doit simplement garder sa duree convenue.
+    const durationMin = changePrestation && prestation ? prestation.durationMin : rendezVous.durationMin;
+    const priceCents = changePrestation && prestation ? prestation.priceCents : rendezVous.priceCents;
+
+    // --- LA PERSONNE --------------------------------------------------------
 
     if (staffId) {
       const connue = await prisma.staff.findUnique({ where: { id: staffId } });
@@ -786,44 +891,135 @@ bookingsRouter.patch('/admin/bookings/:id', requireAdmin, async (req, res, next)
       // La prestation peut ne pas etre de son ressort. On le verifie, mais on
       // reste tolerant comme partout cote commercant : une personne en pause
       // est acceptee, c'est le salon qui decide.
-      if (rendezVous.serviceId) {
-        const prestation = await loadService(rendezVous.serviceId);
+      if (prestation) {
         const equipe = await loadStaff({ includeInactive: true });
         const autorisee = eligibleStaff(prestation, equipe).some((p) => p.id === staffId);
         if (!autorisee) return refus(res, 409, "Cette personne n'assure pas cette prestation.");
       }
     }
 
+    // --- LES HORAIRES : ON PREVIENT, ON N'INTERDIT PAS ----------------------
+    //
+    // Un rendez-vous cale hors des heures d'ouverture, pendant la pause, ou en
+    // dehors de la grille des creneaux est ACCEPTE, et la reponse porte alors un
+    // `warning`. C'est la ligne de conduite de tout le cote commercant : il
+    // connait son commerce mieux que nous, et un client qui insiste pour venir a
+    // 19h15 un mardi n'est pas une erreur de saisie. L'ecran, lui, ne propose
+    // que des creneaux valides — cette tolerance ne sert qu'a celui qui appelle
+    // l'API directement.
+    //
+    // ⚠️ ELLE EST PLUS LARGE QUE CELLE DE POST /api/admin/bookings, qui refuse
+    //    ces memes cas. La difference est assumee : a la creation, un creneau
+    //    hors horaires est presque toujours une faute de frappe, alors qu'ici il
+    //    y a deja un rendez-vous et un client au telephone. Un refus ferait
+    //    supprimer-puis-recreer, c'est-a-dire exactement ce que cette adresse
+    //    existe pour eviter.
+    //
+    // Une seule chose reste refusee : la DATE PASSEE. Deplacer un rendez-vous
+    // vers hier ne repond a aucune demande, et fausserait le taux de remplissage
+    // comme le pointage.
+    let avertissement = null;
+    if (deplace) {
+      if (date < todayIso()) return refus(res, 409, 'Cette date est déjà passée.');
+
+      const [settings, horaires] = await Promise.all([loadSettings(), loadOpeningHours()]);
+      const verdict = isBookableStart({
+        date,
+        startMin,
+        durationMin,
+        day: horaires[weekdayOf(date)],
+        settings,
+        ignorerDelai: true,
+      });
+      if (!verdict.ok) avertissement = verdict.raison;
+    }
+
+    // --- L'ECRITURE ---------------------------------------------------------
+    //
+    // Le controle « est-ce libre ? » et l'ecriture d'un seul bloc, comme a la
+    // creation : les separer laisserait deux deplacements simultanes aboutir
+    // sur le meme creneau.
     const maj = await prisma.$transaction(async (tx) => {
-      if (staffId) {
+      if (deplace) {
+        // >>> SOI-MEME EXCLU. <<< Sans `id: { not: … }`, un rendez-vous se
+        // verrait comme un obstacle : le reposer sur son propre creneau — pour
+        // n'en changer que la prestation — serait refuse, et rendre son heure
+        // d'origine apres une hesitation deviendrait impossible.
+        const occupants = await tx.booking.findMany({
+          where: { date, id: { not: rendezVous.id }, ...OCCUPENT },
+        });
+
+        // `reservationsDe` ajoute les rendez-vous SANS personne aux siens : un
+        // rendez-vous non attribue occupe tout le monde (voir le schema). Sans
+        // personne du tout — commerce a agenda unique — c'est toute la liste
+        // qui compte.
+        const contre = staffId ? reservationsDe(occupants, staffId) : occupants;
+        if (!isFree(contre, startMin, durationMin)) return null;
+      } else if (staffId) {
         // ATTENTION : on ne regarde ICI que ce qui est DEJA attribue a cette
-        // personne — pas les rendez-vous sans personne, contrairement au reste
-        // du fichier.
+        // personne — pas les rendez-vous sans personne, contrairement au bloc
+        // ci-dessus.
         //
         // La regle "sans personne = occupe tout le monde" est la bonne pour
-        // decider si un creneau est libre ; elle est fausse ici. Deux
-        // rendez-vous non attribues qui se chevauchent (cas courant apres le
-        // passage d'un commerce seul a une equipe : ils etaient sur un agenda
-        // unique) se bloqueraient alors l'un l'autre, et AUCUN des deux ne
-        // pourrait plus etre attribue a qui que ce soit. Impasse — dans
-        // exactement la situation que cette adresse existe pour reparer.
+        // decider si un creneau est libre ; elle est fausse pour une simple
+        // reattribution. Deux rendez-vous non attribues qui se chevauchent (cas
+        // courant apres le passage d'un commerce seul a une equipe : ils
+        // etaient sur un agenda unique) se bloqueraient alors l'un l'autre, et
+        // AUCUN des deux ne pourrait plus etre attribue a qui que ce soit.
+        // Impasse — dans exactement la situation que cette adresse existe pour
+        // reparer.
         //
         // Rien n'est perdu : le seul risque a ecarter est de poser deux
         // rendez-vous sur la MEME personne, et c'est ce que ce filtre verifie.
         // Les orphelins restants continuent par ailleurs de bloquer la
         // reservation de nouveaux creneaux, tant qu'ils n'ont pas ete tries.
         const siens = await tx.booking.findMany({
-          where: { date: rendezVous.date, staffId, id: { not: rendezVous.id }, ...OCCUPENT },
+          where: { date, staffId, id: { not: rendezVous.id }, ...OCCUPENT },
         });
-        if (!isFree(siens, rendezVous.startMin, rendezVous.durationMin)) return null;
+        if (!isFree(siens, startMin, durationMin)) return null;
       }
 
-      return tx.booking.update({ where: { id: rendezVous.id }, data: { staffId } });
+      return tx.booking.update({
+        where: { id: rendezVous.id },
+        data: { staffId, date, startMin, durationMin, serviceId, priceCents },
+      });
     });
 
-    if (!maj) return refus(res, 409, 'Cette personne a déjà un rendez-vous sur ce créneau.');
+    if (!maj) {
+      return refus(res, 409, deplace
+        ? "Ce créneau est déjà occupé. Choisissez-en un autre."
+        : 'Cette personne a déjà un rendez-vous sur ce créneau.');
+    }
 
-    res.json(toApiBooking(maj));
+    // >>> LE POINT D'APPEL DE LA NOTIFICATION, ET IL EST VIDE EXPRES. <<<
+    //
+    // Le client ne sait pas encore que son rendez-vous a bouge. Tant que les
+    // canaux sont eteints (src/lib/notifications.js : le SMS est ecrit et teste,
+    // il ne s'allume que si quatre variables sont posees), c'est au commercant
+    // de decrocher — l'ecran lui rappelle le numero, et c'est pour cela que la
+    // reponse le porte.
+    //
+    // Le jour ou le canal s'allumera, c'est ICI que se branchera
+    // `notifierEnFond(…)` sur `maj.customerPhone` : en fond et jamais bloquant,
+    // un deplacement reussi ne doit pas echouer parce qu'un SMS n'est pas parti.
+    // Ne pas l'implementer avant que le canal soit decide — c'est un arbitrage
+    // commercial (cout Twilio, ou choix d'un expediteur de courriel), pas une
+    // tache de developpement.
+    const reponse = toApiBooking(maj);
+
+    // Ce qui a change, pour que l'ecran nomme l'avant et l'apres sans avoir eu a
+    // en garder une copie de son cote.
+    if (deplace) {
+      reponse.movedFrom = {
+        date: rendezVous.date,
+        start: rendezVous.startMin,
+        staffId: rendezVous.staffId,
+        serviceId: rendezVous.serviceId,
+      };
+    }
+    if (avertissement) reponse.warning = avertissement;
+
+    res.json(reponse);
   } catch (erreur) {
     next(erreur);
   }

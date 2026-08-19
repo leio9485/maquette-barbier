@@ -51,6 +51,12 @@ async function chargerReglages() {
     peindreReglages();
     marquerPropre();
     afficherMessage($('#messageReglages'), '');
+
+    // La liste des acces vit dans le meme volet, mais PAS dans le meme
+    // brouillon : elle ne s'accumule pas avec les autres changements en attente
+    // d'un « Enregistrer » commun. Creer ou revoquer un acces part seul, tout de
+    // suite — meme regle que le mot de passe, et pour la meme raison.
+    chargerComptes();
   } catch (erreur) {
     if (erreur.code === 401) return exigerConnexion();
     afficherMessage($('#messageReglages'), erreur.message);
@@ -857,6 +863,7 @@ async function demanderReinitialisation() {
 
     afficherMessage($('#messageReglages'), 'Réglages remis aux valeurs d\'origine.', 'bon');
   } catch (erreur) {
+    if (erreur.code === 401) return exigerConnexion();
     afficherMessage($('#messageReglages'), erreur.message);
   }
 }
@@ -1023,6 +1030,7 @@ function brancherReglages() {
 
         afficherMessage($('#messageReglages'), 'Photo enregistrée.', 'bon');
       } catch (erreur) {
+        if (erreur.code === 401) return exigerConnexion();
         afficherMessage($('#messageReglages'), erreur.message);
       }
     }
@@ -1065,6 +1073,7 @@ function brancherReglages() {
         // il n'y a pas de vitrine dans ce document (lot 4).
         CONFIG = await lireConfig();
       } catch (erreur) {
+        if (erreur.code === 401) return exigerConnexion();
         afficherMessage($('#messageReglages'), erreur.message);
       }
     }

@@ -256,3 +256,257 @@ authRouter.put('/admin/password', requireAdmin, async (req, res, next) => {
     next(erreur);
   }
 });
+// --- LES PERSONNES AUTORISEES ----------------------------------------------
+//
+// >>> UN SEUL MOT DE PASSE POUR TOUTE L'EQUIPE, C'ETAIT LE DEFAUT. <<<
+//
+// Le modele supportait plusieurs comptes depuis le premier jour (`username` est
+// unique), mais la seule facon d'en creer un etait `npm run admin:create`, en
+// ligne de commande, sur le serveur. Un salon de trois personnes se retrouvait
+// donc avec un mot de passe partage ecrit pres de la caisse — et avec lui :
+//
+//   - aucune tracabilite : personne ne sait qui a supprime le rendez-vous ;
+//   - couper l'acces de quelqu'un qui part oblige a changer LE mot de passe,
+//     donc a deconnecter tout le monde et a redistribuer le nouveau ;
+//   - un ancien employe garde l'acces a tout le fichier client.
+//
+// ⚠️ IL N'Y A PAS DE ROLES, ET C'EST UN CHOIX. Tous les comptes peuvent tout
+//    faire, y compris changer les tarifs. Des roles demandent un ecran de
+//    permissions que personne n'a demande ; la colonne `role` est en revanche
+//    posee dans la base, vide, pour ne pas avoir a migrer une seconde fois chez
+//    un client qui tourne (voir prisma/schema.prisma).
+
+/** Un identifiant : ni vide, ni fantaisiste, et il se dicte au telephone. */
+function validerIdentifiant(valeur) {
+  const propre = typeof valeur === 'string' ? valeur.trim() : '';
+
+  if (!propre) return { erreur: "L'identifiant est obligatoire." };
+  if (propre.length < 3) return { erreur: "L'identifiant doit faire au moins 3 caractères." };
+  if (propre.length > 40) return { erreur: "L'identifiant est trop long (40 caractères au maximum)." };
+
+  // Lettres, chiffres, point, tiret, tiret bas. Pas d'espace ni d'accent : cet
+  // identifiant se tape sur un clavier qu'on ne choisit pas, et se dicte au
+  // telephone comme la reference d'un rendez-vous.
+  if (!/^[A-Za-z0-9._-]+$/.test(propre)) {
+    return { erreur: "L'identifiant ne prend que des lettres, des chiffres, un point, un tiret ou un tiret bas." };
+  }
+
+  return { valeur: propre };
+}
+
+/** Ce qu'un compte montre de lui. JAMAIS l'empreinte du mot de passe. */
+function versApi(compte, { sessions = 0, moi = false } = {}) {
+  return {
+    id: compte.id,
+    username: compte.username,
+    createdAt: compte.createdAt,
+    lastLoginAt: compte.lastLoginAt,
+    // Combien d'appareils sont ouverts sur ce compte en ce moment. C'est le
+    // seul signe qu'un compte SERT encore, et donc la seule facon de reperer
+    // celui qu'on peut revoquer sans deranger personne.
+    openSessions: sessions,
+    // Le compte de la session en cours. L'ecran s'en sert pour retirer le
+    // bouton « Révoquer » de sa propre ligne — le serveur le refuse de toute
+    // facon, mais un bouton qui refuse toujours n'a rien a faire la.
+    isSelf: moi,
+  };
+}
+
+/**
+ * Le plafond de la connexion, applique aussi ici.
+ *
+ * ⚠️ CES ROUTES CREENT ET DETRUISENT DES ACCES : elles valent la porte
+ *    d'entree, et se protegent comme elle. Sans plafond, quelqu'un installe
+ *    devant un poste reste connecte pourrait fabriquer des comptes a la chaine
+ *    pendant que la page de connexion, elle, compte ses echecs.
+ */
+const cleDesComptes = (req) => `comptes-adresse:${req.ip}`;
+
+function plafondDesComptes(req, res) {
+  const limite = isRateLimited(cleDesComptes(req), { max: MAX_ECHECS_ADRESSE });
+
+  if (limite.bloque) {
+    res.status(429).json({
+      error: `Trop de tentatives. Réessayez dans ${Math.ceil(limite.secondes / 60)} minutes.`,
+    });
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * >>> ON COMPTE LES ECHECS, PAS LES PASSAGES. <<<
+ *
+ * ⚠️ CETTE FONCTION COMPTAIT TOUT, ET C'ETAIT UN DEFAUT. Le plafond etait
+ *    consomme par les creations qui REUSSISSENT autant que par celles qui
+ *    ratent : un commercant qui enregistre son equipe se serait vu refuser
+ *    l'acces a sa propre section, sans avoir rien fait de mal.
+ *
+ *    Le defaut ne s'est pas vu a la premiere execution de la suite mais a la
+ *    SECONDE, lancee dans le quart d'heure : les vingt operations de la
+ *    premiere restaient au compteur. C'est exactement le piege deja connu du
+ *    depot pour les references d'annulation (voir CLAUDE.md).
+ *
+ * `POST /api/admin/login` fait ce qu'il faut depuis toujours : `recordFailure`
+ * dans la seule branche de refus, `resetFailures` au succes. Ces deux
+ * fonctions-ci portent la meme regle aux routes de gestion des acces, qui
+ * devaient s'aligner sur elle — c'est ce que l'audit demandait.
+ */
+function noterEchecCompte(req) {
+  recordFailure(cleDesComptes(req), { fenetreMs: FENETRE_MS });
+}
+
+function oublierEchecsCompte(req) {
+  resetFailures(cleDesComptes(req));
+}
+
+/** Un refus, compte comme tel. Rend la reponse, pour s'ecrire en une ligne. */
+function refusCompte(req, res, statut, message) {
+  noterEchecCompte(req);
+  return res.status(statut).json({ error: message });
+}
+
+/**
+ * Ce que la demonstration ne laisse pas faire.
+ *
+ * Meme raison que pour le changement de mot de passe : la section reste
+ * visible — elle fait partie de ce qu'on montre — mais elle n'agit pas. Le
+ * premier visiteur qui revoquerait le compte de demonstration fermerait la
+ * porte a tous les suivants, et jusqu'a la remise a zero de 4 h.
+ */
+function refusDemo(res) {
+  if (!DEMO_MODE) return false;
+
+  res.status(403).json({
+    error: 'Gestion des comptes désactivée sur la démonstration. '
+      + 'Sur votre site, cette section fonctionne normalement.',
+  });
+  return true;
+}
+
+/**
+ * GET /api/admin/users
+ *
+ * Qui a le droit d'entrer. Aucune empreinte de mot de passe n'en sort.
+ */
+authRouter.get('/admin/users', requireAdmin, async (req, res, next) => {
+  try {
+    const [comptes, sessions] = await Promise.all([
+      prisma.adminUser.findMany({ orderBy: { createdAt: 'asc' } }),
+      prisma.session.groupBy({
+        by: ['adminUserId'],
+        where: { expiresAt: { gt: new Date() } },
+        _count: { _all: true },
+      }),
+    ]);
+
+    const ouvertes = new Map(sessions.map((s) => [s.adminUserId, s._count._all]));
+
+    res.json({
+      users: comptes.map((c) => versApi(c, {
+        sessions: ouvertes.get(c.id) ?? 0,
+        moi: c.id === req.admin.id,
+      })),
+    });
+  } catch (erreur) {
+    next(erreur);
+  }
+});
+
+/**
+ * POST /api/admin/users  { username, password }
+ *
+ * Cree un acces. Le mot de passe initial est choisi par celui qui cree le
+ * compte et communique de vive voix : il n'y a pas de courriel a envoyer, et
+ * l'interesse le changera depuis « Mon compte ».
+ */
+authRouter.post('/admin/users', requireAdmin, async (req, res, next) => {
+  try {
+    if (refusDemo(res)) return;
+    if (plafondDesComptes(req, res)) return;
+
+    const verdict = validerIdentifiant(req.body?.username);
+    if (verdict.erreur) return refusCompte(req, res, 400, verdict.erreur);
+
+    const motDePasse = typeof req.body?.password === 'string' ? req.body.password : '';
+    const faiblesse = checkPasswordStrength(motDePasse);
+    if (faiblesse) return refusCompte(req, res, 400, faiblesse);
+
+    // ⚠️ LE DOUBLON SE VERIFIE ICI *ET* SE RATTRAPE PLUS BAS. La contrainte
+    //    d'unicite de la base est la seule qui ne mente jamais — entre cette
+    //    lecture et l'ecriture, quelqu'un d'autre a pu prendre le nom. On lit
+    //    d'abord pour donner un message juste, et on attrape P2002 pour le cas
+    //    ou la course aurait ete perdue.
+    const existe = await prisma.adminUser.findUnique({ where: { username: verdict.valeur } });
+    if (existe) return refusCompte(req, res, 409, 'Cet identifiant est déjà pris.');
+
+    let cree;
+    try {
+      cree = await prisma.adminUser.create({
+        data: { username: verdict.valeur, passwordHash: await hashPassword(motDePasse) },
+      });
+    } catch (erreur) {
+      if (erreur?.code === 'P2002') {
+        return refusCompte(req, res, 409, 'Cet identifiant est déjà pris.');
+      }
+      throw erreur;
+    }
+
+    oublierEchecsCompte(req);
+    res.status(201).json(versApi(cree));
+  } catch (erreur) {
+    next(erreur);
+  }
+});
+
+/**
+ * DELETE /api/admin/users/:id
+ *
+ * Coupe un acces, et FERME LES SESSIONS DE CE COMPTE — celles-la seules.
+ *
+ * C'est le geste qu'on fait le jour ou quelqu'un s'en va, et il doit prendre
+ * effet tout de suite : un compte revoque dont la session reste ouverte sur le
+ * telephone de l'interesse n'est pas revoque du tout. La suppression de la
+ * ligne suffirait (les sessions tombent en cascade), mais l'appel est ecrit en
+ * toutes lettres : c'est l'effet recherche, pas un effet de bord du schema.
+ *
+ * DEUX GARDE-FOUS, ET ILS NE SE RECOUVRENT PAS :
+ *
+ *   - PAS LE DERNIER COMPTE. Il ne resterait plus aucune facon d'entrer, et
+ *     l'espace ne se rouvrirait qu'en ligne de commande sur le serveur — que le
+ *     commercant n'a pas.
+ *   - PAS LE SIEN. Se revoquer soi-meme est toujours un accident : on se
+ *     deconnecte au milieu de son travail, et il faut quelqu'un d'autre pour
+ *     rouvrir. « Se déconnecter » existe pour partir ; ce bouton-ci sert a
+ *     faire partir quelqu'un d'autre.
+ */
+authRouter.delete('/admin/users/:id', requireAdmin, async (req, res, next) => {
+  try {
+    if (refusDemo(res)) return;
+    if (plafondDesComptes(req, res)) return;
+
+    const compte = await prisma.adminUser.findUnique({ where: { id: req.params.id } });
+    if (!compte) return refusCompte(req, res, 404, 'Compte introuvable.');
+
+    if (compte.id === req.admin.id) {
+      return refusCompte(req, res, 409,
+        'Vous ne pouvez pas révoquer votre propre accès. '
+        + 'Demandez à quelqu\'un d\'autre, ou déconnectez-vous.');
+    }
+
+    const total = await prisma.adminUser.count();
+    if (total <= 1) {
+      return refusCompte(req, res, 409,
+        'C\'est le dernier accès : le révoquer fermerait l\'espace pour tout le monde.');
+    }
+
+    await destroyAllSessions(compte.id);
+    await prisma.adminUser.delete({ where: { id: compte.id } });
+
+    oublierEchecsCompte(req);
+    res.json({ ok: true, id: compte.id, username: compte.username });
+  } catch (erreur) {
+    next(erreur);
+  }
+});

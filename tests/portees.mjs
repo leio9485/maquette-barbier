@@ -1,7 +1,18 @@
 // ---------------------------------------------------------------------------
-// TESTS DE PORTEE — chaque document appelle-t-il seulement ce qu'il embarque ?
+// LES CONTROLES STATIQUES DE LA FACADE — aucun serveur necessaire
 //
-//     npm run test:portees      (aucun serveur necessaire)
+//     npm run test:portees
+//
+// DEUX CHOSES Y SONT VERIFIEES, et elles n'ont en commun que leur nature :
+// toutes deux se lisent dans le code source, sans rien executer, et toutes
+// deux portent sur une classe de bogue INVISIBLE AU CHARGEMENT — la page
+// s'affiche, tout semble normal, et c'est un clic plus tard que rien ne se
+// passe.
+//
+//   1. LA PORTEE : chaque document n'appelle que ce qu'il embarque ;
+//   2. LA SESSION EXPIREE : tout appel au serveur renvoie a la connexion.
+//
+// La seconde est en bas de ce fichier, avec son propre motif.
 //
 // >>> POURQUOI CETTE SUITE EXISTE. <<<
 //
@@ -276,5 +287,105 @@ console.log('');
     [...PROPRE_A_LA_VITRINE, ...PROPRE_A_L_ESPACE].every((m) => !annuler.includes(m)),
     [...PROPRE_A_LA_VITRINE, ...PROPRE_A_L_ESPACE].filter((m) => annuler.includes(m)));
 }
+
+// --- LA SESSION EXPIREE RENVOIE A LA CONNEXION ------------------------------
+//
+// >>> POURQUOI CE CONTROLE EST ICI. <<<
+//
+// Il ne parle pas de portee, et il est pourtant dans ce fichier : c'est la meme
+// classe de bogue, celle qui ne se voit ni au chargement ni a la lecture, mais
+// seulement en cliquant — et seulement apres avoir attendu qu'une session
+// expire, ce que personne ne fait en developpant.
+//
+// Le symptome, constate sur une capture : « Connexion requise. » s'affiche sous
+// une liste vide, le formulaire reste ouvert, son bouton actif, et chaque clic
+// repose la meme question. Le seul geste utile — se reconnecter — n'est propose
+// nulle part. Le commercant croit que le produit est casse.
+//
+// Il etait present a CINQ endroits a la fois (noter un rendez-vous, bloquer une
+// periode, remettre les reglages a zero, deposer une photo, en retirer une), ce
+// qui dit assez qu'aucune pression ne le tenait droit.
+//
+// COMMENT IL PROCEDE. Il releve chaque bloc `catch` qui affiche un message, et
+// verifie qu'il traite le 401. C'est grossier — pas un interpreteur — et ca
+// suffit : le defaut se reconnait a ce que le catch parle a l'ecran sans
+// regarder le code de retour.
+console.log('');
+{
+  /**
+   * Les deux exceptions, et elles sont VRAIES.
+   *
+   *   - le formulaire de connexion : un 401 y signifie « mot de passe faux »,
+   *     c'est la reponse attendue et elle doit s'afficher. Y renvoyer vers la
+   *     connexion serait renvoyer vers l'ecran ou l'on est deja ;
+   *   - la reduction d'une image : elle se fait dans le navigateur
+   *     (`FileReader`, `<canvas>`), aucun serveur n'est appele, aucun 401 ne
+   *     peut arriver.
+   *
+   * Toute troisieme ligne ajoutee ici doit s'expliquer aussi bien.
+   */
+  const EXCEPTIONS = ['envoyerConnexion', 'reduireImage'];
+
+  const FICHIERS = ['js/09-agenda.js', 'js/08-reglages.js', 'js/10-chiffres.js',
+    'js/11-mon-compte.js'];
+
+  const trous = [];
+
+  for (const fichier of FICHIERS) {
+    const lignes = (await readFile(path.join(DOSSIER, fichier), 'utf8')).split(/\r?\n/);
+
+    for (let i = 0; i < lignes.length; i++) {
+      if (!/\}\s*catch\s*\(/.test(lignes[i])) continue;
+
+      // Le corps du catch : jusqu'a la ligne dont l'indentation revient au
+      // niveau du `catch` lui-meme.
+      const marge = lignes[i].match(/^\s*/)[0].length;
+      const corps = [];
+      for (let j = i + 1; j < lignes.length; j++) {
+        if (lignes[j].trim() && lignes[j].match(/^\s*/)[0].length <= marge) break;
+        corps.push(lignes[j]);
+      }
+
+      const texte = corps.join('\n');
+      if (!/afficherMessage|annoncer/.test(texte)) continue;   // il ne parle pas a l'ecran
+      if (/401/.test(texte)) continue;                          // il traite le cas
+
+      // La fonction englobante, pour nommer le trou et reconnaitre une exception.
+      let nom = '?';
+      for (let k = i; k >= 0; k--) {
+        const m = lignes[k].match(/^\s*(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/);
+        if (m) { nom = m[1]; break; }
+      }
+
+      // >>> L'EXCEPTION SE CHERCHE DANS LE `try`, PAS DANS LE `catch`. <<<
+      //
+      // C'est la que l'appel se trouve — le catch, lui, ne porte que le
+      // message. Premiere version de ce controle : elle ne lisait que le corps
+      // du catch, et signalait donc la reduction d'image comme un trou, alors
+      // que c'est l'exception meme qu'elle etait censee reconnaitre.
+      //
+      // On remonte au `try {` de meme indentation, et on lit les deux blocs
+      // ensemble. Le nom de la fonction englobante compte aussi : un ecouteur
+      // anonyme n'en a pas, et c'est `brancherReglages` qui remonte.
+      let debutTry = i;
+      for (let k = i - 1; k >= 0; k--) {
+        if (/^\s*try\s*\{/.test(lignes[k]) && lignes[k].match(/^\s*/)[0].length === marge) {
+          debutTry = k;
+          break;
+        }
+      }
+      const bloc = lignes.slice(debutTry, i).join('\n') + '\n' + texte;
+
+      const excusee = EXCEPTIONS.some((e) => nom === e || bloc.includes(e));
+      if (excusee) continue;
+
+      trous.push(`${fichier}:${i + 1} — ${nom}()`);
+    }
+  }
+
+  verifie('une session expirée renvoie à la connexion, partout où le serveur est appelé',
+    trous.length === 0, trous);
+}
+
 
 process.exitCode = bilan() === 0 ? 0 : 1;

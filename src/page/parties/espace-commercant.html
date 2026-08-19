@@ -221,6 +221,7 @@
           <a href="#reglagesEquipe">Équipe</a>
           <a href="#reglagesAvis">Avis</a>
           <a href="#reglagesPhotos">Photos</a>
+          <a href="#reglagesAcces">Accès</a>
           <a href="#reglagesExport">Export</a>
         </nav>
 
@@ -391,6 +392,62 @@
           </form>
         </section>
 
+        <!-- LES PERSONNES AUTORISÉES ---------------------------------------
+
+             ⚠️ UN SEUL MOT DE PASSE POUR TOUTE L'ÉQUIPE, C'ÉTAIT LE DÉFAUT.
+                La base acceptait plusieurs comptes depuis le premier jour, mais
+                la seule façon d'en créer un était `npm run admin:create`, en
+                ligne de commande, sur le serveur — que le commerçant n'a pas.
+
+             Un salon de trois personnes se retrouvait donc avec un mot de passe
+             partagé écrit près de la caisse : personne ne sait qui a supprimé
+             quoi, couper l'accès de quelqu'un qui part oblige à déconnecter
+             tout le monde, et un ancien employé garde l'entrée du fichier
+             client.
+
+             Il n'y a PAS de rôles : tous les accès peuvent tout faire. C'est
+             assumé pour un salon de trois personnes, et la colonne est prévue
+             en base pour le jour où ça ne suffira plus. # -->
+        <section class="reglages-bloc" id="reglagesAcces">
+          <h2>Personnes autorisées</h2>
+          <p class="secondaire petit">
+            Chaque personne entre avec son propre identifiant. C'est ce qui
+            permet de couper l'accès de quelqu'un qui s'en va sans changer le
+            mot de passe de tout le monde.
+          </p>
+
+          <div id="listeComptes"></div>
+
+          <p class="message" id="messageComptes" hidden></p>
+
+          <h3>Ajouter un accès</h3>
+          <p class="secondaire petit">
+            Choisissez un mot de passe et donnez-le de vive voix : la personne
+            le changera elle-même depuis « Compte ».
+          </p>
+
+          <form id="formulaireCompte" novalidate>
+            <div class="champ">
+              <label for="compteIdentifiant">Identifiant</label>
+              <input type="text" id="compteIdentifiant" autocomplete="off" maxlength="40" required>
+              <p class="aide" id="aideCompteIdentifiant">
+                Lettres, chiffres, point, tiret. Le prénom suffit.
+              </p>
+            </div>
+            <div class="champ">
+              <label for="compteMotDePasse">Mot de passe initial</label>
+              <input type="password" id="compteMotDePasse" autocomplete="new-password" required>
+              <p class="aide">Au moins 10 caractères.</p>
+            </div>
+
+            <p class="message" id="messageNouveauCompte" hidden></p>
+
+            <button type="submit" class="action" id="ajouterCompte">
+              Ajouter cet accès
+            </button>
+          </form>
+        </section>
+
         <section class="reglages-bloc">
           <h2>Remise à zéro</h2>
           <p class="secondaire petit">
@@ -430,7 +487,21 @@
 
         <p class="message" id="messageFicheAgenda" hidden></p>
 
+        <!-- « DÉPLACER » EST LA PREMIÈRE ACTION, ET LA SEULE PLEINE -----------
+
+             C'est de loin la plus fréquente d'un agenda de barbier — « elle
+             passe à 15 h au lieu de 14 h » — et elle n'existait pas du tout :
+             il fallait supprimer puis re-noter, ce qui changeait la référence
+             et le jeton du client, cassait son lien d'annulation, et faisait
+             repasser un rendez-vous pris en ligne pour un rendez-vous noté au
+             comptoir. Voir PATCH /api/admin/bookings/:id.
+
+             Elle est masquée sur la fiche d'une période bloquée : un blocage se
+             lève et se repose, il ne se déplace pas. -->
         <div class="actions-paire">
+          <button type="button" class="action action-pleine" id="ficheDeplacer" hidden>
+            Déplacer ce rendez-vous
+          </button>
           <button type="button" class="action-douce" id="ficheSupprimer"></button>
           <button type="button" class="action-douce" data-fermer="surimpressionFiche">Fermer</button>
         </div>
@@ -487,7 +558,18 @@
         <button type="button" class="surimpression-fermer" data-fermer="surimpressionRdv" aria-label="Fermer">×</button>
       </div>
       <div class="surimpression-corps">
+        <!-- UN SEUL FORMULAIRE POUR NOTER ET POUR DÉPLACER ------------------
+
+             Le déplacement pose exactement les mêmes questions que la saisie —
+             quelle prestation, avec qui, quel jour, quelle heure — et il aurait
+             donc fallu en tenir deux d'accord pour rien. Ce qui change tient en
+             trois choses, et le JavaScript les pose (js/09-agenda.js) : le
+             titre, le libellé du bouton, et les deux champs de coordonnées, qui
+             disparaissent parce qu'on ne change pas de client en déplaçant son
+             rendez-vous. -->
         <form id="formulaireRdv" novalidate>
+          <p class="secondaire petit" id="rdvIntro" hidden></p>
+
           <div class="champ">
             <label for="rdvPrestation">Prestation</label>
             <select id="rdvPrestation" required></select>
@@ -504,17 +586,17 @@
             <label for="rdvHeure">Heure</label>
             <select id="rdvHeure" required></select>
           </div>
-          <div class="champ">
+          <div class="champ" id="champRdvNom">
             <label for="rdvNom">Nom</label>
             <input type="text" id="rdvNom" required maxlength="80">
           </div>
-          <div class="champ">
+          <div class="champ" id="champRdvTel">
             <label for="rdvTel">Téléphone</label>
             <input type="tel" id="rdvTel" maxlength="20">
           </div>
 
           <p class="message" id="messageRdv" hidden></p>
-          <button type="submit" class="action action-pleine">Noter ce rendez-vous</button>
+          <button type="submit" class="action action-pleine" id="rdvValider">Noter ce rendez-vous</button>
         </form>
       </div>
     </div>

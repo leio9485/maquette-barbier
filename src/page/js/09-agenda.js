@@ -98,11 +98,38 @@ async function chargerAgenda() {
 
 // --- Le dessin --------------------------------------------------------------
 
+/**
+ * L'ECRAN A-T-IL LA PLACE DES COLONNES PAR PERSONNE ?
+ *
+ * ⚠️ LE CHOIX SE FAIT EN JAVASCRIPT, ET IL NE POUVAIT PAS SE FAIRE EN CSS.
+ *    Les deux formes ne rangent pas les mêmes lignes dans le même ordre : la
+ *    liste est chronologique, les colonnes sont groupées par personne. Aucune
+ *    règle de style ne réordonne un contenu ; il faut redessiner. C'est
+ *    pourquoi ce media query est écouté ici plutôt que posé dans la feuille.
+ */
+const ECRAN_LARGE = window.matchMedia('(min-width: 900px)');
+
+/**
+ * Vrai quand la semaine se lit en colonnes : une par personne.
+ *
+ * Trois conditions, et il faut les trois. Sans equipe enregistree, il n'y a
+ * aucune colonne a dessiner et la liste reste la bonne reponse — c'est le cas
+ * de l'agenda unique, celui du commerce qui travaille seul.
+ */
+function semaineEnColonnes() {
+  return ESPACE.vue === 'semaine' && ECRAN_LARGE.matches && equipeActive().length > 0;
+}
+
 function peindreAgenda() {
   const cible = $('#agenda');
   if (!cible || !CONFIG) return;
 
   cible.dataset.vue = ESPACE.vue;
+
+  // Le CSS ne redecide rien : il applique le dessin que celui-ci a choisi.
+  if (semaineEnColonnes()) cible.dataset.colonnes = 'personnes';
+  else delete cible.dataset.colonnes;
+
   cible.innerHTML = joursAffiches().map(peindreJour).join('');
 }
 
@@ -151,13 +178,86 @@ function peindreJour(iso) {
 
   // Un jour ferme SANS rendez-vous ne montre rien de plus. Un jour ferme AVEC
   // un rendez-vous, si : c'est une exception qu'il faut voir, pas cacher.
+  //
+  // ⚠️ CELA VAUT AUSSI EN COLONNES, ET C'EST VOLONTAIRE. Une journee vide
+  //    pourrait s'y dessiner en trois colonnes « Libre », ce qui repondrait a
+  //    la question — mais ce serait du vide quadrillé, en plus petit : le
+  //    defaut meme que l'agenda a corrige en cessant d'etre une grille (voir
+  //    l'en-tete de ce fichier). « Rien de prevu » dans la tete de journee le
+  //    dit deja, en une ligne au lieu de trois colonnes.
   if (!liste.length) {
     return `<section class="agenda-jour">${tete}</section>`;
   }
 
+  if (semaineEnColonnes()) return jourEnColonnes(iso, tete, liste);
+
   return `<section class="agenda-jour">${tete}`
     + `<ul class="agenda-liste">${liste.map((r) => ligneRdv(r, iso)).join('')}</ul>`
     + '</section>';
+}
+
+/**
+ * UNE JOURNEE EN COLONNES : UNE PAR PERSONNE.
+ *
+ * >>> A QUOI CETTE VUE REPOND, ET QUE LA LISTE NE FAISAIT PAS. <<< « Qui est
+ * libre jeudi apres-midi ? » En liste, il faut lire la journee entiere et
+ * tenir de tete qui apparait et qui manque. En colonnes, la reponse est la
+ * colonne la plus courte.
+ *
+ * ⚠️ CE N'EST PAS LE RETOUR DE LA GRILLE. L'agenda a cesse d'etre une grille
+ *    parce qu'il dessinait cinquante et une cases vides pour trois rendez-vous.
+ *    Ici, une colonne ne contient QUE des rendez-vous reels : aucune case a
+ *    l'heure, aucun quadrillage, et une seule ligne quand il n'y a rien.
+ *
+ * ⚠️ CE QUI N'APPARTIENT A PERSONNE PASSE AU-DESSUS, PLEINE LARGEUR. Un
+ *    blocage du commerce entier et un rendez-vous non attribue occupent TOUT LE
+ *    MONDE (voir prisma/schema.prisma) : les ranger dans une colonne les ferait
+ *    passer pour l'affaire d'une seule personne, et laisserait croire les
+ *    autres disponibles.
+ */
+function jourEnColonnes(iso, tete, liste) {
+  const colonnes = equipeActive();
+
+  const communs = liste.filter((r) => !r.staffId);
+  const bandeau = communs.length
+    ? `<ul class="agenda-liste">${communs.map((r) => ligneRdv(r, iso)).join('')}</ul>`
+    : '';
+
+  const cellules = colonnes.map((personne) => {
+    const siens = liste.filter((r) => r.staffId === personne.id);
+
+    // >>> « LIBRE » ET « NE TRAVAILLE PAS » NE SONT PAS LA MEME REPONSE. <<<
+    //     Les confondre ferait proposer quelqu'un qui ne vient pas ce
+    //     jour-la, ce qui est exactement la faute que cette vue existe pour
+    //     eviter.
+    const corps = siens.length
+      ? `<ul class="agenda-liste">${siens.map((r) => ligneRdv(r, iso)).join('')}</ul>`
+      : `<p class="agenda-colonne-vide">${travailleLe(personne, iso) ? 'Libre' : 'Ne travaille pas'}</p>`;
+
+    return '<div class="agenda-colonne">'
+      + `<p class="agenda-colonne-nom etiquette">${esc(personne.name)}</p>`
+      + corps
+      + '</div>';
+  }).join('');
+
+  return `<section class="agenda-jour">${tete}${bandeau}`
+    + `<div class="agenda-colonnes" style="--colonnes:${colonnes.length}">${cellules}</div>`
+    + '</section>';
+}
+
+/**
+ * Cette personne travaille-t-elle ce jour-la ?
+ *
+ * Trois cas, et ils viennent du schema (voir StaffHours) :
+ *   - le commerce est ferme    : personne ne travaille ;
+ *   - `hours` vaut null        : elle SUIT les horaires du commerce, donc oui ;
+ *   - `hours[jour]` vaut null  : c'est son jour de repos.
+ */
+function travailleLe(personne, iso) {
+  const jour = jourDeLaSemaine(iso);
+  if (!plagesDuJour(CONFIG?.hours?.[jour]).length) return false;
+  if (!personne.hours) return true;
+  return plagesDuJour(personne.hours[jour]).length > 0;
 }
 
 /**
@@ -283,18 +383,53 @@ async function pointer(id, valeur) {
   }
 }
 
-// --- Les actions ------------------------------------------------------------
+// --- LE FORMULAIRE DE RENDEZ-VOUS, DANS SES DEUX EMPLOIS --------------------
+//
+// Il NOTE un rendez-vous, et il en DEPLACE un. Les deux posent exactement les
+// memes questions — quelle prestation, avec qui, quel jour, quelle heure — et
+// en tenir deux d'accord aurait ete deux dessins a maintenir pour le meme
+// travail. C'est la meme fenetre, et `MODE_RDV` dit lequel des deux emplois est
+// en cours.
+//
+// Trois choses changent entre les deux, et rien d'autre : le titre, le libelle
+// du bouton, et les deux champs de coordonnees — qui disparaissent au
+// deplacement, puisqu'on ne change pas de client en decalant son rendez-vous.
 
-/** Ouvre le formulaire de rendez-vous, pre-rempli si on vient d'une case. */
-function ouvrirAjout({ date = ESPACE.date, heure = null, qui = '' } = {}) {
+/** `{ genre: 'ajout' }`, ou `{ genre: 'deplacement', rdv }`. */
+let MODE_RDV = { genre: 'ajout' };
+
+/**
+ * Remplit les deux listes deroulantes, et y retrouve la valeur voulue.
+ *
+ * ⚠️ UNE VALEUR ABSENTE DE LA LISTE Y EST AJOUTEE. Une prestation retiree du
+ *    site ou une personne en pause ne figure pas dans ce que la vitrine
+ *    propose ; le rendez-vous qu'on deplace, lui, peut parfaitement etre l'un
+ *    ou l'autre. Sans ce rattrapage, `select.value = …` ne trouve rien, retombe
+ *    en silence sur la premiere ligne, et le deplacement changerait la
+ *    prestation ou rendrait le rendez-vous a quelqu'un d'autre SANS QUE
+ *    PERSONNE NE L'AIT DEMANDE.
+ */
+function garnirFormulaireRdv({ serviceId = '', qui = '' } = {}) {
   const choixPrestation = $('#rdvPrestation');
   if (choixPrestation && CONFIG) {
-    choixPrestation.innerHTML = CONFIG.services
+    const prestations = [...(CONFIG.services ?? [])];
+    if (serviceId && !prestations.some((s) => s.id === serviceId)) {
+      const perdue = { id: serviceId, name: 'Prestation retirée', duration: 0 };
+      prestations.unshift(perdue);
+    }
+
+    choixPrestation.innerHTML = prestations
       .map((s) => `<option value="${esc(s.id)}">${esc(s.name)} — ${fmtDuree(s.duration)}</option>`)
       .join('');
+    if (serviceId) choixPrestation.value = serviceId;
   }
 
-  const colonnes = equipeActive();
+  const colonnes = [...equipeActive()];
+  if (qui && !colonnes.some((p) => p.id === qui)) {
+    const enPause = (CONFIG?.staff ?? []).find((p) => p.id === qui);
+    if (enPause) colonnes.unshift(enPause);
+  }
+
   const choixQui = $('#rdvQui');
   montrer($('#champRdvQui'), colonnes.length > 0);
   if (choixQui && colonnes.length) {
@@ -302,9 +437,20 @@ function ouvrirAjout({ date = ESPACE.date, heure = null, qui = '' } = {}) {
       + colonnes.map((p) => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
     choixQui.value = qui;
   }
+}
 
-  const champDate = $('#rdvDate');
-  if (champDate) champDate.value = date;
+/** Ouvre le formulaire de rendez-vous, pre-rempli si on vient d'une case. */
+function ouvrirAjout({ date = ESPACE.date, heure = null, qui = '' } = {}) {
+  MODE_RDV = { genre: 'ajout' };
+
+  poserTexte($('#titreRdv'), 'Noter un rendez-vous');
+  poserTexte($('#rdvValider'), 'Noter ce rendez-vous');
+  montrer($('#rdvIntro'), false);
+  montrer($('#champRdvNom'), true);
+  montrer($('#champRdvTel'), true);
+
+  garnirFormulaireRdv({ qui });
+  poserJourRdv(date);
 
   afficherMessage($('#messageRdv'), '');
   chargerHeuresRdv(heure);
@@ -312,33 +458,174 @@ function ouvrirAjout({ date = ESPACE.date, heure = null, qui = '' } = {}) {
   ouvrirSurimpression('surimpressionRdv');
 }
 
-/** Les heures proposees au commercant : sans delai minimum, pauses comprises. */
+/**
+ * Ouvre le meme formulaire pour DEPLACER un rendez-vous existant.
+ *
+ * Il s'ouvre sur les valeurs actuelles — meme prestation, meme personne, meme
+ * jour, meme heure — et non sur un formulaire vide : deplacer, c'est presque
+ * toujours ne changer qu'une seule de ces quatre reponses.
+ */
+function ouvrirDeplacement(rdv) {
+  MODE_RDV = { genre: 'deplacement', rdv };
+
+  poserTexte($('#titreRdv'), 'Déplacer le rendez-vous');
+  poserTexte($('#rdvValider'), 'Déplacer ce rendez-vous');
+
+  // On rappelle DE QUI il s'agit, parce que les deux champs qui le disaient
+  // viennent de disparaitre.
+  poserTexte($('#rdvIntro'), `${rdv.name || 'Rendez-vous'} — actuellement le `
+    + `${dateCourte(rdv.date)} à ${fmtHeure(rdv.start)}.`);
+  montrer($('#rdvIntro'), true);
+
+  // Le nom et le telephone ne se changent pas ici : ce sont les coordonnees du
+  // client, pas des proprietes du creneau. Les laisser aurait fait croire qu'un
+  // deplacement peut aussi corriger un numero, ce que l'adresse ne fait pas.
+  montrer($('#champRdvNom'), false);
+  montrer($('#champRdvTel'), false);
+
+  garnirFormulaireRdv({ serviceId: rdv.serviceId ?? '', qui: rdv.staffId ?? '' });
+  poserJourRdv(rdv.date);
+
+  afficherMessage($('#messageRdv'), '');
+  chargerHeuresRdv(rdv.start);
+
+  ouvrirSurimpression('surimpressionRdv');
+}
+
+/**
+ * Les heures proposees au commercant : sans delai minimum, pauses comprises.
+ *
+ * ⚠️ AU DEPLACEMENT, LE RENDEZ-VOUS EST RETIRE DU CALCUL (`exclude`). Sans
+ *    cela, il se verrait lui-meme comme obstacle : son heure actuelle
+ *    reviendrait « prise », desactivee, et il deviendrait impossible de ne
+ *    changer QUE la personne ou QUE la prestation en gardant l'heure. C'est le
+ *    pendant, cote liste, de l'auto-collision que la transaction du serveur
+ *    ecarte deja.
+ */
 async function chargerHeuresRdv(heureVoulue = null) {
   const choix = $('#rdvHeure');
   const date = $('#rdvDate')?.value;
   const serviceId = $('#rdvPrestation')?.value;
   if (!choix || !date || !serviceId) return;
 
+  const exclure = MODE_RDV.genre === 'deplacement' ? MODE_RDV.rdv.id : '';
+
   try {
-    const reponse = await lireCreneauxAdmin(date, serviceId, $('#rdvQui')?.value || '');
-
-    choix.innerHTML = reponse.slots
-      .map((c) => `<option value="${c.start}"${c.free ? '' : ' disabled'}>`
-        + `${esc(c.label)}${c.free ? '' : ' — pris'}</option>`)
-      .join('');
-
-    if (heureVoulue !== null) {
-      const existe = reponse.slots.some((c) => c.start === heureVoulue && c.free);
-      if (existe) choix.value = String(heureVoulue);
-    }
+    const reponse = await lireCreneauxAdmin(date, serviceId, $('#rdvQui')?.value || '', exclure);
+    peindreHeuresRdv(choix, reponse.slots ?? [], heureVoulue);
   } catch (erreur) {
+    // >>> LA SESSION EXPIREE RENVOIE A LA CONNEXION, ELLE NE SE COMMENTE PAS. <<<
+    //
+    // Elle affichait « Connexion requise. » sous une liste d'heures vide, et
+    // rien d'autre : le formulaire restait ouvert, son bouton actif, et chaque
+    // clic reposait la meme question. Le seul geste utile — se reconnecter —
+    // n'etait proposé nulle part. C'est le traitement que le reste du fichier
+    // applique deja (`pointer`, `agirDepuisFiche`) ; il manquait ici.
+    if (erreur.code === 401) return exigerConnexion();
+
     choix.innerHTML = '';
+    verrouillerEnvoiRdv(true);
     afficherMessage($('#messageRdv'), erreur.message);
   }
 }
 
+/** La coupure matin / apres-midi, en minutes depuis minuit.
+ *
+ * ⚠️ `start` EST UN NOMBRE DE MINUTES DEPUIS MINUIT, pas un horodatage. 510
+ *    vaut 8h30, 990 vaut 16h30. Le passer a `new Date()` donne le 1er janvier
+ *    1970 a 1h du matin pour toutes les valeurs, et range la journee entiere
+ *    dans « Matin » — le piege est raconte en tete de js/07-tunnel.js, ou la
+ *    meme coupure existe pour le client.
+ *
+ * 13h et non midi : chez un barbier la pause de midi est dans le creux, et
+ * « 12h45 » appartient a la matinee pour qui reserve. La valeur est redite ici
+ * parce que le tunnel ne voyage pas dans ce document (voir tests/portees.mjs). */
+const MINUTES_MIDI_AGENDA = 13 * 60;
+
+/**
+ * Les heures proposees, rangees par demi-journee.
+ *
+ * Une journee de 8h30 a 21h en donne trente-trois : d'affilee dans une liste
+ * deroulante, c'est un mur ou l'on ne trouve pas « vers 18h » sans le chercher
+ * ligne a ligne. Deux groupes nommes se parcourent. C'est la regle que le
+ * tunnel client applique deja a ses creneaux ; l'ecran du commercant n'avait
+ * aucune raison de faire autrement.
+ */
+function peindreHeuresRdv(choix, creneaux, heureVoulue = null) {
+  const groupes = [
+    { nom: 'Matin', liste: creneaux.filter((c) => c.start < MINUTES_MIDI_AGENDA) },
+    { nom: 'Après-midi', liste: creneaux.filter((c) => c.start >= MINUTES_MIDI_AGENDA) },
+  ].filter((g) => g.liste.length > 0);
+
+  choix.innerHTML = groupes
+    .map((g) => `<optgroup label="${esc(g.nom)}">`
+      + g.liste
+        .map((c) => `<option value="${c.start}"${c.free ? '' : ' disabled'}>`
+          + `${esc(c.label)}${c.free ? '' : ' — pris'}</option>`)
+        .join('')
+      + '</optgroup>')
+    .join('');
+
+  const libres = creneaux.filter((c) => c.free);
+
+  // >>> UNE JOURNEE SANS CRENEAU LE DIT. <<< La liste se vidait sans un mot :
+  //     un jour de fermeture et un jour complet donnaient le meme ecran vide,
+  //     avec un bouton actif qui repondait « Choisissez une heure » — alors
+  //     qu'il n'y en avait aucune a choisir. Le message nomme les trois sorties,
+  //     qui sont les trois autres champs du formulaire.
+  if (!libres.length) {
+    verrouillerEnvoiRdv(true);
+    afficherMessage($('#messageRdv'), creneaux.length
+      ? "Plus aucun créneau libre ce jour-là. Changez de jour, de personne ou de prestation."
+      : "Le commerce est fermé ce jour-là. Choisissez un autre jour.");
+    return;
+  }
+
+  verrouillerEnvoiRdv(false);
+  afficherMessage($('#messageRdv'), '');
+
+  // L'heure voulue si elle est encore libre, et A DEFAUT LA PREMIERE LIBRE.
+  //
+  // ⚠️ SANS CE REPLI, LE CHAMP S'OUVRE SUR UN CRENEAU PRIS. Le navigateur
+  //    selectionne la premiere option de la liste, desactivee ou non ; si la
+  //    journee commence par un rendez-vous, le formulaire s'ouvrait donc sur
+  //    « 09:00 — pris » et l'envoi partait vers un 409 certain, pour un choix
+  //    que personne n'avait fait.
+  const voulue = heureVoulue !== null && libres.some((c) => c.start === heureVoulue)
+    ? heureVoulue
+    : libres[0].start;
+
+  choix.value = String(voulue);
+}
+
+/** Le bouton d'envoi, eteint quand il n'y a rien a envoyer. */
+function verrouillerEnvoiRdv(verrouille) {
+  const bouton = $('#rdvValider');
+  if (bouton) bouton.disabled = verrouille;
+}
+
+/**
+ * Le jour du formulaire, et LA BORNE DU SELECTEUR DE DATE.
+ *
+ * `min` vaut aujourd'hui : le calendrier du navigateur grise alors tout le
+ * passe. C'est un refus que le serveur oppose de toute facon — un rendez-vous
+ * ne se deplace pas vers hier, cela fausserait le taux de remplissage comme le
+ * pointage — mais il arrivait APRES la confirmation, une fois la question posee
+ * et le formulaire referme. Le dire avant coute un attribut.
+ */
+function poserJourRdv(iso) {
+  const champ = $('#rdvDate');
+  if (!champ) return;
+
+  champ.value = iso;
+  champ.min = aujourdhui();
+}
+
 async function envoyerRdv(evenement) {
   evenement.preventDefault();
+
+  if (MODE_RDV.genre === 'deplacement') return envoyerDeplacement();
+
   const message = $('#messageRdv');
 
   // Le champ fautif se signale au lecteur d'ecran ET reprend le focus, comme
@@ -371,15 +658,146 @@ async function envoyerRdv(evenement) {
       staffId: $('#rdvQui')?.value || undefined,
       name: nom,
       phone: $('#rdvTel')?.value.trim() || '',
-      source: 'phone',
+      // ⚠️ PAS DE `source` ICI, ET C'EST VOULU. Le champ y figurait, et le
+      //    serveur ne l'a jamais lu : la provenance est ecrite par la route
+      //    elle-meme (`source: 'phone'` dans POST /api/admin/bookings). C'est
+      //    la seule facon de la garder vraie — un client qui la choisit
+      //    pourrait faire passer une saisie au comptoir pour une reservation en
+      //    ligne, et c'est exactement le chiffre que le tableau de bord montre.
     });
 
     fermerSurimpression('surimpressionRdv');
-    $('#formulaireRdv').reset();
+    reinitialiserFormulaireRdv();
     await chargerAgenda();
   } catch (erreur) {
+    if (erreur.code === 401) return exigerConnexion();
     afficherMessage(message, erreur.message);
   }
+}
+
+/**
+ * Le formulaire rendu a son etat de depart.
+ *
+ * `reset()` seul ne suffit pas : il rend leurs valeurs aux champs, pas leur
+ * visibilite ni leurs libelles. Sans cette remise a zero, le formulaire ouvert
+ * une fois en deplacement gardait ensuite le titre « Déplacer le rendez-vous »
+ * et ses deux champs de coordonnees masques — et « Noter un rendez-vous »
+ * refusait alors la saisie faute de nom, sans nulle part ou le taper.
+ */
+function reinitialiserFormulaireRdv() {
+  $('#formulaireRdv')?.reset();
+  MODE_RDV = { genre: 'ajout' };
+  verrouillerEnvoiRdv(false);
+
+  poserTexte($('#titreRdv'), 'Noter un rendez-vous');
+  poserTexte($('#rdvValider'), 'Noter ce rendez-vous');
+  montrer($('#rdvIntro'), false);
+  montrer($('#champRdvNom'), true);
+  montrer($('#champRdvTel'), true);
+}
+
+/**
+ * Le deplacement : on demande confirmation, puis on envoie les quatre champs.
+ *
+ * >>> LA CONFIRMATION NE S'EMPILE PAS SUR LE FORMULAIRE. <<< Le mecanisme de
+ * js/05-navigation.js ne retient qu'un element a rendre au clavier ; la fenetre
+ * se ferme donc avant la question, et se rouvre telle quelle si la reponse est
+ * non. Meme sequence que la fiche avant une suppression.
+ */
+async function envoyerDeplacement() {
+  const message = $('#messageRdv');
+  const rdv = MODE_RDV.rdv;
+
+  marquerRefus($('#rdvHeure'), false);
+
+  const heure = Number($('#rdvHeure')?.value);
+  if (!Number.isInteger(heure)) {
+    afficherMessage(message, 'Choisissez une heure.');
+    marquerRefus($('#rdvHeure'), true, 'messageRdv');
+    $('#rdvHeure')?.focus();
+    return;
+  }
+
+  const cible = {
+    date: $('#rdvDate').value,
+    start: heure,
+    serviceId: $('#rdvPrestation').value,
+    // La cle part TOUJOURS, valeur vide comprise : c'est ainsi que « Peu
+    // importe » rend le rendez-vous a personne. Cote serveur, c'est la presence
+    // de la cle qui vaut ordre, pas sa valeur.
+    staffId: $('#rdvQui')?.value || null,
+  };
+
+  fermerSurimpression('surimpressionRdv');
+
+  if (!await confirmerDeplacement(rdv, cible)) {
+    ouvrirSurimpression('surimpressionRdv');
+    return;
+  }
+
+  try {
+    await deplacerRendezVous(rdv.id, cible);
+
+    reinitialiserFormulaireRdv();
+    await chargerAgenda();
+    annoncer(rappelDePrevenir(rdv, cible));
+  } catch (erreur) {
+    if (erreur.code === 401) return exigerConnexion();
+
+    // Le refus se lit dans le formulaire, qui se rouvre avec les valeurs
+    // refusees : un creneau pris se corrige en changeant l'heure, pas en
+    // recommencant tout.
+    ouvrirSurimpression('surimpressionRdv');
+    afficherMessage(message, erreur.message);
+  }
+}
+
+/** « du samedi 15 août à 09:00 au mardi 18 août à 14:30, avec Rémi ? » */
+function confirmerDeplacement(rdv, cible) {
+  const personne = CONFIG.staff.find((s) => s.id === cible.staffId);
+  const prestation = CONFIG.services.find((s) => s.id === cible.serviceId);
+
+  const avant = `${dateLongue(rdv.date)} à ${fmtHeure(rdv.start)}`;
+  const apres = `${dateLongue(cible.date)} à ${fmtHeure(cible.start)}`;
+  const avec = personne ? `, avec ${personne.name}` : '';
+
+  return demanderConfirmation({
+    titre: 'Déplacer ce rendez-vous',
+    phrase: `Déplacer le rendez-vous de ${rdv.name} du ${avant} au ${apres}${avec} ?`,
+    lignes: [
+      ['Avant', `${dateCourte(rdv.date)} ${fmtHeure(rdv.start)}`],
+      ['Après', `${dateCourte(cible.date)} ${fmtHeure(cible.start)}`],
+      ['Prestation', prestation?.name ?? ''],
+      ['Avec', personne?.name ?? 'Peu importe'],
+      ['Téléphone', rdv.phone ?? ''],
+    ],
+    // Le creneau libere repart au public dans la seconde : c'est la
+    // consequence qu'on ne voit pas, et la seule qui ne se defait pas.
+    consequence: 'L\'ancien créneau redevient réservable aussitôt. Le client '
+      + 'n\'est prévenu de rien : c\'est à vous de l\'appeler.',
+    oui: 'Oui, déplacer',
+    non: 'Non, ne rien changer',
+  });
+}
+
+/**
+ * >>> PERSONNE N'A PREVENU LE CLIENT, ET IL FAUT LE DIRE. <<<
+ *
+ * Le rendez-vous a bouge dans l'agenda du commerce ; sur le telephone du
+ * client, il est toujours a l'ancienne heure. Tant que les canaux de
+ * notification sont eteints (src/lib/notifications.js), la seule chose honnete
+ * a faire est de rappeler le numero, tout de suite, sur l'ecran qu'il regarde.
+ *
+ * Le jour ou le SMS s'allumera, cette phrase deviendra « Damien Carpentier a
+ * ete prevenu par SMS » — et le point d'appel est deja marque cote serveur.
+ */
+function rappelDePrevenir(rdv, cible) {
+  const quand = `${dateCourte(cible.date)} à ${fmtHeure(cible.start)}`;
+  const qui = rdv.name || 'le client';
+
+  return rdv.phone
+    ? `Rendez-vous déplacé au ${quand}. Pensez à prévenir ${qui} — ${rdv.phone}.`
+    : `Rendez-vous déplacé au ${quand}. Pensez à prévenir ${qui} : aucun numéro n'est noté.`;
 }
 
 // --- LA FICHE D'UNE LIGNE D'AGENDA ------------------------------------------
@@ -446,6 +864,13 @@ function ouvrirFicheRdv(id) {
   poserLienTelephone($('#ficheAgenda'), rdv.phone);
 
   poserTexte($('#ficheSupprimer'), 'Supprimer ce rendez-vous');
+
+  // Un rendez-vous deja annule par le client ne se deplace pas : son creneau est
+  // rendu, et le decaler reviendrait a le ressusciter dans le dos de celui qui
+  // s'est decommande. Le serveur le refuse aussi (409) — les deux, parce qu'un
+  // bouton qu'on ne peut pas presser vaut mieux qu'un refus apres coup.
+  montrer($('#ficheDeplacer'), !rdv.cancelledAt);
+
   afficherMessage($('#messageFicheAgenda'), '');
   ouvrirSurimpression('surimpressionFiche');
 }
@@ -460,6 +885,11 @@ async function ouvrirFicheBloc(id) {
   poserTexte($('#titreFicheAgenda'), bloc.notes || 'Période bloquée');
   peindreFicheDeTravail($('#ficheAgenda'), [['Jour', dateCourte(bloc.date)]]);
   poserTexte($('#ficheSupprimer'), 'Lever ce blocage');
+
+  // Une periode bloquee se leve et se repose ; elle ne se deplace pas. Elle
+  // tient a une ligne par jour, et « la decaler » n'aurait pas de sens sur une
+  // periode qui enjambe des jours de fermeture habituelle.
+  montrer($('#ficheDeplacer'), false);
   afficherMessage($('#messageFicheAgenda'), '');
   ouvrirSurimpression('surimpressionFiche');
 
@@ -679,6 +1109,7 @@ async function envoyerBlocage(evenement) {
         'bon');
     }
   } catch (erreur) {
+    if (erreur.code === 401) return exigerConnexion();
     afficherMessage(message, erreur.message);
   }
 }
@@ -795,6 +1226,15 @@ function brancherAgenda() {
     });
   }
 
+  // >>> FRANCHIR 900 PX CHANGE LE DESSIN, PAS SEULEMENT SA LARGEUR. <<<
+  // Sans cette ligne, on garderait la liste sur un ecran qu'on vient
+  // d'agrandir, ou les colonnes sur un ecran qu'on vient de retrecir — et
+  // trois colonnes sur un telephone sont illisibles. C'est aussi ce qui se
+  // produit en tournant une tablette.
+  ECRAN_LARGE.addEventListener('change', () => {
+    if (ESPACE.vue === 'semaine') peindreAgenda();
+  });
+
   $('#ouvrirAjoutRdv')?.addEventListener('click', () => ouvrirAjout());
   $('#ouvrirBlocage')?.addEventListener('click', ouvrirBlocage);
 
@@ -814,6 +1254,15 @@ function brancherAgenda() {
   });
 
   $('#ficheSupprimer')?.addEventListener('click', agirDepuisFiche);
+
+  // La fiche se ferme, le formulaire s'ouvre a sa place : deux surimpressions
+  // empilees et le focus ne revient pas ou il faut (voir js/confirmation.js).
+  $('#ficheDeplacer')?.addEventListener('click', () => {
+    if (FICHE_OUVERTE?.genre !== 'rdv') return;
+    const rdv = FICHE_OUVERTE.rdv;
+    fermerSurimpression('surimpressionFiche');
+    ouvrirDeplacement(rdv);
+  });
 
   // Changer de prestation ou de personne change les heures possibles.
   $('#rdvPrestation')?.addEventListener('change', () => chargerHeuresRdv());

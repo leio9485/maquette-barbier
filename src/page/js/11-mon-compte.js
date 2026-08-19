@@ -317,6 +317,18 @@ function brancherCompte() {
   $('#seDeconnecter')?.addEventListener('click', envoyerDeconnexion);
   $('#demoRemiseAZero')?.addEventListener('click', remettreDemoAZero);
   $('#formulaireMotDePasse')?.addEventListener('submit', envoyerMotDePasse);
+  $('#formulaireCompte')?.addEventListener('submit', envoyerNouveauCompte);
+
+  // Delegue : la liste est repeinte a chaque relecture, et des ecouteurs poses
+  // sur les boutons disparaitraient avec eux.
+  $('#listeComptes')?.addEventListener('click', (evenement) => {
+    const bouton = evenement.target.closest('[data-revoquer]');
+    if (bouton) revoquerDepuisListe(bouton.dataset.revoquer);
+  });
+
+  for (const id of ['compteIdentifiant', 'compteMotDePasse']) {
+    $('#' + id)?.addEventListener('input', (evenement) => marquerRefus(evenement.target, false));
+  }
 
   // Un champ corrige cesse d'etre en faute des la frappe : laisser le filet
   // rouge et `aria-invalid` sur un champ qu'on vient de reecrire ferait dire
@@ -327,5 +339,178 @@ function brancherCompte() {
 
   for (const onglet of $$('.espace-onglet')) {
     onglet.addEventListener('click', () => ouvrirVolet(onglet.dataset.volet));
+  }
+}
+
+// --- LES PERSONNES AUTORISEES ----------------------------------------------
+//
+// >>> UN SEUL MOT DE PASSE POUR TOUTE L'EQUIPE, C'ETAIT LE DEFAUT. <<<
+//
+// La base acceptait plusieurs comptes depuis le premier jour ; la seule facon
+// d'en creer un etait `npm run admin:create`, en ligne de commande, sur le
+// serveur — que le commercant n'a pas. Un salon de trois personnes se
+// retrouvait donc avec un mot de passe partage : personne ne sait qui a
+// supprime quoi, couper l'acces de quelqu'un qui part oblige a deconnecter tout
+// le monde, et un ancien employe garde l'entree du fichier client.
+//
+// Le raisonnement complet, et l'absence de roles, sont en tete de la section
+// correspondante dans src/routes/auth.js.
+
+/** Ce que la liste sait, entre deux relectures. */
+let COMPTES = [];
+
+/** Charge la liste des acces, et la dessine. */
+async function chargerComptes() {
+  try {
+    const reponse = await lireComptes();
+    COMPTES = reponse.users ?? [];
+    peindreComptes();
+    afficherMessage($('#messageComptes'), '');
+  } catch (erreur) {
+    if (erreur.code === 401) return exigerConnexion();
+    afficherMessage($('#messageComptes'), erreur.message);
+  }
+}
+
+/**
+ * La liste des acces, dans la forme des autres listes des reglages.
+ *
+ * Aucun dessin propre : `.reglages-ligne` sert deja aux prestations, aux
+ * personnes, aux avis et aux rayons. Cinq listes qui se ressemblent
+ * s'apprennent une fois.
+ */
+function peindreComptes() {
+  const cible = $('#listeComptes');
+  if (!cible) return;
+
+  cible.innerHTML = COMPTES
+    .map((compte, rang) => {
+      const numero = String(rang + 1).padStart(2, '0');
+
+      // >>> CE QUI SE LIT SUR LA LIGNE EST CE QUI SERT A DECIDER. <<< « Compte
+      //     2 » n'apprend rien ; savoir qu'un acces n'a jamais servi, ou qu'il
+      //     est ouvert sur deux appareils en ce moment, est exactement ce qu'on
+      //     vient chercher avant de revoquer.
+      const appuis = [];
+      if (compte.isSelf) appuis.push('vous, en ce moment');
+      appuis.push(compte.lastLoginAt
+        ? `dernière entrée le ${dateCourte(compte.lastLoginAt.slice(0, 10))}`
+        : 'jamais entré');
+      if (compte.openSessions > 0) {
+        appuis.push(`${compte.openSessions} appareil${compte.openSessions > 1 ? 's' : ''} ouvert${compte.openSessions > 1 ? 's' : ''}`);
+      }
+
+      // Le bouton disparait sur sa propre ligne et sur la derniere restante :
+      // le serveur refuse les deux, et un bouton qui refuse toujours n'a rien a
+      // faire la. La regle vit des deux cotes, jamais du seul cote de la page.
+      const revocable = !compte.isSelf && COMPTES.length > 1;
+
+      return '<div class="reglages-ligne">'
+        + '<div class="reglages-ligne-tete">'
+        + `<span class="reglages-ligne-numero">${esc(numero)}</span>`
+        + `<span class="reglages-ligne-titre">${esc(compte.username)}</span>`
+        + `<span class="reglages-ligne-appui">${esc(appuis.join(' · '))}</span>`
+        + (revocable
+          ? '<span class="reglages-ligne-actions">'
+            + `<button type="button" class="reglages-bouton reglages-retirer" data-revoquer="${esc(compte.id)}">Révoquer</button>`
+            + '</span>'
+          : '')
+        + '</div>'
+        + '</div>';
+    })
+    .join('');
+}
+
+async function envoyerNouveauCompte(evenement) {
+  evenement.preventDefault();
+
+  const message = $('#messageNouveauCompte');
+  const bouton = $('#ajouterCompte');
+
+  marquerRefus($('#compteIdentifiant'), false);
+  marquerRefus($('#compteMotDePasse'), false);
+
+  const identifiant = $('#compteIdentifiant')?.value.trim() ?? '';
+  const motDePasse = $('#compteMotDePasse')?.value ?? '';
+
+  if (!identifiant) {
+    afficherMessage(message, "Il faut un identifiant.");
+    marquerRefus($('#compteIdentifiant'), true, 'messageNouveauCompte');
+    $('#compteIdentifiant')?.focus();
+    return;
+  }
+
+  bouton.disabled = true;
+  poserTexte(bouton, 'Ajout en cours…');
+
+  try {
+    const cree = await creerCompte(identifiant, motDePasse);
+
+    // Les deux champs sont vides AUSSITOT : un mot de passe qui reste affiche
+    // dans un formulaire, sur un poste de comptoir, se lit par-dessus l'epaule.
+    // Meme regle que le formulaire de changement de mot de passe juste au-dessus.
+    $('#compteIdentifiant').value = '';
+    $('#compteMotDePasse').value = '';
+
+    afficherMessage(message, '');
+    await chargerComptes();
+    afficherMessage($('#messageComptes'),
+      `Accès créé pour ${cree.username}. Donnez-lui son mot de passe de vive voix : `
+      + 'il pourra le changer depuis « Compte ».', 'bon');
+  } catch (erreur) {
+    if (erreur.code === 401) return exigerConnexion();
+
+    // Le champ fautif reprend le focus, comme partout : le message seul ne dit
+    // rien a quelqu'un qui ne voit pas l'ecran.
+    const champ = /identifiant/i.test(erreur.message) ? 'compteIdentifiant' : 'compteMotDePasse';
+    afficherMessage(message, erreur.message);
+    marquerRefus($('#' + champ), true, 'messageNouveauCompte');
+    $('#' + champ)?.focus();
+  } finally {
+    bouton.disabled = false;
+    poserTexte(bouton, 'Ajouter cet accès');
+  }
+}
+
+/**
+ * La revocation, precedee de la question qui nomme ce qu'elle coupe.
+ *
+ * Elle est irreversible — le compte se recree, mais avec un nouveau mot de
+ * passe — et elle deconnecte quelqu'un qui est peut-etre en train de s'en
+ * servir. C'est exactement le cas d'emploi de js/confirmation.js.
+ */
+async function revoquerDepuisListe(id) {
+  const compte = COMPTES.find((c) => c.id === id);
+  if (!compte) return;
+
+  const ouvertes = compte.openSessions > 0
+    ? `${compte.openSessions} appareil${compte.openSessions > 1 ? 's' : ''} ouvert${compte.openSessions > 1 ? 's' : ''} en ce moment`
+    : 'aucun appareil ouvert';
+
+  const accepte = await demanderConfirmation({
+    titre: 'Révoquer cet accès',
+    phrase: `Retirer l'accès de ${compte.username} à l'espace commerçant ?`,
+    lignes: [
+      ['Identifiant', compte.username],
+      ['Créé le', compte.createdAt ? dateCourte(compte.createdAt.slice(0, 10)) : ''],
+      ['Dernière entrée', compte.lastLoginAt ? dateCourte(compte.lastLoginAt.slice(0, 10)) : 'jamais'],
+      ['Appareils', ouvertes],
+    ],
+    consequence: 'Ses sessions se ferment tout de suite, sur tous ses appareils. '
+      + 'Les vôtres et celles des autres ne bougent pas. Cette action ne se défait pas.',
+    oui: 'Oui, révoquer',
+    non: 'Non, le garder',
+  });
+
+  if (!accepte) return;
+
+  try {
+    await revoquerCompte(id);
+    await chargerComptes();
+    afficherMessage($('#messageComptes'),
+      `L'accès de ${compte.username} est retiré. Ses sessions sont fermées.`, 'bon');
+  } catch (erreur) {
+    if (erreur.code === 401) return exigerConnexion();
+    afficherMessage($('#messageComptes'), erreur.message);
   }
 }

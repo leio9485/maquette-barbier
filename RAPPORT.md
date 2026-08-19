@@ -744,3 +744,501 @@ recommande d'ouvrir le site cinq minutes avant de le montrer.
 
 *Chaque chiffre de ce rapport a été mesuré sur le serveur qui tourne. Les
 scores Lighthouse ont été relancés après la dernière modification.*
+
+---
+
+## 9. Audit du 17 août 2026 — lot 1 : déplacer un rendez-vous
+
+Périmètre arbitré avec le propriétaire : **le lot 1 seul**. Les lots 2 à 4
+(sauvegardes, comptes multiples, vue semaine en colonnes) ne sont pas engagés ;
+l'arbitrage est en fin de section.
+
+### Ce qui manquait, et ce que ça cassait
+
+La fiche d'un rendez-vous ne proposait que « Supprimer » et « Fermer ». La route
+`PATCH /api/admin/bookings/:id` existait mais ne réattribuait qu'une personne,
+et **aucun écran ne l'appelait** — du code mort côté interface.
+
+Le seul chemin pour décaler un rendez-vous était donc **supprimer puis
+re-noter**, et il cassait quatre choses en silence :
+
+| ce qui se perdait | conséquence pour le client |
+|---|---|
+| `reference` (retirée à la création) | sa référence notée ne marche plus sur `/annuler` |
+| `cancelToken` | le lien d'annulation de son écran de confirmation meurt |
+| `source: 'online'` → `'phone'` | la statistique de provenance du tableau de bord ment |
+| `id` | le bandeau « Votre rendez-vous » de son téléphone pointe dans le vide |
+
+Le client voyait son rendez-vous disparaître pendant que le commerçant croyait
+l'avoir simplement décalé.
+
+### Ce qui a été fait
+
+**La route accepte maintenant `date`, `start` (ou `startMin`), `serviceId` et
+`staffId`, tous facultatifs.** C'est la **clé** qui vaut ordre, pas sa valeur :
+`{ staffId: null }` rend le rendez-vous à personne, `staffId` absent n'y touche
+pas. C'est ce qui permet de décaler sans réattribuer, et l'inverse.
+
+`id`, `reference`, `cancelToken`, `source` et `createdAt` ne figurent pas dans
+les champs écrits : un `update` partiel les laisse tels quels. C'est tout
+l'intérêt de l'opération, et c'est ce que vérifie la section 2 de
+`tests/deplacement.mjs`.
+
+**Deux contrôles de collision, pas un.** La distinction n'est pas cosmétique :
+
+- **réattribution seule** (ni date, ni heure, ni prestation ne changent) : on ne
+  regarde que ce qui est **déjà attribué à cette personne**. C'est la règle
+  d'origine de la route, et elle doit être conservée — deux rendez-vous
+  orphelins qui se chevauchent (l'héritage d'un commerce passé d'un agenda
+  unique à une équipe) se bloqueraient sinon l'un l'autre, et **aucun** ne
+  pourrait plus être attribué. Impasse, dans la situation même que la route
+  existe pour réparer ;
+- **déplacement réel** : tous les occupants du jour visé, **soi-même exclu**,
+  orphelins compris — un rendez-vous sans personne occupe tout le monde.
+
+L'exclusion de soi-même est ce qui fait réussir le repos sur son propre créneau,
+et donc le changement de la seule prestation ou de la seule personne.
+
+**`GET /api/admin/slots` accepte `exclude=<id>`.** Sans lui, l'écran « Déplacer »
+affichait le créneau actuel comme « pris » et désactivé : on ne pouvait plus
+changer la personne sans changer aussi l'heure. C'est le pendant, côté liste, de
+l'auto-collision que la transaction écarte déjà.
+
+**Un seul formulaire pour noter et pour déplacer.** Les deux posent les mêmes
+quatre questions ; en tenir deux d'accord aurait été deux dessins à maintenir.
+Trois choses changent : le titre, le libellé du bouton, et les champs nom et
+téléphone, qui disparaissent — on ne change pas de client en décalant son
+rendez-vous.
+
+⚠️ **Une valeur absente de la liste déroulante y est réinjectée.** Une prestation
+retirée du site ou une personne en pause ne figure pas dans ce que la vitrine
+propose ; le rendez-vous qu'on déplace, lui, peut parfaitement être l'un ou
+l'autre. Sans ce rattrapage, `select.value = …` ne trouve rien, retombe en
+silence sur la première ligne, et **le déplacement aurait changé la prestation
+ou rendu le rendez-vous à quelqu'un d'autre sans que personne ne l'ait demandé.**
+
+### Trois écarts assumés avec le texte de l'audit
+
+**1. Le tarif par personne n'existe pas.** L'audit demande de recalculer
+`priceCents` « à partir de la prestation et de la personne (tarif par personne,
+voir la migration `20260804010708_tarif_par_personne`) ». Cette migration a été
+**annulée le jour même** par la suivante,
+`20260804014224_photo_equipe_et_tarif_unique`, qui supprime la colonne
+`priceCents` de `ServiceStaff`. Il n'y a rien à lire du côté de `staffId` : une
+coupe vaut le même prix pour tout le monde, et `attribuer()` en dit autant à la
+création. Le tarif est donc recalculé **depuis la prestation seule**.
+
+**2. La tolérance horaire est plus large que celle de la création.** L'audit
+demande de « prévenir, ne pas interdire » sur les plages fermées, en la
+présentant comme « la ligne de conduite déjà tenue par le `PATCH` existant ».
+Le `PATCH` existant ne vérifiait en réalité **aucun horaire**, et
+`POST /api/admin/bookings`, lui, **refuse** ces cas via `isBookableStart`.
+Arbitrage retenu : le déplacement **accepte** hors horaires, hors grille et
+pendant la pause, et renvoie alors un champ `warning`. À la création, un créneau
+hors horaires est presque toujours une faute de frappe ; ici, il y a déjà un
+rendez-vous et un client au téléphone, et un refus ferait revenir au
+supprimer-puis-recréer — c'est-à-dire exactement ce que la route existe pour
+éviter. **Seule la date passée reste refusée** : elle fausserait le taux de
+remplissage comme le pointage.
+
+**3. Deux refus ajoutés, que l'audit ne demandait pas.** Une **période bloquée**
+ne se déplace pas (elle se lève et se repose : c'est une ligne par jour), et un
+rendez-vous **déjà annulé par le client** non plus — son créneau est rendu au
+public, le décaler reviendrait à le ressusciter dans le dos de celui qui s'est
+décommandé. Le bouton « Déplacer » est masqué dans les deux cas, **et** le
+serveur refuse : un bouton qu'on ne peut pas presser vaut mieux qu'un refus
+après coup.
+
+### Ce qui n'est pas implémenté, délibérément
+
+**Le client n'est prévenu de rien.** Le point d'appel de `notifierEnFond()` est
+marqué dans la route, en commentaire, et rien de plus — allumer un canal est un
+arbitrage commercial (coût Twilio, ou choix d'un expéditeur de courriel), pas
+une tâche de développement. En attendant, l'écran affiche après chaque
+déplacement :
+
+> Rendez-vous déplacé au mar. 25 août à 14:30. Pensez à prévenir Damien
+> Carpentier — 06 39 98 14 07.
+
+C'est la seule chose honnête à faire tant que les canaux sont éteints. Quand un
+numéro manque, la phrase le dit aussi.
+
+### Vérifications
+
+**16 suites, 828 assertions, aucun échec** (`npm test`, serveur ouvert dans un
+autre terminal, `DEMO_MODE` absent du `.env`). `tests/deplacement.mjs` en apporte
+51, dont : déplacement simple, conservation de la référence / du jeton / de la
+provenance / de la date de création, **la référence d'origine retrouvée sur
+`/annuler` affichant la nouvelle date**, collision 409 sans écriture partielle,
+auto-collision, `exclude`, changement de prestation (durée et tarif recalculés,
+durée soufflée par la requête ignorée), changement de personne, clé absente qui
+ne touche à rien, et les deux refus ci-dessus.
+
+⚠️ **Un 500 a été trouvé et corrigé par cette suite, pas par la lecture du
+code.** `{ serviceId: null }` **détache** la prestation : c'est un changement —
+la clé est là — mais il n'y a plus rien à lire. Le recalcul ne testait que le
+drapeau « ça change », déréférençait `null`, et rendait 500 là où le rendez-vous
+doit simplement garder la durée et le tarif figés sur sa ligne. Les deux
+conditions ne disent pas la même chose ; il faut les deux.
+
+⚠️ **La suite met l'équipe de côté pour son propre compte**, comme
+`tests/staff.mjs`. Sans cela, elle passe au rouge sur une base de développement
+où une équipe est enregistrée : déplacer sur un créneau « occupé » y **réussit**,
+parce qu'une seconde personne y est libre. Le comportement était juste, c'est le
+test qui supposait un agenda unique. Constaté à l'essai, pas déduit.
+
+**Rendu vérifié à 390, 768 et 1440 px**, parcours complet depuis l'agenda :
+aucun débordement horizontal, aucune cible tactile sous 24 px (48 px à 390,
+44 px au-dessus), rayon 0, aucune ombre portée, transitions à 150 ms. Les trois
+boutons de la fiche s'empilent en colonne à 390 px et se répartissent en deux
+rangs au-dessus.
+
+### L'arbitrage sur les lots 2 à 4
+
+Non engagés. Ce que je retiens de leur lecture, pour la décision :
+
+- **Lot 2 (sauvegardes)** — c'est le seul des trois qui protège contre une perte
+  **irréversible**. Chez un client payant, toute sa clientèle tient dans un
+  fichier SQLite sur un volume d'hébergeur, et `scripts/` n'a rien pour le
+  copier. À faire avant le premier client réel, pas avant la prochaine
+  démonstration : sur la démo, la base est jetable par construction.
+- **Lot 3 (comptes multiples)** — utile dès le premier salon à plusieurs. La
+  recommandation de l'audit (commencer sans rôles, mais poser la colonne dans la
+  migration) est la bonne : une seconde migration sur une base de production
+  coûte plus cher que la colonne inutilisée.
+- **Lot 4 (vue semaine en colonnes)** — confort, pas manque. À garder pour après.
+
+### Deux limites connues, à ne pas « corriger »
+
+- **`'unsafe-inline'` dans la CSP**, à côté du nonce. Un navigateur qui comprend
+  les nonces l'ignore depuis CSP niveau 2 ; il ne protège que les très vieux
+  navigateurs de la perte totale de la réservation en ligne. Le commentaire de
+  `securityHeaders.js:37` l'explique. **Un outil d'audit automatique le
+  remontera sans le lire** — c'est écrit ici pour qu'on n'ait pas à le
+  redécouvrir.
+- **`better-sqlite3` impose une instance unique.** La transaction de réservation
+  n'est correcte que parce qu'un seul processus écrit. C'est parfaitement
+  dimensionné pour un commerce de quartier, et ça interdit de dupliquer
+  l'instance sans passer à Postgres.
+
+---
+
+## 10. Lot 3, et deux défauts d'ergonomie trouvés à l'écran
+
+### Le chevron était dessiné à côté du champ, pas dedans
+
+Signalé sur une capture de l'écran « Déplacer le rendez-vous » : chaque `<select>`
+affichait un rectangle bordé, puis sa flèche posée dans le blanc **à droite du
+cadre**. Le champ « Date » d'à côté, lui, gardait son icône à l'intérieur — les
+deux n'avaient donc même plus la même largeur.
+
+La cause n'est pas dans le dessin du chevron, qui était juste, mais dans le
+**placement automatique de la grille**. `.champ:has(select)` fixe une ligne
+(`grid-row`) sur chacun de ses enfants sans jamais fixer de colonne ; le
+`::after` demandait la ligne 2, où le `<select>` occupait déjà la colonne 1, et
+la grille lui en fabriquait donc une **seconde**. Mesuré dans le navigateur :
+
+| | avant | après |
+|---|---|---|
+| `grid-template-columns` calculé | `568px 24px` | **`592px`** |
+| largeur du `<select>` | 568 px | **592 px** |
+| chevron | hors du cadre | **dedans, à 16 px du bord** |
+
+Le champ rétrécissait d'exactement la largeur du chevron. `grid-column: 1` sur
+les quatre enfants remet tout le monde dans la même cellule.
+
+⚠️ **Le défaut portait sur TOUS les `<select>` des trois documents**, pas sur le
+seul formulaire de déplacement : le tunnel client, les réglages, le formulaire
+de blocage. Il se voit surtout là où un champ `date` se trouve juste en dessous,
+parce que la différence de largeur devient alors visible sans mesurer.
+
+### Le formulaire de déplacement, sur ses trois chemins d'échec
+
+La même capture montrait « Connexion requise. » sous une liste d'heures vide, le
+bouton toujours actif. Trois corrections, toutes du même ordre — l'écran savait,
+et ne disait pas :
+
+- **session expirée** : `chargerHeuresRdv()` affichait le message et s'arrêtait
+  là. Le seul geste utile — se reconnecter — n'était proposé nulle part, et
+  chaque clic reposait la même question. Un 401 renvoie maintenant à l'écran de
+  connexion, comme partout ailleurs dans le fichier ;
+- **journée sans créneau** : la liste se vidait sans un mot, et un jour de
+  fermeture donnait le même écran vide qu'un jour complet. Les deux cas sont
+  maintenant nommés, et le bouton d'envoi s'éteint ;
+- **le champ s'ouvrait sur un créneau pris** : le navigateur sélectionne la
+  première option de la liste, désactivée ou non. Une journée qui commence par
+  un rendez-vous ouvrait donc le formulaire sur « 09:00 — pris », et l'envoi
+  partait vers un 409 certain **pour un choix que personne n'avait fait**. À
+  défaut de l'heure voulue, c'est la première heure libre qui est retenue.
+
+Deux ajouts de confort, dans la même passe : les heures sont rangées par
+**demi-journée** (`Matin` / `Après-midi`), comme le tunnel client le fait déjà
+pour ses créneaux — trente-trois heures d'affilée dans une liste déroulante sont
+un mur ; et le sélecteur de date porte un `min` à aujourd'hui, ce qui grise le
+passé au lieu de laisser le serveur refuser **après** la confirmation.
+
+### Lot 3 — les personnes autorisées
+
+La base acceptait plusieurs comptes depuis le premier jour ; la seule façon d'en
+créer un était `npm run admin:create`, en ligne de commande, sur le serveur —
+que le commerçant n'a pas. D'où un mot de passe partagé écrit près de la caisse,
+et les trois conséquences que l'audit décrit : aucune traçabilité, un départ qui
+oblige à déconnecter tout le monde, un ancien employé qui garde l'entrée du
+fichier client.
+
+Trois routes sous `requireAdmin`, et sous **le plafond de la page de
+connexion** : ces routes créent et détruisent des accès, elles valent la porte
+d'entrée et se protègent comme elle.
+
+**Les deux garde-fous ne se recouvrent pas.** On ne révoque ni le dernier compte
+— il ne resterait plus aucune façon d'entrer, et l'espace ne se rouvrirait qu'en
+ligne de commande — ni le sien : se révoquer soi-même est toujours un accident,
+et il faut alors quelqu'un d'autre pour rouvrir. La règle vit **des deux côtés** :
+l'écran retire le bouton, le serveur refuse quand même.
+
+⚠️ **La révocation ne ferme que les sessions du compte visé.** C'est toute la
+différence avec le changement de mot de passe, qui les ferme toutes,
+délibérément. Un test vérifie donc qu'un **tiers reste connecté** pendant qu'un
+autre est coupé — sans quoi « révoquer Karim » déconnecterait le salon entier,
+c'est-à-dire exactement ce que la fonction existe pour éviter.
+
+⚠️ **La gestion des comptes est éteinte sur la démonstration**, comme le
+changement de mot de passe et pour la même raison : le premier visiteur qui
+révoquerait le compte de démonstration fermerait la porte à tous les suivants,
+et jusqu'à la remise à zéro de 4 h. La section reste visible — elle fait partie
+de ce qu'on montre — mais elle n'agit pas.
+
+**Il n'y a pas de rôles, et la colonne est quand même posée.** C'est la
+recommandation de l'audit, et elle est juste : tous les accès peuvent tout
+faire, y compris changer les tarifs, parce qu'un écran de permissions n'a été
+demandé par personne ; mais une **seconde migration sur la base d'un client qui
+tourne** coûte bien plus cher qu'une colonne vide. `AdminUser.role` existe,
+vaut `""`, et **aucun code ne la lit** — un test le constate, pour que personne
+ne croie à une règle d'autorisation qui n'existe pas.
+
+### Un défaut de mise en page trouvé en mesurant, pas en regardant
+
+À 390 px, la ligne d'un accès **sortait de l'écran** et emportait la page dans un
+défilement horizontal. `.reglages-ligne-appui` était en `flex: none` : la règle
+convenait tant que l'appui tenait en deux mots — « Barbier », « 4 prestations » —
+et la liste des accès en écrit de bien plus longs, parce que c'est ce qu'on vient
+y lire : « vous, en ce moment · dernière entrée le 19 août · 1 appareil ouvert ».
+
+`flex: 0 1 auto` avec `min-width: 0` le laisse rétrécir sans jamais grandir. Le
+correctif protège aussi les quatre listes qui employaient déjà cette classe, et
+qui auraient débordé le jour où l'une d'elles aurait affiché un appui long.
+
+⚠️ **Il n'était visible ni à l'œil ni sur une capture** : `window.innerWidth`
+rapporte une valeur mise à l'échelle dans le volet d'aperçu, alors que
+`getBoundingClientRect()` et `document.documentElement.clientWidth` sont dans le
+repère CSS. Comparer les deux ne prouve rien. C'est `matchMedia('(max-width:
+400px)')` qui a confirmé que la page était bien rendue à 390 px, et
+`scrollWidth > clientWidth` qui a montré le débordement.
+
+### Vérifications
+
+**17 suites, 861 assertions, aucun échec.** `tests/comptes.mjs` en apporte 33 :
+la liste sans aucune empreinte de mot de passe, la création puis la connexion
+sous le nouveau compte, le doublon en 409, quatre identifiants refusés, les deux
+garde-fous, la révocation ciblée avec un tiers qui reste connecté, et la colonne
+`role` constatée inerte.
+
+Rendu vérifié à 390, 768 et 1440 px : aucun débordement horizontal dans la
+nouvelle section ni dans les quatre listes existantes, aucune cible tactile sous
+24 px (bouton « Révoquer » à 44 px), rayon 0, aucune ombre. Le cycle complet —
+créer un accès, le voir apparaître « jamais entré », le révoquer avec sa
+confirmation nommée — a été parcouru à l'écran.
+
+⚠️ **`npx prisma generate` est indispensable après cette migration**, et
+`npm start` doit être relancé ensuite. Le client Prisma est généré dans
+`src/generated/prisma` : tant qu'il n'a pas été régénéré, `role` est un « champ
+inconnu » et la moitié de la suite tombe sur une erreur de validation qui ne
+désigne pas sa cause.
+
+---
+
+## 11. Les défauts restants, cherchés au lieu d'être attendus
+
+### La session expirée : le même défaut à cinq endroits
+
+Le formulaire de déplacement n'était pas un cas isolé. Un relevé de tous les
+blocs `catch` de l'espace qui parlent à l'écran en a trouvé **cinq autres**
+qui affichaient « Connexion requise. » sans rien faire : noter un
+rendez-vous, bloquer une période, remettre les réglages à zéro, déposer une
+photo, en retirer une. Le commerçant voyait un message, cliquait à nouveau,
+et obtenait le même message.
+
+Deux cas signalés par le relevé n'en sont pas, et l'un comme l'autre méritent
+d'être écrits :
+
+- **le formulaire de connexion** : un 401 y signifie « mot de passe faux »,
+  c'est la réponse attendue, et y renvoyer vers la connexion serait renvoyer
+  vers l'écran où l'on est déjà ;
+- **la réduction d'une image** : elle se fait dans le navigateur
+  (`FileReader`, `<canvas>`), aucun serveur n'est appelé.
+
+Un défaut présent à cinq endroits à la fois dit qu'aucune pression ne le tient
+droit. Le contrôle est donc devenu un test, dans `portees.mjs` — le fichier
+existe pour cette classe de bogue exactement : invisible au chargement,
+invisible à la lecture, visible seulement en cliquant, et ici seulement après
+avoir attendu qu'une session expire, ce que personne ne fait en développant.
+
+**Le garde-fou a été vérifié en le faisant échouer** : un traitement du 401
+retiré volontairement, le test le nomme (`js/09-agenda.js:572 —
+envoyerRdv()`) ; remis, il repasse au vert.
+
+### Un champ mort qui mentait sur la provenance
+
+Le formulaire envoyait `source: 'phone'` au serveur, **qui ne l'a jamais lu**
+: la route écrit la provenance elle-même. Le champ était donc sans effet, et
+trompeur — il laissait croire que le client choisit la provenance, alors que
+c'est précisément le chiffre que le lot 1 s'attache à garder vrai. Retiré, et
+la raison écrite à sa place.
+
+### Le plafond des comptes se refermait sur le commerçant
+
+>>> **Défaut introduit au lot 3, et trouvé en lançant `npm test` deux fois.**
+
+`plafondDesComptes()` consommait un jeton à **chaque** appel, réussi comme
+raté. Deux conséquences :
+
+- un commerçant qui enregistre son équipe se serait vu refuser l'accès à sa
+  propre section, sans avoir rien fait de mal ;
+- la suite passait au vert la première fois et **au rouge à la seconde**
+  lancée dans le quart d'heure, les vingt opérations de la première restant
+  au compteur.
+
+C'est le piège que le dépôt connaissait déjà pour les références
+d'annulation, sous une autre forme. `POST /api/admin/login` fait pourtant ce
+qu'il faut depuis toujours — `recordFailure` dans la seule branche de refus,
+`resetFailures` au succès — et c'est ce que l'audit demandait en écrivant
+« sous la même limitation de débit que `POST /api/login` ». Les routes de
+gestion des accès s'alignent maintenant sur elle.
+
+⚠️ **La section 5 bis de `tests/comptes.mjs` ne déclenche pas le plafond, et
+c'est délibéré.** Une fois la limite atteinte, plus aucun appel ne passe — le
+contrôle précède l'action — et il n'existe aucune façon de la lever depuis
+l'API, contrairement à `/api/rendez-vous` où un jeton juste rouvre la porte.
+La déclencher bloquerait l'adresse un quart d'heure et casserait le
+`npm test` suivant : le défaut même que la section protège.
+
+### Ce qui a été regardé et laissé tel quel
+
+- **Les trois boutons de la fiche** se répartissent en 2 + 1 à partir de
+  768 px (« Déplacer » et « Supprimer » sur un rang, « Fermer » en dessous).
+  C'est le repli normal de `.actions-paire`, et les deux actions voisines se
+  distinguent par leur traitement — aplat plein contre filet. Toucher à cette
+  classe changerait aussi `/annuler` et la fenêtre des conflits, qui n'ont
+  que deux boutons. Jugement, pas défaut.
+- **Le lot 2 (sauvegardes) et le lot 4 (vue semaine en colonnes)** restent
+  non engagés : ce sont des fonctions à écrire, pas des défauts à corriger.
+  L'arbitrage est au § 9.
+
+### Vérifications
+
+**17 suites, 864 assertions, aucun échec — et le contrôle qui compte ici :
+`npm test` lancé DEUX FOIS de suite passe au vert les deux fois.** C'est ce
+second passage qui avait révélé le défaut du plafond, et c'est lui qui
+l'aurait laissé passer s'il n'avait été lancé qu'une fois.
+
+---
+
+## 12. Lot 4 — la semaine en colonnes
+
+### La question à laquelle la liste ne répondait pas
+
+« Qui est libre jeudi après-midi ? » En sept listes chronologiques, il faut
+lire la journée entière et tenir de tête qui apparaît et qui manque — le
+raisonnement se fait dans la tête du commerçant, pas à l'écran. En colonnes,
+la réponse **est** la colonne la plus courte.
+
+À partir de 900 px et **seulement si une équipe est enregistrée**, chaque
+journée prend toute la largeur et se partage en une colonne par personne.
+
+### Ce que ce n'est pas
+
+⚠️ **Ce n'est pas le retour de la grille**, et c'était le risque de ce lot.
+L'agenda a cessé d'être une grille parce qu'un samedi de 8h30 à 17h dessinait
+cinquante et une cases vides pour trois rendez-vous : on ouvrait son agenda et
+on voyait du vide quadrillé. Trois garde-fous tiennent la nouvelle vue du bon
+côté :
+
+- une colonne ne contient **que des rendez-vous réels** — aucune case à
+  l'heure, aucun quadrillage ;
+- une colonne sans rien tient en **une ligne** : « Libre » ou « Ne travaille
+  pas » ;
+- une journée **entièrement vide ne dessine aucune colonne**. Sa tête dit déjà
+  « Rien de prévu ». Trois colonnes de « Libre » auraient été du vide
+  quadrillé en plus petit.
+
+### Trois décisions qui ne se voient pas
+
+**« Libre » et « Ne travaille pas » sont deux réponses différentes.** Les
+confondre ferait proposer quelqu'un qui ne vient pas ce jour-là — la faute
+exacte que cette vue existe pour éviter. Les trois cas se lisent dans le
+schéma : commerce fermé, `hours` nul (elle suit le commerce), `hours[jour]`
+nul (son jour de repos). La donnée arrivait déjà au navigateur ; personne ne
+s'en servait.
+
+**Ce qui n'appartient à personne passe au-dessus, pleine largeur** : blocage
+du commerce entier, rendez-vous non attribué. Ils occupent *tout le monde*
+(prisma/schema.prisma) ; les ranger dans une colonne les ferait passer pour
+l'affaire d'une seule personne et **laisserait croire les autres
+disponibles** — l'inverse de ce qu'on vient chercher.
+
+**Le choix du dessin est en JavaScript, et il ne pouvait pas être en CSS.**
+Les deux formes ne rangent pas les mêmes lignes dans le même ordre —
+chronologique d'un côté, par personne de l'autre — et aucune règle de style ne
+réordonne un contenu. Un `matchMedia` est donc écouté dans `09-agenda.js`, et
+`peindreAgenda()` pose `data-colonnes="personnes"` que la feuille se contente
+d'appliquer. Franchir 900 px redessine, ce qui couvre aussi la tablette qu'on
+tourne.
+
+### Un détail d'accessibilité qui a failli passer
+
+Dans une colonne, répéter le prénom sur chaque ligne vole la place du nom du
+client. Première version : `display: none`. Elle **retirait aussi le prénom
+aux lecteurs d'écran** — et la personne n'était plus portée que par la
+*position de la colonne*. C'est la même faute que de porter une information
+par la seule couleur, sous une autre forme : quelqu'un qui parcourt les
+rendez-vous bouton par bouton entendait « 09:30, Damien Carpentier, coupe
+homme » sans jamais savoir de quelle colonne il s'agissait.
+
+Le prénom passe donc en `.hors-ecran` — invisible, audible. Vérifié en
+relevant ce qu'un lecteur d'écran annonce vraiment :
+
+```
+09:25 | Damien Carpentier | Coupe homme · 25 min | Rémi
+```
+
+Le téléphone, lui, est bien retiré pour tout le monde : c'est un détail qu'on
+va chercher dans la fiche, en lien `tel:`, et pas en survolant sa semaine. Il
+coûtait une troisième ligne à chaque rendez-vous, soit un tiers de hauteur sur
+une semaine entière.
+
+### Vérifications
+
+Les quatre critères, vérifiés à l'écran sur une semaine peuplée à dessein
+(deux rendez-vous pour Rémi, un pour Karim, un jour de repos pour Yanis, un
+blocage sur une seule personne, un rendez-vous non attribué) :
+
+| Critère | Constat |
+|---|---|
+| Colonnes par personne à partir de 900 px | `data-colonnes="personnes"`, trois colonnes de 381 px |
+| En dessous de 900 px, la liste est conservée | à 768 et 390 px : aucune colonne, liste chronologique |
+| Les blocages y apparaissent, distincts | filet gris contre filet à la teinte de la personne, « Période bloquée » |
+| Un rendez-vous s'y ouvre en fiche | fiche ouverte, « Déplacer » présent ; sur un blocage, « Lever ce blocage » |
+
+**Sans équipe, rien ne change** : la semaine reste sept journées en deux
+colonnes de 564 px, les six rendez-vous toujours affichés. C'est le cas de
+l'agenda unique — et celui de toute la suite de tests. Vérifié en mettant
+réellement l'équipe de côté, puis en la reposant.
+
+Aucun débordement horizontal ni cible sous 24 px à 390, 768 et 1440 px.
+**17 suites, 864 assertions, aucun échec.**
+
+⚠️ **Aucun test automatique n'a été ajouté pour ce lot, et c'est délibéré.**
+Il n'y a pas de comportement serveur à vérifier : la vue est entièrement
+front-end, et `portees.mjs` couvre déjà la seule classe de bogue qui s'y
+produirait sans se voir — une fonction appelée mais absente du document. Le
+reste se regarde, et a été regardé.

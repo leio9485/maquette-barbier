@@ -320,20 +320,126 @@
 
 /* --- LA VUE SEMAINE --------------------------------------------------------
 
-   Les mêmes journées, en plus resserré : c'est sept fois la vue jour, pas un
-   second dessin à maintenir. Sur grand écran, deux colonnes — une semaine
-   entière tient alors sur un écran et demi au lieu de quatre, et c'est
-   précisément ce qu'on demande à une vue semaine : voir la semaine.
+   Deux dessins, et c'est le JavaScript qui choisit (js/09-agenda.js) : les
+   deux ne rangent pas les mêmes lignes dans le même ordre — chronologique
+   d'un côté, par personne de l'autre — et aucune règle de style ne réordonne
+   un contenu. La feuille applique, elle ne décide pas.
+
+   SANS ÉQUIPE, la semaine reste sept journées en deux colonnes : une semaine
+   entière tient alors sur un écran et demi au lieu de quatre.
+
+   AVEC UNE ÉQUIPE, chaque journée prend toute la largeur et se partage en une
+   colonne par personne. C'est ce qui répond d'un coup d'œil à « qui est libre
+   jeudi après-midi ? », qu'une liste chronologique oblige à reconstituer de
+   tête.
+
+   ⚠️ CE N'EST PAS LE RETOUR DE LA GRILLE, retirée parce qu'elle dessinait
+      cinquante et une cases vides pour trois rendez-vous. Une colonne ne
+      contient que des rendez-vous réels, et une seule ligne quand il n'y en a
+      aucun. Aucune case à l'heure, aucun quadrillage.
 */
+
+/* Le nom de la personne en tête de sa colonne. Un filet dessous, comme la tête
+   de journée : c'est la même idée à un cran de plus. */
+.agenda-colonne-nom {
+  margin: 0 0 var(--e1);
+  padding-bottom: var(--e1);
+  border-bottom: 1px solid var(--filet);
+  color: var(--acier);
+}
+
+/* « Libre » ou « Ne travaille pas » — deux réponses différentes, et les
+   confondre ferait proposer quelqu'un qui ne vient pas ce jour-là. */
+.agenda-colonne-vide {
+  margin: 0;
+  padding: var(--e2) 0;
+  font-size: var(--t-petit);
+  color: var(--acier);
+}
+
 @media (min-width: 900px) {
-  .agenda[data-vue="semaine"] {
+  /* Sans équipe : le dessin d'avant, inchangé. */
+  .agenda[data-vue="semaine"]:not([data-colonnes]) {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--e4) var(--e5);
     align-items: start;
   }
 
-  .agenda[data-vue="semaine"] .agenda-jour + .agenda-jour { margin-top: 0; }
+  .agenda[data-vue="semaine"]:not([data-colonnes]) .agenda-jour + .agenda-jour { margin-top: 0; }
+
+  /* Avec équipe : une colonne par personne. Le nombre vient du balisage
+     (`style="--colonnes:3"`), comme la teinte d'une personne vient déjà du
+     balisage sur chaque ligne — c'est une donnée, pas une valeur de charte. */
+  .agenda[data-colonnes="personnes"] .agenda-colonnes {
+    display: grid;
+    grid-template-columns: repeat(var(--colonnes, 1), minmax(0, 1fr));
+    gap: 0 var(--e3);
+    align-items: start;
+  }
+
+  /* `min-width: 0` : sans lui, une colonne de grille ne descend pas sous la
+     largeur de son contenu, et trois noms longs débordent la journée. */
+  .agenda-colonne { min-width: 0; }
+
+  /* Le filet sépare les colonnes, il n'encadre rien : la hiérarchie du site se
+     fait par des traits et des aplats, jamais par des boîtes. */
+  .agenda-colonne + .agenda-colonne {
+    padding-left: var(--e3);
+    border-left: 1px solid var(--filet);
+  }
+
+  /* >>> LA COLONNE DE DROITE DISPARAÎT DANS UNE COLONNE DE PERSONNE. <<<
+
+     Elle porte le prénom et le téléphone. Le prénom est déjà en tête de la
+     colonne — le répéter sur chaque ligne ne dit rien de plus. Le téléphone,
+     lui, est une information de détail : dans une colonne trois fois plus
+     étroite il passait à la ligne, et chaque rendez-vous occupait trois lignes
+     au lieu de deux. Sur une semaine entière, c'est un tiers de hauteur en
+     plus pour un numéro qu'on ne compose pas en survolant sa semaine — il est
+     dans la fiche, à un clic, en lien `tel:`.
+
+     ⚠️ SEULEMENT DANS UNE COLONNE. Le bandeau du haut — blocages du commerce,
+        rendez-vous non attribués — est hors `.agenda-colonne` : il garde son
+        « Tout le commerce », qui y est justement l'information utile.
+
+     Le filet de couleur, lui, reste sur chaque ligne : c'est ce qui la
+     rattache à sa colonne quand l'œil redescend. */
+
+  /* Le téléphone : retiré pour tout le monde. C'est un détail qu'on va
+     chercher dans la fiche, en lien `tel:`, et pas en survolant sa semaine. */
+  .agenda[data-colonnes="personnes"] .agenda-colonne .agenda-tel { display: none; }
+
+  /* >>> LE PRÉNOM SORT DE L'ÉCRAN, IL NE SORT PAS DE LA PAGE. <<<
+
+     `display: none` l'aurait retiré aux lecteurs d'écran aussi — et dans une
+     colonne, la personne n'est alors plus portée que par la POSITION. C'est
+     la même faute que de porter une information par la seule couleur, sous
+     une autre forme : quelqu'un qui parcourt les rendez-vous bouton par
+     bouton entendrait « 09:30, Théo Blanc, coupe homme » sans jamais savoir
+     de quelle colonne il s'agit.
+
+     `.hors-ecran` (03-fondations.css) le garde audible et invisible.
+
+     ⚠️ Il faut une position sur la ligne, sinon l'élément en `position:
+        absolute` se cale sur le premier ancêtre positionné — la même
+        précaution que pour le portrait des réglages (16-reglages.css). */
+  .agenda[data-colonnes="personnes"] .agenda-colonne .agenda-rdv,
+  .agenda[data-colonnes="personnes"] .agenda-colonne .agenda-bloc {
+    position: relative;
+  }
+
+  .agenda[data-colonnes="personnes"] .agenda-colonne .agenda-qui {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
 }
 
 /* --- LE POINTAGE « VENU » / « PAS VENU » -----------------------------------

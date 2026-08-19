@@ -239,9 +239,76 @@ toutes les demi-heures, de l'ouverture à la fermeture, par personne : un samedi
 de 8h30 à 17h faisait cinquante et une cases pour trois rendez-vous. On ouvrait
 son agenda et on voyait du vide quadrillé. Il montre maintenant les rendez-vous
 du jour, dans l'ordre, dans la même forme que la liste tarifaire de la vitrine.
-La vue semaine est sept fois cette journée, en deux colonnes à partir de
-900 px — pas un second dessin à maintenir. « Noter un rendez-vous » est passé
-du clic dans une case vide à un bouton en tête, qui ouvre le même formulaire.
+« Noter un rendez-vous » est passé du clic dans une case vide à un bouton en
+tête, qui ouvre le même formulaire.
+
+**La vue semaine se lit en colonnes, une par personne, à partir de 900 px.**
+Elle était sept listes chronologiques : pour arbitrer « qui est libre jeudi
+après-midi ? », il fallait lire la journée entière et tenir de tête qui
+apparaît et qui manque. En colonnes, la réponse est la colonne la plus courte.
+
+⚠️ **Ce n'est pas le retour de la grille.** Une colonne ne contient que des
+rendez-vous réels : aucune case à l'heure, aucun quadrillage, et une seule
+ligne — « Libre » ou « Ne travaille pas » — quand il n'y a rien. Une journée
+entièrement vide ne dessine aucune colonne du tout : sa tête dit déjà « Rien
+de prévu », en une ligne au lieu de trois colonnes.
+
+⚠️ **« Libre » et « Ne travaille pas » ne sont pas la même réponse.** Les
+confondre ferait proposer quelqu'un qui ne vient pas ce jour-là — la faute
+exacte que cette vue existe pour éviter. Les trois cas viennent du schéma :
+commerce fermé, `hours` nul (elle suit le commerce), `hours[jour]` nul (son
+jour de repos).
+
+⚠️ **Ce qui n'appartient à personne passe au-dessus, pleine largeur** :
+blocage du commerce entier, rendez-vous non attribué. Ils occupent *tout le
+monde* ; les ranger dans une colonne les ferait passer pour l'affaire d'une
+seule personne et laisserait croire les autres disponibles.
+
+⚠️ **Le choix du dessin se fait en JavaScript, et il ne peut pas se faire en
+CSS.** Les deux formes ne rangent pas les mêmes lignes dans le même ordre —
+chronologique d'un côté, par personne de l'autre — et aucune règle de style ne
+réordonne un contenu. `ECRAN_LARGE` (un `matchMedia`) est écouté dans
+`09-agenda.js`, et `peindreAgenda()` pose `data-colonnes="personnes"` que la
+feuille se contente d'appliquer. **Sans équipe enregistrée, rien ne change** :
+la semaine reste sept journées en deux colonnes, comme avant.
+
+⚠️ **Dans une colonne, le prénom sort de l'écran mais pas de la page.** Le
+répéter sur chaque ligne vole la place du nom du client ; le retirer en
+`display: none` le retirerait aussi aux lecteurs d'écran, et la personne ne
+serait plus portée que par la **position** — la même faute que de la porter
+par la seule couleur. Il passe donc en `.hors-ecran`. Le téléphone, lui, est
+bien retiré : il est dans la fiche, à un clic, en lien `tel:`.
+
+**Un rendez-vous se DÉPLACE, il ne se supprime plus pour être re-noté.** La
+fiche n'offrait que « Supprimer » : décaler quelqu'un d'une heure — l'opération
+la plus fréquente d'un agenda de barbier — passait donc par une suppression
+suivie d'une création, et le rendez-vous recréé recevait une **nouvelle
+référence** et un **nouveau jeton**. La référence que le client avait notée ne
+marchait plus sur `/annuler`, le bandeau « Votre rendez-vous » de son téléphone
+pointait dans le vide, et la ligne repassait de `source: 'online'` à `'phone'`,
+faussant la statistique de provenance. Il voyait son rendez-vous disparaître
+pendant que le commerçant croyait l'avoir simplement décalé.
+
+`PATCH /api/admin/bookings/:id` accepte aujourd'hui `date`, `start`, `serviceId`
+et `staffId`, tous facultatifs — **c'est la clé qui vaut ordre, pas sa valeur** :
+`{ staffId: null }` rend le rendez-vous à personne, `staffId` absent n'y touche
+pas. `id`, `reference`, `cancelToken`, `source` et `createdAt` ne figurent pas
+dans les champs écrits, et c'est tout l'intérêt de l'opération.
+
+⚠️ **Deux contrôles de collision, et il faut les deux.** Une réattribution seule
+ne regarde que ce qui est *déjà attribué à cette personne* — sinon deux
+rendez-vous orphelins qui se chevauchent se bloquent l'un l'autre et aucun ne
+peut plus être attribué, l'impasse même que la route existait pour réparer. Un
+déplacement réel, lui, regarde tous les occupants du jour visé, **soi-même
+exclu** : sans cette exclusion, un rendez-vous se voit comme son propre obstacle
+et ne peut plus changer de seule prestation. `GET /api/admin/slots` prend
+`exclude=<id>` pour la même raison, côté liste.
+
+⚠️ **Le client n'est prévenu de rien, et l'écran le dit.** Tant que les canaux de
+`notifications.js` sont éteints, le déplacement affiche « Pensez à prévenir
+Damien Carpentier — 06 39 98 14 07 ». Le point d'appel de `notifierEnFond()` est
+marqué dans la route ; l'allumer est un arbitrage commercial, pas une tâche de
+développement.
 
 ⚠️ **L'ossature de l'espace n'avait aucun style.** Ni la barre, ni les onglets,
 ni le conteneur du contenu : le balisage portait des classes que personne
@@ -259,6 +326,29 @@ vérifier — durée et tarif, rôle, nombre de prestations.
 **La suppression a pris un mot.** C'était une croix de 36 px entre deux flèches
 qui lui ressemblaient : la cible la plus petite du formulaire était aussi la
 seule irréversible.
+
+**Chacun entre avec son propre identifiant.** La base acceptait plusieurs comptes
+depuis le premier jour, mais la seule façon d'en créer un était
+`npm run admin:create`, en ligne de commande, sur le serveur — que le commerçant
+n'a pas. D'où un mot de passe partagé écrit près de la caisse : personne ne sait
+qui a supprimé quoi, couper l'accès de quelqu'un qui part oblige à déconnecter
+tout le monde, et un ancien employé garde l'entrée du fichier client. La section
+« Personnes autorisées » des Réglages crée et révoque les accès.
+
+⚠️ **La révocation ne ferme que les sessions du compte visé** — c'est toute la
+différence avec le changement de mot de passe, qui les ferme toutes,
+délibérément. Deux garde-fous, et ils ne se recouvrent pas : ni le dernier
+compte (l'espace ne se rouvrirait qu'en ligne de commande), ni le sien (se
+révoquer soi-même est toujours un accident). La règle vit des deux côtés :
+l'écran retire le bouton, le serveur refuse quand même. La gestion des comptes
+est éteinte sur la démonstration, comme le changement de mot de passe.
+
+⚠️ **`AdminUser.role` existe, vaut `""`, et aucun code ne la lit.** Tous les
+accès peuvent tout faire, y compris changer les tarifs : un écran de permissions
+n'a été demandé par personne. La colonne est là parce qu'une seconde migration
+sur la base d'un client qui tourne coûte bien plus cher qu'une colonne vide. Un
+test constate son inertie, pour que personne ne croie à une règle d'autorisation
+qui n'existe pas.
 
 ### Le ton des textes
 
@@ -368,6 +458,21 @@ qu'elle tient dans une plage ouverte ce jour-là, sinon il casse un vendredi sur
 deux. `prochainJourOuvert()` est pour cette raison forcé sur mardi–jeudi, les
 trois jours aux horaires identiques.
 
+**Un plafond qui compte les passages se referme sur son propre
+commerçant.** `POST /api/admin/users` consommait un jeton à *chaque*
+appel, réussi comme raté : enregistrer son équipe suffisait à se faire
+refuser sa propre section. Le défaut ne se voit pas à la première
+exécution de la suite mais **à la seconde**, lancée dans le quart
+d'heure — c'est le même piège que les références d'annulation figées.
+`POST /api/admin/login` montre la règle : `recordFailure` dans la seule
+branche de refus, `resetFailures` au succès. Compter les échecs, jamais
+les passages.
+
+⚠️ **Un plafond atteint ne se lève pas depuis l'API** sur ces routes : le
+contrôle précède l'action, donc même un appel légitime est refusé. Ne
+jamais le déclencher volontairement dans un test — contrairement à
+`/api/rendez-vous`, où un jeton juste rouvre la porte.
+
 **Le balisage des prestations et des avis est écrit à deux endroits** — côté
 serveur pour ceux qui n'exécutent pas de JavaScript, côté page pour la mise à
 jour sans rechargement. Les deux doivent produire exactement le même HTML. Un
@@ -382,6 +487,30 @@ homme aux ciseaux » et rien ne se passait.
 tiennent 5,9:1 sur l'encre n'y font plus que 3,5:1. D'où des déclinaisons
 propres au fond bleu dans `03-fondations.css`. Avant de poser une couleur sur un
 nouveau fond : mesurer.
+
+**Un `grid-row` sans `grid-column` fabrique une colonne.** Le chevron des
+`<select>` est un `::after` posé dans la même cellule que le champ. Les règles de
+`.champ:has(select)` fixaient une ligne sur chaque enfant **sans fixer de
+colonne** : le `::after` demandait la ligne 2, où le `<select>` occupait déjà la
+colonne 1, et la grille lui en fabriquait donc une seconde.
+`grid-template-columns` calculé valait `568px 24px` au lieu de `592px` — le champ
+rétrécissait d'exactement la largeur du chevron, qui se dessinait **hors du
+cadre bordé**, à côté. Cela portait sur tous les `<select>` des trois documents,
+et ne se voyait que là où un `input[type="date"]` juste en dessous donnait un
+point de comparaison. Ne jamais poser `grid-row` seul dans ces règles.
+
+**`flex: none` sur un texte qui peut s'allonger déborde de l'écran.**
+`.reglages-ligne-appui` le portait : la règle convenait tant que l'appui tenait
+en deux mots (« Barbier », « 4 prestations »), et la liste des accès en écrit de
+bien plus longs. À 390 px, la ligne sortait de l'écran. `flex: 0 1 auto` **avec**
+`min-width: 0` — sans ce dernier, la largeur minimale d'un élément flex reste
+celle de son contenu et il déborde quand même.
+
+⚠️ **Ce débordement ne se voit ni à l'œil ni sur une capture.** Dans le volet
+d'aperçu, `window.innerWidth` est mis à l'échelle alors que
+`getBoundingClientRect()` et `clientWidth` sont dans le repère CSS : les
+comparer ne prouve rien. Mesurer avec `scrollWidth > clientWidth`, et confirmer
+la largeur rendue avec `matchMedia('(max-width: 400px)')`.
 
 **`overflow-x: hidden` décolle tout ce qui est `sticky`.** Le garde-fou contre
 le défilement horizontal était posé en `hidden` sur `<html>` et `<body>` : c'est
@@ -432,7 +561,7 @@ Changer l'un sans l'autre remet les titres de section sous la barre.
 npm test
 ```
 
-**776 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
+**864 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
 `.env`.
 
 ⚠️ **`npm run dev` ne convient pas pour lancer la suite.** `node --watch`
@@ -441,11 +570,11 @@ base et `data/equipe-mise-de-cote.json`. La connexion est coupée en plein
 milieu et `npm test` échoue sur un `ECONNRESET` qui n'a rien à voir avec le
 code. Lancer `npm start`.
 
-Quinze suites, dont sept ajoutées après la première livraison :
+Dix-sept suites, dont neuf ajoutées après la première livraison :
 
 | Suite | Ce qu'elle protège |
 |---|---|
-| `portees.mjs` | chaque document n'appelle que ce qu'il embarque |
+| `portees.mjs` | chaque document n'appelle que ce qu'il embarque, et traite la session expirée |
 | `debit.mjs` | les plafonds de réservation, la règle d'exemption, `trust proxy` |
 | `chiffres.mjs` | le tableau de bord, le pointage, l'export CSV |
 | `espace.mjs` | la séparation vitrine / espace, au poids et à la chaîne près |
@@ -454,6 +583,8 @@ Quinze suites, dont sept ajoutées après la première livraison :
 | `annulation.mjs` | annuler, déplacer, l'absence d'oracle, les deux compteurs |
 | `demonstration.mjs` | la remise à zéro, et ce que le tableau de bord montre |
 | `blocages.mjs` | poser, relire et **lever** une période bloquée |
+| `deplacement.mjs` | déplacer sans recréer : la référence, le jeton et la provenance survivent |
+| `comptes.mjs` | les accès multiples, les deux garde-fous, la révocation ciblée |
 | `francais.mjs` | aucune chaîne visible écrite sans accents |
 
 ⚠️ **`demonstration.mjs` est la seule suite à lancer son propre serveur.** Ce

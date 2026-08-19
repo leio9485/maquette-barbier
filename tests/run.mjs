@@ -42,7 +42,18 @@ const ICI = path.dirname(fileURLToPath(import.meta.url));
 // sa propre instance, avec DEMO_MODE et sa propre base. Elle est donc insensible
 // a l'ordre — on la met tot, parce qu'un echec de la remise a zero est ce qu'on
 // veut apprendre en premier.
-const SUITES = ['portees.mjs', 'demonstration.mjs', 'debit.mjs', 'api.mjs', 'settings.mjs', 'auth.mjs', 'categories.mjs', 'staff.mjs', 'blocages.mjs', 'chiffres.mjs', 'espace.mjs', 'seo.mjs', 'francais.mjs', 'tunnel.mjs', 'annulation.mjs'];
+// `deplacement.mjs` suit `staff.mjs` : elle cree deux personnes le temps d'une
+// section et les supprime dans son `finally`, ce qui suppose de partir d'un
+// commerce sans equipe — l'etat sur lequel `staff.mjs` se termine.
+//
+// ⚠️ `comptes.mjs` MET LES AUTRES COMPTES DE COTE ET LES REPOSE, le temps de
+//    verifier qu'on ne peut pas revoquer le DERNIER acces — un controle qui n'a
+//    de sens que sur une base ou il n'en reste qu'un. Elle recree ensuite chaque
+//    ligne avec son identifiant, son empreinte et ses dates d'origine, dans son
+//    propre `finally`. Elle ne se lance donc pas en parallele d'une autre suite
+//    qui se connecte : pendant ces quelques millisecondes, le compte partage
+//    n'existe pas.
+const SUITES = ['portees.mjs', 'demonstration.mjs', 'debit.mjs', 'api.mjs', 'settings.mjs', 'auth.mjs', 'categories.mjs', 'staff.mjs', 'deplacement.mjs', 'comptes.mjs', 'blocages.mjs', 'chiffres.mjs', 'espace.mjs', 'seo.mjs', 'francais.mjs', 'tunnel.mjs', 'annulation.mjs'];
 
 /**
  * Lance une suite dans son propre processus, sortie affichee telle quelle.

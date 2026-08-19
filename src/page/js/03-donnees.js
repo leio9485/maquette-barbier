@@ -122,3 +122,20 @@ function retrouverRendezVous(preuve) {
 function deplacerRendezVous(corps) {
   return api('/api/rendez-vous/deplacer', { methode: 'POST', corps });
 }
+
+/**
+ * Annule un rendez-vous a partir de sa REFERENCE, et de la preuve qui va avec
+ * (le jeton, ou les quatre derniers chiffres du telephone).
+ *
+ * A cote de `annulerReservation()`, qui part de l'identifiant interne : celui-la
+ * n'est connu que de la reponse a une reservation. Apres un deplacement, le
+ * client n'a que sa reference — c'est par ici que passe alors le bouton
+ * « Annuler ce rendez-vous ».
+ */
+function annulerParReference(preuve) {
+  const corps = { reference: preuve.reference };
+  if (preuve.jeton) corps.jeton = preuve.jeton;
+  else corps.telephone = preuve.telephone;
+
+  return api('/api/rendez-vous/annuler', { methode: 'POST', corps });
+}

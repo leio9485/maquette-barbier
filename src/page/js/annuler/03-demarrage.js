@@ -85,6 +85,46 @@ async function ouvrirDepuisLeLien(reference, jeton) {
   }
 }
 
+/**
+ * Le rappel du rendez-vous que ce navigateur garde, au-dessus du formulaire.
+ *
+ * >>> LE CLIENT RETAPAIT UNE REFERENCE QU'IL AVAIT SOUS LA MAIN. <<< Le
+ * rendez-vous est memorise depuis la reservation (`letabli.rdv`,
+ * js/00-memoire.js) — c'est ce qui affiche « Votre rendez-vous » en haut de la
+ * vitrine — et cette page-ci, ou l'on vient precisement pour ce rendez-vous-la,
+ * presentait un formulaire vide.
+ *
+ * ⚠️ IL NE REMPLIT QUE LA REFERENCE, et laisse les quatre chiffres a saisir.
+ *    C'est le second facteur : sur un appareil partage, le rappel dirait sinon
+ *    a n'importe qui comment annuler le rendez-vous du proprietaire.
+ *
+ * ⚠️ RIEN N'EST DEMANDE AU SERVEUR ICI. Le rendez-vous garde peut avoir ete
+ *    annule par le salon entre-temps ; le verifier demanderait justement les
+ *    quatre chiffres qu'on ne veut pas deviner. La verite arrive une phrase
+ *    plus tard, quand le client valide.
+ */
+function peindreRappelMemoire() {
+  const bloc = $('#rappelMemoire');
+  const bouton = $('#rappelMemoireBouton');
+  if (!bloc || !bouton) return;
+
+  // `rendezVousRetenus()` fait le menage des rendez-vous passes au passage, et
+  // rend le plus proche en premier.
+  const rdv = rendezVousRetenus()[0];
+  if (!rdv) return;
+
+  const quand = `${dateLongue(rdv.date)} à ${fmtHeure(rdv.start)}`;
+  poserTexte(bouton, `Votre rendez-vous du ${quand}`);
+
+  bouton.addEventListener('click', () => {
+    const champ = $('#champReference');
+    if (champ) champ.value = rdv.reference;
+    $('#champTelephone')?.focus();
+  });
+
+  montrer(bloc, true);
+}
+
 function brancher() {
   $('#formulaireRecherche')?.addEventListener('submit', chercher);
 
@@ -122,7 +162,12 @@ function demarrer() {
     const champ = $('#champReference');
     if (champ) champ.value = reference;
     $('#champTelephone')?.focus();
+    return;
   }
+
+  // Personne n'est arrive par un lien : ce navigateur sait peut-etre de quel
+  // rendez-vous il s'agit.
+  peindreRappelMemoire();
 }
 
 if (document.readyState === 'loading') {

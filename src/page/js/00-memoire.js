@@ -87,19 +87,32 @@ function rendezVousRetenus() {
 function retenirRendezVous(rdv) {
   if (!rdv?.reference || !rdv?.date) return;
 
+  const liste = lireMemoire();
+  const ancien = liste.find((r) => r.reference === rdv.reference) ?? null;
+
   const garde = {
     reference: rdv.reference,
-    jeton: rdv.cancelToken || rdv.jeton || '',
+    // >>> UN JETON ABSENT N'EFFACE PAS CELUI QU'ON AVAIT. <<<
+    //
+    // Le cas est reel et il se voyait : un client qui deplace son rendez-vous
+    // depuis /annuler s'est authentifie avec sa reference et quatre chiffres,
+    // pas avec son jeton. Le serveur, lui, ne renvoie jamais le jeton a qui a
+    // prouve de cette facon-la (voir `pourLeClient()`, src/routes/rendezvous.js
+    // — et c'est une bonne regle). L'ecriture qui suivait le deplacement posait
+    // donc `jeton: ''` par-dessus le jeton que la reservation avait laisse la,
+    // et le bouton « Annuler ce rendez-vous » disparaissait de l'ecran de
+    // confirmation. Le rendez-vous restait annulable depuis /annuler : ce
+    // n'etait pas une impasse, c'etait une regression silencieuse.
+    jeton: rdv.cancelToken || rdv.jeton || ancien?.jeton || '',
     date: rdv.date,
     start: rdv.start,
-    duration: rdv.duration ?? null,
-    serviceName: rdv.serviceName || '',
-    staffName: rdv.staffName || '',
+    // Meme regle pour ce qui n'est pas renvoye par tous les chemins : un
+    // deplacement decrit le nouveau creneau, il ne redit pas la prestation.
+    duration: rdv.duration ?? ancien?.duration ?? null,
+    serviceName: rdv.serviceName || ancien?.serviceName || '',
+    staffName: rdv.staffName || ancien?.staffName || '',
   };
-
-  const liste = lireMemoire().filter((r) => r.reference !== garde.reference);
-  liste.push(garde);
-  ecrireMemoire(liste);
+  ecrireMemoire([...liste.filter((r) => r.reference !== garde.reference), garde]);
 }
 
 /** Retire un rendez-vous du tiroir : il vient d'etre annule, ou il n'existe plus. */

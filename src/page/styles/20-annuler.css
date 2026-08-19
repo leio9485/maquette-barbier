@@ -116,6 +116,24 @@
 
 .annuler-ecran > .intro { margin-bottom: var(--e4); }
 
+/* --- LE RAPPEL DU RENDEZ-VOUS GARDE PAR LE NAVIGATEUR -----------------------
+
+   Un filet a gauche et un retrait, comme les messages du site : c'est le meme
+   role — quelque chose que la page a a dire, en marge de ce qu'on est en train
+   de faire. Pas d'aplat, pas de carte : ce n'est pas une alerte, c'est un
+   raccourci.
+*/
+.annuler-memoire {
+  margin-bottom: var(--e4);
+  padding-left: var(--e2);
+  border-left: 3px solid var(--filet);
+}
+
+.annuler-memoire .etiquette {
+  margin-bottom: 0;
+  color: var(--acier);
+}
+
 /* --- LA SAISIE DE LA REFERENCE ---------------------------------------------
 
    En chasse fixe et en capitales, comme elle s'affiche partout ailleurs : le

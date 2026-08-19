@@ -30,6 +30,9 @@ const RESERVATION = {
   // et enregistre par /api/rendez-vous/deplacer au lieu de creer une seconde
   // ligne. Voir js/07-tunnel.js.
   deplacement: null,  // { reference, telephone, jeton, ancien }
+  // La preuve qui a servi au deplacement, gardee pour l'ecran de confirmation :
+  // c'est elle qui permet d'annuler sans identifiant ni jeton frais.
+  preuve: null,       // { reference, jeton, telephone }
   // De quoi ecrire le fichier .ics du bouton « Ajouter à mon agenda »
   // (js/07-mon-agenda.js). Rempli par les DEUX chemins qui menent a l'ecran de
   // confirmation — la reservation neuve et le deplacement — parce que le
@@ -729,16 +732,34 @@ async function demanderAnnulation() {
   const message = $('#messageAnnulation');
   const bouton = $('#annulerReservation');
   const rdv = RESERVATION.confirmee;
-  if (!rdv) return;
+
+  // DEUX CHEMINS, PARCE QU'IL Y A DEUX FACONS D'ARRIVER SUR CET ECRAN.
+  //
+  //   - on vient de reserver : on a l'identifiant du rendez-vous et son jeton,
+  //     tout frais du serveur ;
+  //   - on vient de deplacer : on n'a ni l'un ni l'autre — le serveur ne rend
+  //     pas d'identifiant au client — mais on a la reference et la preuve qui
+  //     vient de servir au deplacement, jeton ou quatre chiffres.
+  //
+  // Le second chemin n'existait pas : le bouton etait donc simplement masque
+  // apres un deplacement.
+  if (!rdv && !RESERVATION.preuve) return;
 
   bouton.disabled = true;
 
   try {
-    await annulerReservation(rdv.id, rdv.cancelToken);
+    if (rdv) await annulerReservation(rdv.id, rdv.cancelToken);
+    else await annulerParReference(RESERVATION.preuve);
 
     afficherMessage(message, 'Le rendez-vous est annulé. Le créneau repart à quelqu\'un d\'autre.', 'bon');
     montrer(bouton, false);
+
+    // Le tiroir du navigateur suit, sinon le bandeau « Votre rendez-vous »
+    // continuerait de l'annoncer en haut de la vitrine.
+    oublierRendezVous(rdv?.reference || RESERVATION.preuve?.reference);
+
     RESERVATION.confirmee = null;
+    RESERVATION.preuve = null;
 
     document.dispatchEvent(new CustomEvent('reservation-annulee'));
   } catch (erreur) {
@@ -852,6 +873,23 @@ function peindreBandeauDeplacement(rdv) {
   frise.parentNode.insertBefore(bloc, frise.nextSibling);
 }
 
+/**
+ * Le libelle d'une cellule de la frise, numero conserve.
+ *
+ * `textContent` et `append`, jamais `innerHTML` : ce mot ne vient pas d'une
+ * saisie, mais la regle du projet est de ne pas fabriquer de balisage pour
+ * poser un mot.
+ */
+function libelleFrise(rang, mot) {
+  const cellule = $(`.frise-etape[data-frise="${rang}"]`);
+  if (!cellule) return;
+
+  const numero = cellule.querySelector('.frise-numero');
+  cellule.textContent = '';
+  if (numero) cellule.appendChild(numero);
+  cellule.append(' ' + mot);
+}
+
 /** L'etape 3, quand elle ne sert qu'a confirmer un deplacement. */
 function habillerEtapeDeplacement() {
   if (!RESERVATION.deplacement) return;
@@ -859,6 +897,16 @@ function habillerEtapeDeplacement() {
   poserTexte($('#titreEtape3'), 'Confirmez le nouveau créneau');
   poserTexte($('#introEtape3'),
     "Rien d'autre à saisir : le salon a déjà vos coordonnées.");
+
+  // >>> LA FRISE DISAIT « 03 · Coordonnées » PENDANT QU'ON DEPLACAIT, et
+  // l'ecran, lui, disait « Rien d'autre à saisir : le salon a déjà vos
+  // coordonnées ». Le plan du parcours annoncait donc une etape que le
+  // parcours venait de retirer. La frise existe pour dire ou l'on en est ;
+  // quand elle se trompe, elle coute plus qu'elle ne rapporte.
+  //
+  // Le libelle accessible suit, puisque c'est le meme texte : la frise est une
+  // liste de cellules de texte, sans `aria-label` par-dessus.
+  libelleFrise(3, 'Confirmer');
 
   montrer($('#tunnelCoordonnees'), false);
   poserTexte($('#validerReservation'), 'Déplacer vers ce créneau');
@@ -881,13 +929,25 @@ async function envoyerDeplacement(bouton, message) {
     if (demande.jeton) corps.jeton = demande.jeton;
     else corps.telephone = demande.telephone;
 
-    const rdv = (await deplacerRendezVous(corps)).rendezVous;
+    const reponse = await deplacerRendezVous(corps);
+    const rdv = reponse.rendezVous;
 
     // La reference et le jeton ne changent pas — c'est le meme rendez-vous a
     // une autre heure — mais la memoire du navigateur, elle, doit suivre.
-    retenirRendezVous({ ...rdv, jeton: demande.jeton });
+    //
+    // `reponse.jeton` n'existe que si la preuve ETAIT le jeton (le serveur ne
+    // le rend pas a qui a montre quatre chiffres) ; `retenirRendezVous()` garde
+    // de toute facon celui qu'il avait deja. Les deux se completent : ni l'un
+    // ni l'autre ne suffit seul.
+    retenirRendezVous({ ...rdv, jeton: reponse.jeton || demande.jeton });
 
-    confirmerDeplacement(rdv);
+    // La preuve qui vient de servir sert encore : c'est elle qui rend le bouton
+    // « Annuler ce rendez-vous » utilisable sur l'ecran de confirmation.
+    confirmerDeplacement(rdv, {
+      reference: rdv.reference,
+      jeton: reponse.jeton || demande.jeton || '',
+      telephone: demande.telephone || '',
+    });
     document.dispatchEvent(new CustomEvent('reservation-prise'));
 
   } catch (erreur) {
@@ -907,7 +967,18 @@ async function envoyerDeplacement(bouton, message) {
   }
 }
 
-function confirmerDeplacement(rdv) {
+function confirmerDeplacement(rdv, preuve) {
+  // >>> LE BANDEAU D'ANNONCE PART. <<< Il disait « Vous déplacez le rendez-vous
+  // FMXQCS du jeudi 20 août à 16:00 […] Choisissez le nouveau créneau », et il
+  // restait a l'ecran SOUS le titre « C'est déplacé » : deux messages
+  // contradictoires empiles, dont le premier demande ce que le second vient de
+  // faire.
+  //
+  // On le RETIRE au lieu de le masquer : `peindreBandeauDeplacement()` ne
+  // redessine pas s'il en trouve un, et un deplacement suivant doit pouvoir
+  // reafficher le sien.
+  $('#tunnelDeplacement')?.remove();
+
   poserTexte($('.tunnel-confirme'), "C'est déplacé");
 
   const avec = rdv.staffName ? `, avec ${rdv.staffName}` : '';
@@ -935,10 +1006,17 @@ function confirmerDeplacement(rdv) {
       `Même référence qu'avant : ${rdv.reference}. L'ancien créneau est libéré.`);
   }
 
-  // Le bouton d'annulation de l'ecran de confirmation s'appuie sur le jeton
-  // remis a la reservation, que ce chemin-ci n'a pas. La page /annuler, elle,
-  // sait le faire avec la reference — et son lien est dans le rappel.
-  montrer($('#annulerReservation'), false);
+  // >>> LES TROIS MEMES ACTIONS QU'APRES UNE RESERVATION. <<<
+  //
+  // « Annuler ce rendez-vous » disparaissait apres un deplacement. Le motif
+  // ecrit ici etait juste — le bouton s'appuyait sur le jeton remis a la
+  // reservation, que ce chemin n'a pas toujours — mais la conclusion ne l'etait
+  // pas : l'annulation par reference existe (`POST /api/rendez-vous/annuler`),
+  // et la preuve qui vient de servir au deplacement lui convient telle quelle,
+  // jeton OU quatre chiffres. On la garde donc pour l'ecran de confirmation.
+  RESERVATION.preuve = preuve;
+  montrer($('#annulerReservation'), true);
+  afficherMessage($('#messageAnnulation'), '');
 
   RESERVATION.deplacement = null;
   allerEtape(4);
@@ -954,9 +1032,14 @@ function recommencer() {
   RESERVATION.deplacement = null;
   RESERVATION.pourAgenda = null;
 
+  RESERVATION.preuve = null;
+
   // L'etape 3 avait pu etre deshabillee pour un deplacement : elle redevient
   // ce qu'elle est par defaut, sans quoi le rendez-vous suivant se prendrait
-  // sans nom ni telephone.
+  // sans nom ni telephone. LA FRISE AVEC ELLE : elle disait « Confirmer »
+  // pendant le deplacement, et le rendez-vous suivant demande bien des
+  // coordonnees.
+  libelleFrise(3, 'Coordonnées');
   poserTexte($('#titreEtape3'), 'À quel nom ?');
   poserTexte($('#introEtape3'), "Deux champs, et c'est réservé. Rien à payer maintenant.");
   montrer($('#tunnelCoordonnees'), true);

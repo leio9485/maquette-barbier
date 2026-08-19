@@ -520,6 +520,39 @@ décommandé. ⚠️ Toute requête qui sert à calculer une disponibilité doit
 le filtre de `src/lib/annulation.js` : une ligne annulée est encore en base, et
 l'oublier rendrait son créneau invendable pour toujours.
 
+**L'écran qui suit un déplacement disait trois choses fausses.** Il affichait
+« C'EST DÉPLACÉ » **sous** le bandeau « Vous déplacez le rendez-vous FMXQCS…
+choisissez le nouveau créneau » — deux messages contradictoires empilés, dont le
+premier demande ce que le second vient de faire. La frise annonçait
+« 03 · Coordonnées » pendant que l'écran disait « Rien d'autre à saisir ». Et le
+bouton « Annuler ce rendez-vous » disparaissait, alors qu'il est là après une
+réservation.
+
+⚠️ **Le jeton n'était pas perdu par le serveur : il était écrasé par le
+navigateur.** Un déplacement demandé depuis `/annuler` est prouvé par
+« référence + quatre chiffres », et le serveur ne rend **pas** le jeton à qui a
+prouvé ainsi — c'est délibéré (`pourLeClient()`), sans quoi qui devine ces deux
+valeurs repart avec un secret permanent, qui ouvre seul. L'écriture qui suivait
+posait donc `jeton: ''` par-dessus celui que la réservation avait laissé.
+`retenirRendezVous()` **fusionne** désormais au lieu de remplacer : ce qui n'est
+pas fourni n'est pas effacé.
+
+⚠️ **Le bouton d'annulation ne passe plus par l'identifiant du rendez-vous.**
+Le client ne l'a pas après un déplacement — le serveur ne le lui donne jamais.
+Il passe par `POST /api/rendez-vous/annuler`, avec la preuve qui vient de servir
+au déplacement : jeton **ou** quatre chiffres. Les deux chemins marchent donc,
+et pas seulement celui où le navigateur avait déjà le jeton.
+
+⚠️ **Le jeton repart quand même dans un cas : quand la requête l'a fourni.**
+L'appelant vient de l'écrire ; le lui rendre n'apprend rien à personne. C'est
+tout ce que la réponse ajoute.
+
+**`/annuler` pré-remplit la référence** depuis ce que le navigateur garde
+(`letabli.rdv`). ⚠️ **Les quatre chiffres restent à saisir, toujours** : c'est
+eux qui protègent sur un appareil partagé. Le formulaire manuel reste accessible
+sans condition — le rappel est un raccourci, jamais un passage obligé, et il
+part masqué dans le HTML servi.
+
 **Le volet « Chiffres »** (`src/lib/statistiques.js`). Le taux de remplissage se
 compte **en minutes, pas en créneaux** — sinon il monterait quand le barbier
 fait des prestations courtes. Le taux d'absence se calcule sur **tout ce qui est
@@ -742,7 +775,7 @@ Changer l'un sans l'autre remet les titres de section sous la barre.
 npm test
 ```
 
-**1 007 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
+**1 018 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
 `.env`.
 
 ⚠️ **`npm run dev` ne convient pas pour lancer la suite.** `node --watch`

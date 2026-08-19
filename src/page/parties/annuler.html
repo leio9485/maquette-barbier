@@ -41,6 +41,28 @@
         annulez-le ou déplacez-le.
       </p>
 
+      <!--# LE RAPPEL DE CE QUE LE NAVIGATEUR SAIT DEJA.
+
+           Masqué par défaut, et rempli par le JavaScript seulement si ce
+           navigateur porte un rendez-vous à venir (`letabli.rdv`, voir
+           js/00-memoire.js). Le client retapait une référence qu'il avait sous
+           la main.
+
+           ⚠️ IL NE REMPLIT QUE LA RÉFÉRENCE. Les quatre chiffres restent à
+              saisir, toujours : c'est eux qui protègent contre un accès depuis
+              un appareil partagé — le téléphone posé sur le comptoir, l'ordi
+              familial. Une référence n'est pas un secret, elle se dicte au
+              téléphone.
+
+           ⚠️ LE FORMULAIRE RESTE ACCESSIBLE SANS CONDITION. Ce bloc est un
+              raccourci, jamais un passage oblige : quelqu'un qui vient annuler
+              le rendez-vous de quelqu'un d'autre, ou depuis un autre appareil,
+              doit pouvoir saisir sa référence comme avant. #-->
+      <div class="annuler-memoire" id="rappelMemoire" hidden>
+        <p class="etiquette">Sur cet appareil</p>
+        <button type="button" class="lien-nu" id="rappelMemoireBouton"></button>
+      </div>
+
       <form id="formulaireRecherche" novalidate>
         <div class="champ">
           <label for="champReference">Référence</label>

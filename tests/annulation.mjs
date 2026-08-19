@@ -31,6 +31,7 @@ import {
   supprimerCompteDeTest,
   creerVerificateur,
   prochainJourOuvert,
+  BASE,
 } from './helpers.mjs';
 
 const { verifie, bilan } = creerVerificateur();
@@ -328,6 +329,99 @@ try {
       date: JOUR2, start: 600,
     });
     verifie('deplacer sans preuve est refuse comme le reste', r.status === 404, r.status);
+  }
+
+  // --- 7 bis. CE QUE L'ECRAN DE CONFIRMATION A BESOIN DE SAVOIR (lot C) ----
+  //
+  // Apres un deplacement, le bouton « Annuler ce rendez-vous » disparaissait de
+  // l'ecran de confirmation, alors qu'il est la apres une reservation. La cause
+  // etait en deux morceaux, et ces controles tiennent les deux.
+  console.log('\n7 bis. Ce que renvoie un deplacement');
+  {
+    // 1. PROUVE PAR LE JETON : le jeton repart avec la reponse. L'appelant
+    //    vient de l'ecrire dans sa requete — lui rendre n'apprend rien a
+    //    personne, et lui evite de le retenir d'un ecran a l'autre.
+    const libres = await creneauxLibres(JOUR2);
+    const cible = libres.find((c) => c.start !== aDeplacer.start) ?? libres[0];
+
+    const r = await visiteur.appel('POST', '/api/rendez-vous/deplacer', {
+      reference: aDeplacer.reference, jeton: aDeplacer.cancelToken,
+      date: JOUR2, start: cible.start,
+    });
+
+    verifie('un deplacement prouve par le jeton aboutit', r.status === 200, r.donnees);
+    verifie('>>> ET LA REPONSE PORTE UN JETON NON VIDE <<<',
+      typeof r.donnees?.jeton === 'string' && r.donnees.jeton.length > 0,
+      r.donnees?.jeton === undefined ? '(absent)' : r.donnees.jeton.length);
+    verifie('c\'est le meme qu\'avant : le rendez-vous n\'a pas ete recree',
+      r.donnees?.jeton === aDeplacer.cancelToken, '');
+    verifie('la reference non plus n\'a pas bouge',
+      r.donnees?.rendezVous?.reference === aDeplacer.reference, r.donnees?.rendezVous?.reference);
+  }
+  {
+    // 2. PROUVE PAR LES QUATRE CHIFFRES : le jeton ne repart PAS, et c'est
+    //    volontaire — quelqu'un qui aurait devine une reference et quatre
+    //    chiffres repartirait sinon avec un secret permanent, qui ouvre seul.
+    //    Le navigateur, lui, garde celui qu'il avait deja (js/00-memoire.js).
+    const libres = await creneauxLibres(JOUR2);
+    const cible = libres[libres.length - 1];
+
+    const r = await visiteur.appel('POST', '/api/rendez-vous/deplacer', {
+      reference: aDeplacer.reference, telephone: QUATRE,
+      date: JOUR2, start: cible.start,
+    });
+
+    verifie('un deplacement prouve par quatre chiffres aboutit aussi', r.status === 200, r.donnees);
+    verifie('>>> MAIS LE JETON N\'Y FIGURE PAS <<<',
+      r.donnees?.jeton === undefined, r.donnees?.jeton);
+    verifie('et le recapitulatif ne le porte pas davantage',
+      r.donnees?.rendezVous?.cancelToken === undefined
+      && r.donnees?.rendezVous?.jeton === undefined, r.donnees?.rendezVous);
+  }
+  {
+    // 3. LA LIGNE « AVEC » : le rendez-vous a ete pris SANS choisir de barbier
+    //    (« peu importe »), et le serveur a donc attribue quelqu'un. Il doit le
+    //    DIRE — sans quoi le client apprend en arrivant a qui il a affaire.
+    const r = await visiteur.appel('POST', '/api/rendez-vous/retrouver', {
+      reference: aDeplacer.reference, telephone: QUATRE,
+    });
+
+    const attribue = r.donnees?.rendezVous?.staffId;
+
+    // Sans equipe enregistree, il n'y a personne a nommer : le commerce
+    // travaille seul, et la ligne n'aurait rien a dire.
+    if (attribue) {
+      verifie('la personne attribuee est nommee, pas seulement designee',
+        typeof r.donnees.rendezVous.staffName === 'string'
+        && r.donnees.rendezVous.staffName.length > 0,
+        r.donnees.rendezVous.staffName);
+    } else {
+      verifie('sans equipe, aucune personne n\'est inventee',
+        r.donnees?.rendezVous?.staffName === null, r.donnees?.rendezVous?.staffName);
+    }
+  }
+
+  // --- 7 ter. LA PAGE /annuler SANS RIEN EN MEMOIRE (lot C, point C5) ------
+  //
+  // Le rappel « Votre rendez-vous du … » est un RACCOURCI : il pre-remplit la
+  // reference que le navigateur garde deja. Il ne doit jamais devenir un
+  // passage oblige — quelqu'un qui arrive d'un autre appareil, ou qui annule
+  // pour un proche, saisit sa reference comme avant.
+  console.log('\n7 ter. La page d\'annulation sans memoire');
+  {
+    const page = await fetch(`${BASE}/annuler`).then((r) => r.text());
+
+    verifie('le formulaire est servi sans condition',
+      page.includes('id="formulaireRecherche"')
+      && page.includes('id="champReference"')
+      && page.includes('id="champTelephone"'), '');
+
+    verifie('>>> LE RAPPEL PART MASQUE <<<',
+      /<div class="annuler-memoire" id="rappelMemoire" hidden>/.test(page), '');
+
+    // Le second facteur reste demande : le rappel ne pose que la reference.
+    verifie('les quatre chiffres restent un champ a remplir',
+      page.includes('Les 4 derniers chiffres de votre téléphone'), '');
   }
 
   // --- 8. L'agenda du commercant -------------------------------------------

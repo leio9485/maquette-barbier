@@ -450,5 +450,26 @@ rendezVousRouter.post('/rendez-vous/deplacer', garde(async (req, res, rendezVous
     return refus(409, "Ce créneau vient d'être pris. Merci d'en choisir un autre.");
   }
 
-  res.json({ ok: true, rendezVous: await habiller(deplace) });
+  // >>> LE JETON REPART, MAIS SEULEMENT VERS QUI L'AVAIT DEJA. <<<
+  //
+  // L'ecran de confirmation d'un deplacement perdait son bouton « Annuler ce
+  // rendez-vous » : le navigateur reecrivait sa memoire avec ce que renvoie
+  // cette reponse, ou le jeton ne figure pas.
+  //
+  // Il ne figure toujours PAS quand la preuve etait « reference + quatre
+  // chiffres » : `pourLeClient()` s'en explique — quelqu'un qui aurait devine
+  // ces deux-la repartirait sinon avec un secret permanent, qui ouvre seul et
+  // pour toujours. Ce cas-la est repare du cote du navigateur, qui garde le
+  // jeton qu'il avait deja (`retenirRendezVous()`, js/00-memoire.js).
+  //
+  // Quand la preuve EST le jeton, en revanche, le renvoyer n'apprend rien a
+  // personne : l'appelant vient de l'ecrire dans sa requete. Le rendre lui
+  // evite d'avoir a le retenir lui-meme d'un ecran a l'autre.
+  const parJeton = typeof req.body?.jeton === 'string' && req.body.jeton.length > 0;
+
+  res.json({
+    ok: true,
+    rendezVous: await habiller(deplace),
+    ...(parJeton ? { jeton: deplace.cancelToken } : {}),
+  });
 }));

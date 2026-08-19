@@ -20,9 +20,10 @@
 // telle quelle : le site reste consultable, avec son contenu de secours.
 // ---------------------------------------------------------------------------
 
-import { PUBLIC_URL, DEMO_MODE } from '../config.js';
+import { PUBLIC_URL, DEMO_MODE, HEBERGEUR_NOM, HEBERGEUR_PAYS, HEBERGEUR_URL, HEBERGEUR_UE } from '../config.js';
 import { DEMO_USERNAME, DEMO_PASSWORD } from './demo.js';
 import { etatDuMoment } from './etat.js';
+import { paragrapheHebergement } from './hebergement.js';
 import { loadConfig } from './settings.js';
 import { minifierPage } from './minify.js';
 import { listerPhotos, listerLegendes, listerDescriptions, sectionHero } from './photos.js';
@@ -53,11 +54,23 @@ const ZONES = {
   bandeau: ['<!--@bandeau-->', '<!--/@bandeau-->'],
   galerie: ['<!--@galerie-->', '<!--/@galerie-->'],
   hero: ['<!--@hero-->', '<!--/@hero-->'],
+  // L'identite legale et l'hebergeur, dans la surimpression des mentions
+  // legales. ECRITE PAR LE SERVEUR ET NON PEINTE : ce sont des obligations
+  // legales, elles doivent exister dans le fichier envoye meme si rien ne
+  // s'execute (c'est ce que dit parties/mentions-legales.html depuis le
+  // premier jour, et le paragraphe d'hebergement, lui, ne vient pas des
+  // reglages mais de la configuration de l'instance).
+  legal: ['<!--@legal-->', '<!--/@legal-->'],
   // Le second document du site : /annuler. Son en-tete se resume au titre et a
   // la description — ni donnees structurees ni og:image, cette page ne se
   // partage pas et ne s'indexe pas.
   annulerEntete: ['<!--@annuler-entete-->', '<!--/@annuler-entete-->'],
   espaceEntete: ['<!--@espace-entete-->', '<!--/@espace-entete-->'],
+  // Le quatrieme document : la page « adresse introuvable ». Son corps entier
+  // est reecrit a chaque envoi — il porte le nom du commerce et son telephone,
+  // et cette page-la n'execute aucun JavaScript qui pourrait les y poser.
+  introuvableEntete: ['<!--@introuvable-entete-->', '<!--/@introuvable-entete-->'],
+  introuvable: ['<!--@introuvable-->', '<!--/@introuvable-->'],
   espaceLien: ['<!--@espace-lien-->', '<!--/@espace-lien-->'],
   // Les identifiants de la demonstration, sur l'ecran de connexion. Ecrits ici
   // et non reveles par le navigateur : le motif complet est dans
@@ -505,6 +518,47 @@ function bandeauEtat(etat) {
 }
 
 /**
+ * L'identite legale du commerce et l'hebergeur, dans les mentions legales.
+ *
+ * DEUX CORRECTIFS TIENNENT DANS CETTE FONCTION.
+ *
+ *   - LE SIRET NE DIT PLUS « à compléter ». C'etait un gabarit visible sur une
+ *     vitrine qu'on montre a des prospects. Renseigne, la ligne s'affiche ;
+ *     vide, elle n'existe pas — une mention absente vaut mieux qu'une mention
+ *     inachevee. Le `<p>` reste dans le document, masque : c'est lui que
+ *     `peindreChamps()` leve quand le commercant saisit son numero sans
+ *     recharger la page (js/04-contenu-statique.js).
+ *
+ *   - L'HEBERGEMENT N'AFFIRME QUE CE QUI EST CONFIGURE (src/lib/hebergement.js).
+ *
+ * Les deux autres lignes gardent leur repli d'origine : « Entreprise
+ * individuelle » est le cas courant, et le directeur de la publication retombe
+ * sur le nom du commerce — un independant qui publie sous son enseigne est son
+ * propre directeur de publication.
+ */
+function blocLegal(config) {
+  const legal = config.salon.legal ?? {};
+
+  const siret = legal.siret
+    ? `<p data-ligne="siret">SIRET : <span class="donnee" data-champ="siret">${texte(legal.siret)}</span></p>`
+    : '<p data-ligne="siret" hidden>SIRET : <span class="donnee" data-champ="siret"></span></p>';
+
+  return [
+    `<p>Forme juridique : <span data-champ="forme-juridique">${texte(legal.form || 'Entreprise individuelle')}</span></p>`,
+    siret,
+    `<p>Directeur de la publication : <span data-champ="directeur-publication">${texte(legal.publicationDirector || config.salon.name)}</span></p>`,
+    '',
+    '<h3>Hébergement</h3>',
+    paragrapheHebergement({
+      nom: HEBERGEUR_NOM,
+      pays: HEBERGEUR_PAYS,
+      url: HEBERGEUR_URL,
+      ue: HEBERGEUR_UE,
+    }),
+  ].join('\n');
+}
+
+/**
  * Ouvre la surimpression des mentions légales DANS LE HTML SERVI — lot D,
  * point D3.
  *
@@ -605,6 +659,10 @@ export async function renderIndex(nonce, vueLegal) {
   // HTML avant d'être rendus modifiables (ils y étaient écrits en dur). Les
   // injecter ici n'est donc pas un gain, c'est ce qui évite une régression.
   html = remplacerZone(html, 'temoignages', sectionTemoignages(config));
+
+  // L'identite legale et l'hebergeur : voir `blocLegal()`. Une mention legale
+  // doit exister dans le fichier envoye, meme quand rien ne s'execute.
+  html = remplacerZone(html, 'legal', blocLegal(config));
 
   // Le bandeau d'état, écrit dans la page plutôt que peint au chargement.
   //
@@ -725,4 +783,94 @@ export async function renderAnnuler(nonce) {
   ].join('\n');
 
   return marquer(remplacerZone(fichier, 'annulerEntete', entete));
+}
+
+/**
+ * Le corps de la page « adresse introuvable ».
+ *
+ * >>> LE NOM ET LE TELEPHONE VIENNENT DES REGLAGES, JAMAIS ECRITS EN DUR. <<<
+ * C'est la seule raison pour laquelle cette page passe par le serveur plutot
+ * que d'etre un fichier statique : chez un client, elle doit porter SON nom et
+ * SON numero, sans qu'on ait a y toucher.
+ *
+ * Le balisage est celui de parties/introuvable.html — meme regle que pour les
+ * prestations et les avis : ce qui est ecrit ici et ce qui est ecrit la-bas
+ * doivent rester la meme page. La difference est qu'ici il n'y a pas de
+ * second peintre : ce document n'execute aucun JavaScript, le repli du fichier
+ * ne sert que si les reglages sont illisibles.
+ */
+function corpsIntrouvable(nom, telephone) {
+  const compose = String(telephone ?? '').replace(/[^\d+]/g, '');
+
+  return [
+    '<header class="annuler-entete">',
+    '  <div class="annuler-largeur">',
+    '    <a class="annuler-retour" href="/">',
+    `      <span class="annuler-marque">${texte(nom)}</span>`,
+    '      <span class="annuler-retour-mot">Retour au site</span>',
+    '    </a>',
+    '  </div>',
+    '</header>',
+    '',
+    '<main id="contenu" class="annuler-corps">',
+    '  <div class="annuler-largeur">',
+    '    <h1>Page introuvable</h1>',
+    '',
+    '    <section class="annuler-ecran">',
+    '      <p class="intro">',
+    "        Cette adresse n'existe pas, ou n'existe plus. Le site, lui, fonctionne :",
+    '        revenez à l\'accueil, ou prenez rendez-vous directement.',
+    '      </p>',
+    '',
+    '      <div class="actions-paire">',
+    '        <a class="action" href="/#reserver">Prendre rendez-vous</a>',
+    '        <a class="action-douce" href="/">Retour à l\'accueil</a>',
+    '      </div>',
+    '',
+    '      <p class="annuler-secours">',
+    '        Vous cherchiez autre chose ? Appelez le',
+    `        <a class="donnee" href="tel:${attr(compose)}">${texte(telephone)}</a>.`,
+    '      </p>',
+    '    </section>',
+    '  </div>',
+    '</main>',
+    '',
+    '<footer class="annuler-pied">',
+    '  <div class="annuler-largeur">',
+    `    <p><span class="donnee">${texte(nom)}</span></p>`,
+    '  </div>',
+    '</footer>',
+  ].join('\n');
+}
+
+/**
+ * La page servie quand l'adresse demandee n'existe pas (src/server.js).
+ *
+ * Elle existe parce qu'Express, sans elle, repond `Cannot GET /adresse` : du
+ * Times New Roman, en anglais, sur fond blanc, a quelqu'un qui vient de se
+ * tromper d'une lettre dans l'adresse du salon. Les adresses en /api/, elles,
+ * repondaient deja proprement en JSON.
+ *
+ * Meme discipline que les trois autres documents : reglages illisibles, on
+ * envoie le fichier tel quel. Une page d'erreur qui echouerait a s'afficher
+ * serait un comble.
+ */
+export async function renderIntrouvable(nonce) {
+  const fichier = await lireFichier('introuvable');
+  const marquer = (html) => (nonce ? marquerScripts(html, nonce) : html);
+
+  let config;
+  try {
+    config = await loadConfig({ includeInactive: false });
+  } catch (erreur) {
+    console.error('Page introuvable non mise a jour (reglages illisibles) :', erreur.message);
+    return marquer(fichier);
+  }
+
+  const entete = `<title>Page introuvable — ${texte(config.salon.name)}</title>`;
+
+  let html = remplacerZone(fichier, 'introuvableEntete', entete);
+  html = remplacerZone(html, 'introuvable', corpsIntrouvable(config.salon.name, config.salon.phone));
+
+  return marquer(html);
 }

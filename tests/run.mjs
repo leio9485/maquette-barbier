@@ -53,7 +53,14 @@ const ICI = path.dirname(fileURLToPath(import.meta.url));
 //    propre `finally`. Elle ne se lance donc pas en parallele d'une autre suite
 //    qui se connecte : pendant ces quelques millisecondes, le compte partage
 //    n'existe pas.
-const SUITES = ['portees.mjs', 'demonstration.mjs', 'debit.mjs', 'api.mjs', 'settings.mjs', 'auth.mjs', 'categories.mjs', 'staff.mjs', 'deplacement.mjs', 'comptes.mjs', 'blocages.mjs', 'chiffres.mjs', 'espace.mjs', 'seo.mjs', 'francais.mjs', 'tunnel.mjs', 'annulation.mjs'];
+//
+// `erreurs.mjs`, `legal.mjs` et `export.mjs` (lot A) ne touchent a rien que
+// les autres regardent : la premiere ne demande que des adresses inexistantes,
+// la deuxieme remet les reglages d'origine dans son `finally`, la troisieme
+// efface ses rendez-vous. Elles sont tot dans la liste parce qu'elles sont
+// courtes, et parce qu'un 404 casse est ce qu'on veut apprendre avant d'avoir
+// lu deux minutes de sortie.
+const SUITES = ['portees.mjs', 'demonstration.mjs', 'erreurs.mjs', 'debit.mjs', 'api.mjs', 'settings.mjs', 'legal.mjs', 'auth.mjs', 'categories.mjs', 'staff.mjs', 'deplacement.mjs', 'comptes.mjs', 'blocages.mjs', 'chiffres.mjs', 'export.mjs', 'espace.mjs', 'seo.mjs', 'francais.mjs', 'tunnel.mjs', 'annulation.mjs'];
 
 /**
  * Lance une suite dans son propre processus, sortie affichee telle quelle.

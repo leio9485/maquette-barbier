@@ -22,6 +22,9 @@ import { requireAdmin } from '../middleware/requireAdmin.js';
 import { loadStaff } from '../lib/availability.js';
 import { tableauDeBord, clePhone, absencesParClient } from '../lib/statistiques.js';
 import { todayIso } from '../lib/time.js';
+// Le format CSV vit a part : c'est lui qui neutralise les formules, et une
+// regle de ce genre doit pouvoir etre eprouvee seule (voir src/lib/csv.js).
+import { fichierCsv } from '../lib/csv.js';
 import { consommationDuMois } from '../lib/notifications.js';
 
 export const tableauDeBordRouter = express.Router();
@@ -61,41 +64,6 @@ tableauDeBordRouter.get('/admin/chiffres', requireAdmin, async (req, res, next) 
 });
 
 // --- L'export --------------------------------------------------------------
-
-/**
- * Une cellule de CSV, au format qu'Excel comprend.
- *
- * Guillemets doubles autour de tout, guillemets internes doubles. On n'essaie
- * pas de deviner ce qui a besoin d'etre protege : un nom peut contenir un
- * point-virgule, une note un saut de ligne, et un tarif une virgule decimale.
- */
-function cellule(valeur) {
-  return `"${String(valeur ?? '').replaceAll('"', '""')}"`;
-}
-
-function ligneCsv(valeurs) {
-  return valeurs.map(cellule).join(';');
-}
-
-/**
- * Le fichier complet, pret a etre ouvert par un tableur francais.
- *
- * DEUX DETAILS QUI DECIDENT DE TOUT, et qui ne se voient qu'a l'ouverture :
- *
- *   - LE SEPARATEUR EST LE POINT-VIRGULE. Excel en configuration francaise lit
- *     la virgule comme separateur decimal ; un CSV « comma-separated » y arrive
- *     en une seule colonne, et le commercant conclut que l'export est casse.
- *
- *   - LE FICHIER COMMENCE PAR UN BOM UTF-8 (﻿). Sans lui, Excel suppose
- *     l'encodage de la machine et affiche « RÃ©mi » au lieu de « Rémi ». Le
- *     fichier serait pourtant parfaitement valide — c'est le genre de bogue
- *     qu'on ne voit jamais en le testant sous Linux.
- *
- * Les fins de ligne sont en CRLF, ce qu'attendent les tableurs sous Windows.
- */
-function fichierCsv(entetes, lignes) {
-  return '﻿' + [ligneCsv(entetes), ...lignes.map(ligneCsv)].join('\r\n') + '\r\n';
-}
 
 /** Pose les en-tetes qui font telecharger le fichier plutot que l'afficher. */
 function servirCsv(res, nom, contenu) {

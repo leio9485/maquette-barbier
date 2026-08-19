@@ -37,29 +37,36 @@
           <span class="donnee" data-champ="email">contact@letabli-bavay.fr</span>
         </p>
 
-        <!--# LES CHAMPS QU'UN COMMERCE REEL DOIT FOURNIR (lot D, point D5).
+        <!--# LES CHAMPS QU'UN COMMERCE REEL DOIT FOURNIR, ET LE PARAGRAPHE
+             D'HÉBERGEMENT — la zone entière est réécrite par le serveur
+             (`blocLegal()`, src/lib/page.js). Ce qui est écrit ci-dessous
+             n'est qu'un repli, servi si les réglages sont illisibles.
 
-             Trois lignes, toutes avec un repli qui reste vrai meme sans
-             saisie : la forme juridique et le SIRET disent « à compléter »
-             plutôt que d'afficher une ligne vide (une mention légale absente
-             se voit, une case vide ne se remarque pas) ; le directeur de la
-             publication retombe sur le NOM DU COMMERCE — un indépendant qui
-             publie sous son enseigne est son propre directeur de publication,
-             ce n'est pas un champ vide à signaler.
+             >>> LE SIRET NE DIT PLUS « à compléter ». <<< Un gabarit visible
+             sur une vitrine donne l'impression d'un site qu'on n'a pas fini
+             d'installer, et le montrer à un prospect coûte plus cher qu'une
+             ligne absente. Renseigné, la ligne s'affiche ; vide, elle
+             n'existe pas. Le `hidden` ci-dessous est ce que voit un visiteur
+             quand aucun SIRET n'est saisi ; `peindreChamps()` le lève dès
+             qu'une valeur arrive (js/04-contenu-statique.js).
 
              ⚠️ LE SIRET N'A PAS DE VALEUR DE DÉMONSTRATION, contrairement au
                 reste de cette page. Voir src/lib/defaults.js : un numéro à
                 quatorze chiffres, même plausible, risquerait de désigner une
-                vraie entreprise. #-->
+                vraie entreprise.
+
+             ⚠️ LE PARAGRAPHE D'HÉBERGEMENT N'AFFIRME QUE CE QUI EST
+                CONFIGURÉ. Il affirmait « hébergé en Allemagne […] aucune
+                donnée transférée hors de l'Union » — deux phrases qu'aucune
+                ligne de code ne tenait. Voir src/lib/hebergement.js. #-->
+        <!--@legal-->
         <p>Forme juridique : <span data-champ="forme-juridique">Entreprise individuelle</span></p>
-        <p>SIRET : <span class="donnee" data-champ="siret">à compléter</span></p>
+        <p data-ligne="siret" hidden>SIRET : <span class="donnee" data-champ="siret"></span></p>
         <p>Directeur de la publication : <span data-champ="directeur-publication">L'Établi</span></p>
 
         <h3>Hébergement</h3>
-        <p>
-          Le site est hébergé en Allemagne (Francfort), au sein de l'Union
-          européenne. Aucune donnée n'est transférée hors de l'Union.
-        </p>
+        <p data-champ="hebergement">Hébergement : voir la configuration du déploiement.</p>
+        <!--/@legal-->
         <!--# Facultatif : les coordonnées légales de l'hébergeur (raison
              sociale, adresse), si la phrase ci-dessus ne suffit pas à
              l'obligation légale du commerçant. Vide par défaut — y compris en

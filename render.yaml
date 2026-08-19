@@ -45,8 +45,12 @@ services:
     plan: free
 
     # Francfort : le plus proche des visiteurs francais parmi les regions
-    # offertes, et l'Union europeenne — ce que la page de confidentialite
-    # affirme (« aucune donnee transferee hors de l'Union »).
+    # offertes, et l'Union europeenne.
+    #
+    # ⚠️ CELA NE SUFFIT PAS A ECRIRE « aucune donnee transferee hors de
+    #    l'Union », et la page ne l'ecrit plus : c'est la region de l'ORIGINE,
+    #    devant laquelle Render place son propre relais mondial. Voir
+    #    HEBERGEUR_UE plus bas.
     region: frankfurt
 
     branch: main
@@ -89,3 +93,26 @@ services:
       # de recherche suivraient l'adresse annoncee, pas celle qu'on visite.
       - key: PUBLIC_URL
         value: https://letabli-barbier.onrender.com
+
+      # L'HEBERGEUR TEL QU'IL FIGURE DANS LES MENTIONS LEGALES.
+      #
+      # La page l'affirmait en dur — « hébergé en Allemagne (Francfort) […]
+      # aucune donnée n'est transférée hors de l'Union » — et c'etait faux :
+      # elle decrivait l'hebergeur VISE par CLAUDE.md, pas celui qui sert la
+      # page. Ces lignes-ci sont la seule source du paragraphe
+      # (src/lib/hebergement.js) ; absentes, la page dit une mention neutre
+      # plutot qu'une affirmation.
+      - key: HEBERGEUR_NOM
+        value: Render, Inc.
+
+      - key: HEBERGEUR_PAYS
+        value: Allemagne, Francfort
+
+      - key: HEBERGEUR_URL
+        value: https://render.com
+
+      # ⚠️ `HEBERGEUR_UE` N'EST PAS POSEE ICI, ET C'EST DELIBERE. Elle ecrirait
+      # « aucune donnée n'est transférée hors de l'Union européenne » ; or les
+      # en-tetes de cette instance montrent un relais mondial (Cloudflare)
+      # devant l'origine Render. La region de l'origine ne suffit pas a tenir
+      # cette phrase-la, et une mention RGPD approximative est pire qu'absente.

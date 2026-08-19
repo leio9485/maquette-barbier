@@ -300,8 +300,8 @@ function peindreCoordonnees() {
         + "d'un indépendant qui publie sous son enseigne.",
     }),
     champTexte('salon.legal.hostingDetails', "Coordonnées de l'hébergeur", {
-      aide: 'Facultatif. La page mentionne déjà le pays et la région de '
-        + "l'hébergement ; ce champ ne s'affiche que rempli, en complément — "
+      aide: "Facultatif. La page nomme déjà l'hébergeur si votre installateur "
+        + "l'a renseigné ; ce champ ne s'affiche que rempli, en complément — "
         + 'raison sociale et adresse de votre hébergeur, si votre situation '
         + "l'exige.",
     }),

@@ -24,7 +24,7 @@ import { PORT, ROOT_DIR, TIMEZONE, IS_PRODUCTION, DEMO_MODE, PUBLIC_URL } from '
 import { prisma } from './db.js';
 import { startDemo } from './lib/demo.js';
 import { rendreLlmsTxt } from './lib/llms.js';
-import { renderIndex, renderAnnuler, renderEspace } from './lib/page.js';
+import { renderIndex, renderAnnuler, renderEspace, renderIntrouvable } from './lib/page.js';
 import { lireVariante, emplacementConnu } from './lib/photos.js';
 import { lirePlan, planifierPlan } from './lib/plan.js';
 import { startRetention } from './lib/retention.js';
@@ -499,6 +499,44 @@ app.use('/fonts', express.static(path.join(ROOT_DIR, 'public', 'fonts'), {
 // Le reste du dossier public/ est servi tel quel (images, fichiers a venir).
 // `index: false` : la ligne ci-dessus est la seule a repondre pour la page.
 app.use(express.static(path.join(ROOT_DIR, 'public'), { index: false }));
+
+/**
+ * TOUTE ADRESSE QUI N'EXISTE PAS, ET C'EST LE DERNIER MOT DU SERVEUR.
+ *
+ * Sans ce gestionnaire, Express repondait `Cannot GET /adresse` : du Times New
+ * Roman, en anglais, sur fond blanc, code 404. Les adresses en /api/ avaient
+ * deja leur 404 en JSON (voir plus haut) — l'incoherence n'etait donc que du
+ * cote des pages, c'est-a-dire du seul cote qu'un visiteur regarde.
+ *
+ * >>> DEUX PUBLICS, DEUX REPONSES, ET C'EST L'EN-TETE `Accept` QUI TRANCHE. <<<
+ * Un navigateur qui demande une page annonce `text/html` : il recoit la page.
+ * Tout le reste — un appel programme, un `fetch`, un moniteur — recoit le meme
+ * JSON que les adresses en /api/, avec le meme message. Une page HTML envoyee
+ * a un programme qui attendait du JSON est une erreur de plus a diagnostiquer,
+ * pas une amabilite.
+ *
+ * ⚠️ IL VIENT APRES TOUT LE RESTE, y compris apres les fichiers de public/ :
+ *    place plus haut, il repondrait a la place d'une photo ou d'une police.
+ *
+ * ⚠️ ET IL NE PASSE PAS PAR `next(erreur)` EN CAS DE PEPIN. Le filet ci-dessous
+ *    repond 500 ; or ce qui est demande ici n'existe toujours pas. On retombe
+ *    donc sur le JSON, avec le bon code.
+ */
+app.use(async (req, res) => {
+  res.status(404);
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('X-Robots-Tag', 'noindex, follow');
+
+  const veutUnePage = String(req.headers.accept || '').includes('text/html');
+  if (!veutUnePage) return res.json({ error: 'Adresse inconnue.' });
+
+  try {
+    res.type('html').send(await renderIntrouvable(res.locals.cspNonce));
+  } catch (erreur) {
+    console.error('Page introuvable non rendue :', erreur.message);
+    res.json({ error: 'Adresse inconnue.' });
+  }
+});
 
 // Filet de securite : si une route echoue de facon imprevue, on trace l'erreur
 // complete dans la console du serveur mais on n'en renvoie rien au visiteur.

@@ -9,7 +9,7 @@ Les morceaux vivent donc ici, et le serveur les recolle à chaque envoi
 (`src/lib/assemblage.js`). **Aucune étape de construction** : on modifie un
 morceau, on recharge la page.
 
-## Trois documents, pas un
+## Quatre documents, pas un
 
 Le site en comptait un seul : la vitrine et l'espace commerçant cohabitaient
 dans le même `<body>`, et un bouton masquait l'un pour montrer l'autre. Le
@@ -21,12 +21,19 @@ page.
 | `index.html` | `/` | la vitrine, et elle seule |
 | `espace.html` | `/espace-salon` | l'agenda, les chiffres, les réglages |
 | `annuler.html` | `/annuler` | annuler ou déplacer son rendez-vous |
+| `introuvable.html` | toute adresse inconnue | la page 404, sans aucun script |
 
 Ils **ne partagent que des morceaux, jamais un résultat** : chacun a son propre
 cache d'assemblage. Un fichier employé par plusieurs documents doit vivre dans
 un endroit neutre — `02-jetons.css`, `03-fondations.css`, `05-controles.css`,
-`js/00-*`, `js/02-utilitaires.js`. Une feuille propre à l'un des trois qu'on
+`js/00-*`, `js/02-utilitaires.js`. Une feuille propre à l'un d'eux qu'on
 inclut dans un autre « pour avoir tout sous la main » annule le découpage.
+
+⚠️ **`introuvable.html` n'embarque aucun `<script>`, et n'a pas à en
+embarquer.** Une page d'erreur n'a rien à animer : le nom du commerce et son
+téléphone y sont écrits par le serveur (`renderIntrouvable()`,
+`src/lib/page.js`). C'est aussi ce qui la met hors d'atteinte du piège de
+portée que `tests/portees.mjs` surveille sur les trois autres.
 
 ⚠️ **Un test compte les octets et cherche les chaînes interdites** dans chaque
 document (`tests/espace.mjs`). Une régression ici serait invisible : le site
@@ -64,6 +71,7 @@ instruction et le démarrage la dernière — `13-demarrage.js` pour la vitrine,
 | l'agenda | `styles/15-agenda.css` + `js/09-agenda.js` |
 | les chiffres | `styles/17-chiffres.css` + `js/10-chiffres.js` + `src/lib/statistiques.js` |
 | la page d'annulation | `parties/annuler.html` + `styles/20-annuler.css` + `js/annuler/` |
+| la page « adresse introuvable » | `parties/introuvable.html` + `styles/20-annuler.css` (empruntée telle quelle) |
 
 Une valeur de couleur ou d'espacement écrite en dur ailleurs que dans
 `02-jetons.css` est un bogue : elle échappera au prochain réglage et se

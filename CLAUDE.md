@@ -464,9 +464,22 @@ de construction**. Les morceaux vivent dans `src/page/` et le serveur les recoll
 à chaque envoi. Le mode d'emploi complet est dans `src/page/LISEZ-MOI.md` — le
 lire avant de toucher à la façade.
 
-**Il y a trois documents, plus un seul.** La vitrine (`/`), l'espace commerçant
-(`/espace-salon`) et la page d'annulation (`/annuler`). Ils ne partagent que des
-morceaux, jamais un résultat.
+**Il y a quatre documents, plus un seul.** La vitrine (`/`), l'espace commerçant
+(`/espace-salon`), la page d'annulation (`/annuler`) et la page « adresse
+introuvable ». Ils ne partagent que des morceaux, jamais un résultat.
+
+⚠️ **Le quatrième existe parce qu'Express répondait `Cannot GET /adresse`** —
+Times New Roman, en anglais, fond blanc — pendant que les adresses en `/api/`
+renvoyaient déjà un 404 JSON propre. Il reprend l'ossature de `/annuler` (barre
+sombre, « Retour au site », pied) : rien de neuf à dessiner, rien de neuf à
+maintenir. Il n'embarque **aucun JavaScript** ; le nom et le téléphone sont
+écrits par le serveur, jamais en dur.
+
+⚠️ **Le gestionnaire répond selon `Accept`, et il vient après tout le reste.**
+`text/html` reçoit la page, tout le reste reçoit `{"error":"Adresse inconnue."}`
+— servir du HTML à un programme qui attendait du JSON ajoute une panne à
+diagnostiquer. Placé plus haut, il répondrait à la place d'une photo ou d'une
+police.
 
 ```
 src/
@@ -479,6 +492,9 @@ src/
     reference.js     ← la référence courte d'un rendez-vous
     statistiques.js  ← les chiffres du tableau de bord
     notifications.js ← la porte de sortie unique (SMS écrit, éteint)
+    hebergement.js   ← le paragraphe « Hébergement » des mentions légales
+    csv.js           ← le format des deux exports, et la seule protection
+                       contre les formules injectées par un nom de client
     catalogue.js     la liste tarifaire, écrite dans la page servie
     temoignages.js   la section « Avis », idem
     galerie.js       ← la galerie, idem
@@ -511,6 +527,27 @@ passé**, depuis que « venu » est l'état par défaut (voir plus haut) : il po
 sur « ce qui a été pointé », et ce dénominateur se retourne dès qu'on ne coche
 que les absences — il afficherait **100 %** à quelqu'un qui a eu deux lapins sur
 quarante-deux rendez-vous.
+
+**Un nom de client ne peut plus écrire une formule dans le tableur du
+commerçant.** Un rendez-vous au nom `=1+1` ressortait de l'export tel quel,
+premier caractère `=` : le champ « Prénom et nom » du tunnel est ouvert à
+Internet, et le fichier est ouvert par le commerçant, sur sa machine, avec ses
+droits. `=cmd|'/c calc'!A1` lance un programme, `=HYPERLINK(…&A1,…)` emporte la
+ligne d'à côté. Toute cellule commençant par `=`, `+`, `-`, `@`, une tabulation
+ou un retour chariot reçoit donc une apostrophe, **avant** la mise entre
+guillemets.
+
+⚠️ **Une seule fonction, dans `src/lib/csv.js`, et pas une par export.** C'est
+ce qui rend la règle vraie pour la colonne qu'on ajoutera demain. Elle vit à
+part de la route pour pouvoir être éprouvée seule : les noms sont coupés de
+leurs espaces à la saisie, si bien qu'une valeur commençant par une tabulation
+n'atteint jamais l'export *par cette route-là* — elle peut arriver par une
+autre.
+
+⚠️ **Ce qui marchait doit continuer de marcher** : BOM UTF-8, fins de ligne
+CRLF, séparateur point-virgule, guillemets doublés, en-têtes en français. C'est
+ce qui décide si le fichier s'ouvre correctement dans un Excel français, et rien
+de tout cela ne se voit avant l'ouverture.
 
 **Les plafonds de réservation.** Rien n'empêchait de remplir l'agenda d'un
 client avec une boucle de dix lignes — aucun acompte, aucun compte à créer,
@@ -664,7 +701,7 @@ Changer l'un sans l'autre remet les titres de section sous la barre.
 npm test
 ```
 
-**867 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
+**945 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
 `.env`.
 
 ⚠️ **`npm run dev` ne convient pas pour lancer la suite.** `node --watch`
@@ -673,7 +710,7 @@ base et `data/equipe-mise-de-cote.json`. La connexion est coupée en plein
 milieu et `npm test` échoue sur un `ECONNRESET` qui n'a rien à voir avec le
 code. Lancer `npm start`.
 
-Dix-sept suites, dont neuf ajoutées après la première livraison :
+Vingt suites, dont douze ajoutées après la première livraison :
 
 | Suite | Ce qu'elle protège |
 |---|---|
@@ -689,6 +726,9 @@ Dix-sept suites, dont neuf ajoutées après la première livraison :
 | `deplacement.mjs` | déplacer sans recréer : la référence, le jeton et la provenance survivent |
 | `comptes.mjs` | les accès multiples, les deux garde-fous, la révocation ciblée |
 | `francais.mjs` | aucune chaîne visible écrite sans accents |
+| `erreurs.mjs` | une adresse inconnue : la page pour un visiteur, du JSON pour un programme |
+| `legal.mjs` | l'hébergeur n'est affirmé que s'il est configuré, et le SIRET |
+| `export.mjs` | l'injection de formule dans le CSV, et le format qu'Excel attend |
 
 ⚠️ **`demonstration.mjs` est la seule suite à lancer son propre serveur.** Ce
 qu'elle vérifie n'existe qu'avec `DEMO_MODE=true`, variable qui ne doit jamais
@@ -736,8 +776,9 @@ en haut aux bonnes hauteurs, tunnel parcouru jusqu'aux créneaux.
 
 ## Mise en ligne
 
-Image Docker, sans dépendance à un hébergeur en particulier. Cible : **Koyeb,
-région Francfort**.
+Image Docker, sans dépendance à un hébergeur en particulier. Cible visée :
+**Koyeb, région Francfort**. La démonstration, elle, tourne aujourd'hui sur
+**Render** (`render.yaml`), derrière le relais de l'hébergeur.
 
 Variables à poser sur l'instance de démonstration :
 
@@ -745,7 +786,25 @@ Variables à poser sur l'instance de démonstration :
 DEMO_MODE=true
 NODE_ENV=production
 PUBLIC_URL=https://…
+HEBERGEUR_NOM=…
+HEBERGEUR_PAYS=…
+HEBERGEUR_URL=…
 ```
+
+⚠️ **Les mentions légales n'affirment que ce qui est configuré.** Le paragraphe
+« Hébergement » était écrit en dur et il était faux : il décrivait l'hébergeur
+*visé* par ce fichier — « hébergé en Allemagne (Francfort) […] aucune donnée
+n'est transférée hors de l'Union » — pas celui qui sert la page. Sur la
+démonstration c'est une incohérence ; chez un client, c'est une déclaration RGPD
+inexacte. Les trois variables ci-dessus sont désormais la seule source du
+paragraphe (`src/lib/hebergement.js`) ; absentes, la page affiche une mention
+neutre et vérifiable plutôt qu'une affirmation.
+
+⚠️ **`HEBERGEUR_UE=true` est un interrupteur à part, et il ne se déduit
+d'aucun pays.** C'est lui, et lui seul, qui écrit « aucune donnée n'est
+transférée hors de l'Union européenne ». Un hébergeur allemand derrière un
+relais mondial ne permet pas de l'écrire — c'est le cas de la démonstration, où
+cette variable reste donc absente.
 
 `DEMO_MODE=true` **uniquement sur la démonstration** : chez un vrai client, ce
 serait publier l'agenda de ses clients avec le mot de passe à côté.

@@ -63,8 +63,14 @@ function peindreChamps(config) {
   for (const element of $$('[data-champ="forme-juridique"]')) {
     if (legal.form) poserTexte(element, legal.form);
   }
+  // LE SIRET : LA LIGNE ENTIERE, PAS SEULEMENT SA VALEUR. Elle disait « à
+  // compléter » — un gabarit visible sur la vitrine d'un commerce. Vide, elle
+  // n'existe plus ; renseignee, elle apparait. Le `<p>` est deja dans le
+  // document, masque par le serveur (`blocLegal()`, src/lib/page.js) : on ne
+  // fait ici que le lever, pour que la saisie se voie sans recharger.
   for (const element of $$('[data-champ="siret"]')) {
-    if (legal.siret) poserTexte(element, legal.siret);
+    poserTexte(element, legal.siret || '');
+    montrer(element.closest('[data-ligne="siret"]') ?? element, Boolean(legal.siret));
   }
   // REPLI SUR LE NOM DU COMMERCE : un independant qui publie sous son
   // enseigne est son propre directeur de publication, ce n'est pas un champ

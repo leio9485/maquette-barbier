@@ -1,0 +1,62 @@
+<!--# ---------------------------------------------------------------------------
+   LA PAGE « ADRESSE INTROUVABLE » — tout son balisage.
+
+   Elle remplace le `Cannot GET /page-inexistante` d'Express : du Times New
+   Roman, en anglais, sur fond blanc, servi a un visiteur qui vient de se
+   tromper d'une lettre dans l'adresse du salon. Les adresses en /api/, elles,
+   repondaient deja proprement en JSON — l'incoherence n'etait que du cote des
+   pages.
+
+   ⚠️ AUCUN JAVASCRIPT DANS CE DOCUMENT, et c'est voulu : le nom et le
+      telephone sont ecrits par le serveur (src/lib/page.js). Une page d'erreur
+      qui aurait besoin d'un script pour dire chez qui l'on se trouve serait la
+      derniere a pouvoir compter dessus.
+
+   ⚠️ ELLE EMPRUNTE L'OSSATURE DE /annuler — meme barre du haut, meme
+      « Retour au site », meme pied — parce que c'est exactement le meme
+      besoin : une page courte ou l'on arrive par accident, et d'ou il faut
+      pouvoir repartir en un clic. Rien de neuf a dessiner, donc rien de neuf a
+      maintenir.
+
+   Les valeurs ci-dessous ne servent que de repli : le serveur remplace la zone
+   <!--@introuvable--> a chaque envoi.
+   --------------------------------------------------------------------------- #-->
+<!--@introuvable-->
+<header class="annuler-entete">
+  <div class="annuler-largeur">
+    <a class="annuler-retour" href="/">
+      <span class="annuler-marque">L'Établi</span>
+      <span class="annuler-retour-mot">Retour au site</span>
+    </a>
+  </div>
+</header>
+
+<main id="contenu" class="annuler-corps">
+  <div class="annuler-largeur">
+    <h1>Page introuvable</h1>
+
+    <section class="annuler-ecran">
+      <p class="intro">
+        Cette adresse n'existe pas, ou n'existe plus. Le site, lui, fonctionne :
+        revenez à l'accueil, ou prenez rendez-vous directement.
+      </p>
+
+      <div class="actions-paire">
+        <a class="action" href="/#reserver">Prendre rendez-vous</a>
+        <a class="action-douce" href="/">Retour à l'accueil</a>
+      </div>
+
+      <p class="annuler-secours">
+        Vous cherchiez autre chose ? Appelez le
+        <a class="donnee" href="tel:+33327399840">03 27 39 98 40</a>.
+      </p>
+    </section>
+  </div>
+</main>
+
+<footer class="annuler-pied">
+  <div class="annuler-largeur">
+    <p><span class="donnee">L'Établi</span></p>
+  </div>
+</footer>
+<!--/@introuvable-->

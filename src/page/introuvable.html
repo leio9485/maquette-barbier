@@ -1,0 +1,52 @@
+<!--# --------------------------------------------------------------------------
+   LE SQUELETTE DE LA PAGE « ADRESSE INTROUVABLE ».
+
+   Le quatrieme document du site. Meme mecanique que les trois autres — des
+   `@inclure` recolles a l'envoi, aucune etape de construction.
+
+   ⚠️ LES STYLES SONT CHOISIS, PAS RECOPIES, comme pour /annuler : ni rail, ni
+      galerie, ni agenda, ni tunnel. Cette page tient en un titre, deux liens et
+      un numero de telephone ; elle ne doit rien couter a servir.
+
+   ⚠️ AUCUN <script>, ET AUCUN A AJOUTER. Ce document n'a rien a animer. C'est
+      aussi ce qui le rend insensible au piege de portee que tests/portees.mjs
+      surveille sur les trois autres.
+   -------------------------------------------------------------------------- #-->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#16191B">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%2316191B'/%3E%3Crect x='10' y='14' width='6' height='36' fill='%2324405C'/%3E%3Crect x='26' y='14' width='28' height='6' fill='%23EFEEEA'/%3E%3Crect x='26' y='29' width='28' height='6' fill='%23EFEEEA'/%3E%3Crect x='26' y='44' width='20' height='6' fill='%23EFEEEA'/%3E%3C/svg%3E">
+
+<!--# UNE PAGE D'ERREUR NE S'INDEXE PAS. L'en-tete `X-Robots-Tag` pose par le
+     serveur le dit aussi (src/server.js) : un moteur qui retient une adresse
+     morte la propose ensuite a d'autres. #-->
+<meta name="robots" content="noindex, follow">
+
+<!-- Remplacé par le serveur à chaque envoi (src/lib/page.js). Les valeurs
+     ci-dessous ne servent que de contenu de secours. -->
+<!--@introuvable-entete-->
+<title>Page introuvable — L'Établi</title>
+<!--/@introuvable-entete-->
+
+<link rel="preload" href="/fonts/plexcond-600.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/plexsans-400.woff2" as="font" type="font/woff2" crossorigin>
+
+<style>
+/*@inclure styles/01-polices.css*/
+/*@inclure styles/02-jetons.css*/
+/*@inclure styles/03-fondations.css*/
+/*@inclure styles/05-controles.css*/
+/*@inclure styles/20-annuler.css*/
+</style>
+</head>
+<body class="page-annuler">
+
+<a class="saut" href="#contenu">Aller au contenu</a>
+
+<!--@inclure parties/introuvable.html-->
+
+</body>
+</html>

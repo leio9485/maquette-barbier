@@ -99,6 +99,39 @@ export const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 export const DEMO_MODE = process.env.DEMO_MODE === 'true';
 
 // ---------------------------------------------------------------------------
+// L'HEBERGEUR, TEL QU'IL EST DECLARE DANS LES MENTIONS LEGALES
+//
+// Le paragraphe « Hébergement » etait ecrit en dur dans la page, et il etait
+// faux : il decrivait l'hebergeur VISE (Koyeb, Francfort) et non celui qui sert
+// reellement le site. Il affirmait en outre qu'aucune donnee ne quitte l'Union
+// europeenne — une declaration RGPD qu'aucune ligne de code ne pouvait tenir.
+//
+// >>> AUCUNE VALEUR PAR DEFAUT ICI, ET C'EST LE FOND DU CORRECTIF. <<<
+//
+// Le code ne sait pas ou il tourne. Un defaut ecrit dans le code serait vrai
+// sur une instance et faux sur la suivante, sans que personne ne s'en apercoive
+// — c'est exactement ce qui vient de se produire. Ces valeurs appartiennent au
+// DEPLOIEMENT : elles sont posees sur l'instance (voir render.yaml pour la
+// demonstration, .env.example pour le modele). Absentes, la page affiche une
+// mention neutre et verifiable plutot qu'une affirmation (src/lib/hebergement.js).
+// ---------------------------------------------------------------------------
+
+export const HEBERGEUR_NOM = (process.env.HEBERGEUR_NOM || '').trim();
+export const HEBERGEUR_PAYS = (process.env.HEBERGEUR_PAYS || '').trim();
+export const HEBERGEUR_URL = (process.env.HEBERGEUR_URL || '').trim();
+
+/**
+ * « Aucune donnee n'est transferee hors de l'Union europeenne. »
+ *
+ * >>> UNE AFFIRMATION JURIDIQUE, DONC UN INTERRUPTEUR A PART. <<< Elle ne se
+ * deduit PAS du pays annonce : un hebergeur allemand peut parfaitement faire
+ * transiter les requetes par un relais mondial, ce qui est le cas de l'instance
+ * de demonstration (Cloudflare devant une origine Render). Il faut donc poser
+ * HEBERGEUR_UE=true, en connaissance de cause, pour que la phrase apparaisse.
+ */
+export const HEBERGEUR_UE = process.env.HEBERGEUR_UE === 'true';
+
+// ---------------------------------------------------------------------------
 // LES NOTIFICATIONS
 //
 // Deux canaux sont prevus, aucun n'est actif par defaut. Voir

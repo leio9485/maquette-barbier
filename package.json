@@ -31,7 +31,10 @@
     "test:blocages": "node tests/blocages.mjs",
     "test:deplacement": "node tests/deplacement.mjs",
     "test:comptes": "node tests/comptes.mjs",
-    "test:francais": "node tests/francais.mjs"
+    "test:francais": "node tests/francais.mjs",
+    "test:erreurs": "node tests/erreurs.mjs",
+    "test:legal": "node tests/legal.mjs",
+    "test:export": "node tests/export.mjs"
   },
   "engines": {
     "node": ">=20"

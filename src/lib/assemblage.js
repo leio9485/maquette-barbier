@@ -52,6 +52,9 @@ const SQUELETTES = {
   index: path.join(DOSSIER, 'index.html'),
   annuler: path.join(DOSSIER, 'annuler.html'),
   espace: path.join(DOSSIER, 'espace.html'),
+  // La page servie quand l'adresse demandee n'existe pas. Le quatrieme, et le
+  // plus court : ni script, ni donnees, ni formulaire.
+  introuvable: path.join(DOSSIER, 'introuvable.html'),
 };
 
 /**

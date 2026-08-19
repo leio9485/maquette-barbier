@@ -300,6 +300,23 @@ lui, était juste depuis le début — une seule valeur, jamais deux. **Un état
 correct rendu à l'envers vaut un état faux.** C'est encre sur craie aujourd'hui,
 et toujours aucune couleur d'état : ni vert, ni rouge.
 
+⚠️ **On pointe un rendez-vous TERMINÉ, et « terminé » se compare en heures, pas
+en dates.** Le filtre était `iso >= aujourdhui()`, vrai de toute la journée en
+cours : celui de 9 h comme celui de 18 h. Un barbier ne pouvait donc pointer sa
+matinée que le lendemain, alors que le pointage se fait dans la foulée, en
+rendant la monnaie. `estTermine()` compare maintenant `start + duration` aux
+minutes écoulées depuis minuit — **sur la fin du créneau, pas sur son début** :
+à l'heure pile de l'arrivée, « pas venu » est un verdict prématuré.
+
+Le seuil dépendant de l'heure, les boutons doivent apparaître **sans qu'on
+recharge** — l'agenda du jour est l'écran qu'on laisse ouvert. Une minuterie est
+posée sur la **prochaine fin de créneau** et se réarme à chaque peinte : une
+horloge qui bat toutes les minutes ferait quatre cents repeintes inutiles par
+jour pour les trente qui changent quelque chose. ⚠️ Elle **attend que le focus
+ait quitté l'agenda** : `peindreAgenda()` remplace tout le contenu, et le focus
+clavier retomberait sur le document — supportable après un clic qu'on vient de
+faire, pas quand c'est une minuterie qui le décide.
+
 **Un rendez-vous se DÉPLACE, il ne se supprime plus pour être re-noté.** La
 fiche n'offrait que « Supprimer » : décaler quelqu'un d'une heure — l'opération
 la plus fréquente d'un agenda de barbier — passait donc par une suppression

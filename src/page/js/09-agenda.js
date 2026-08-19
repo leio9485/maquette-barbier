@@ -161,6 +161,7 @@ function peindreAgenda() {
   cible.innerHTML = joursAffiches().map(peindreJour).join('');
 
   mesurerTeteDeJournee();
+  programmerLeProchainPointage();
 }
 
 /**
@@ -365,7 +366,42 @@ function ligneRdv(rdv, iso) {
 }
 
 /**
- * Les deux boutons « Venu » / « Pas venu », sur les rendez-vous PASSES.
+ * LES MINUTES ECOULEES DEPUIS MINUIT, PARTIE FRACTIONNAIRE COMPRISE.
+ *
+ * C'est la meme horloge que `start` — un nombre de minutes depuis minuit, et
+ * NON un horodatage — en plus fin. Les secondes ne servent pas a comparer un
+ * rendez-vous, elles servent a poser la minuterie sur la bonne seconde plutot
+ * que jusqu'a cinquante-neuf secondes trop tard.
+ */
+function minutesEcoulees() {
+  const d = new Date();
+  return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+}
+
+/**
+ * CE RENDEZ-VOUS EST-IL TERMINE ?
+ *
+ * >>> LA COMPARAISON PORTAIT SUR DES DATES, JAMAIS SUR DES HEURES. <<<
+ *
+ * C'etait `iso >= aujourdhui()`, ce qui est vrai de TOUTE la journee en cours :
+ * celui de 9 h comme celui de 18 h. Un barbier ne pouvait donc pointer sa
+ * matinee que le lendemain — alors que le pointage se fait dans la foulee, en
+ * rendant la monnaie. L'intention du filtre etait juste (ne pas encombrer une
+ * journee a venir), la comparaison etait trop grossiere d'un cran.
+ *
+ * ⚠️ SUR LA FIN, ET NON SUR LE DEBUT. A l'heure pile de l'arrivee, « pas venu »
+ *    est un verdict premature : le client peut avoir trois minutes de retard.
+ *    Quand le creneau est ecoule, la question est tranchee.
+ */
+function estTermine(rdv, iso) {
+  const jour = aujourdhui();
+  if (iso < jour) return true;
+  if (iso > jour) return false;
+  return rdv.start + rdv.duration <= minutesEcoulees();
+}
+
+/**
+ * Les deux boutons « Venu » / « Pas venu », sur les rendez-vous TERMINES.
  *
  * Ils n'apparaissent pas avant : pointer un rendez-vous de la semaine
  * prochaine n'a aucun sens, et deux boutons de plus sur chaque ligne d'une
@@ -378,7 +414,7 @@ function ligneRdv(rdv, iso) {
  *    peut pas defaire ferait hesiter avant chacun.
  */
 function pointage(rdv, iso, annule) {
-  if (annule || iso >= aujourdhui()) return '';
+  if (annule || !estTermine(rdv, iso)) return '';
 
   const bouton = (valeur, libelle) => {
     const actif = rdv.presence === valeur;
@@ -391,6 +427,73 @@ function pointage(rdv, iso, annule) {
     + bouton('venu', 'Venu')
     + bouton('absent', 'Pas venu')
     + '</span>';
+}
+
+// --- LES BOUTONS APPARAISSENT SANS QU'ON RECHARGE LA PAGE -------------------
+//
+// Le seuil de `estTermine()` depend de l'heure qu'il est. Sans rien de plus, les
+// boutons du rendez-vous de 10h25 n'apparaitraient qu'au prochain chargement —
+// et l'agenda du jour est justement l'ecran qu'on laisse ouvert toute la
+// journee.
+//
+// ⚠️ UNE MINUTERIE POSEE SUR LA PROCHAINE FIN, ET NON UN REVEIL CHAQUE MINUTE.
+//    Il n'y a rien a recalculer entre deux fins de creneau : une horloge qui
+//    bat toutes les soixante secondes ferait quatre cents repeintes inutiles
+//    dans une journee de barbier pour les trente qui changent quelque chose.
+
+/** La minuterie en cours, s'il y en a une. Une seule a la fois. */
+let minuterieDuPointage = null;
+
+/**
+ * Repeindre juste apres la prochaine fin de creneau du jour.
+ *
+ * Rappelee a chaque peinte, elle se re-arme donc d'elle-meme : chaque repeinte
+ * pose la minuterie suivante, et la journee se pointe toute seule au fil des
+ * heures. Quand il ne reste plus de creneau a finir, aucune minuterie n'est
+ * posee — et si la periode affichee ne contient pas aujourd'hui, `AGENDA` n'a
+ * rien a cette date et il n'y a rien a programmer.
+ */
+function programmerLeProchainPointage() {
+  clearTimeout(minuterieDuPointage);
+  minuterieDuPointage = null;
+
+  const maintenant = minutesEcoulees();
+
+  // Un blocage n'a personne a pointer, un rendez-vous annule non plus : ni l'un
+  // ni l'autre ne fera apparaitre quoi que ce soit en se terminant.
+  const fins = (AGENDA.get(aujourdhui()) ?? [])
+    .filter((r) => r.type !== 'block' && !r.cancelledAt)
+    .map((r) => r.start + r.duration)
+    .filter((fin) => fin > maintenant);
+
+  if (!fins.length) return;
+
+  // Une demi-seconde apres la fin, pour ne pas tomber pile sur la limite et
+  // repartir pour un tour sans que rien n'ait change.
+  const delai = (Math.min(...fins) - maintenant) * 60000 + 500;
+  minuterieDuPointage = setTimeout(repeindreLePointage, delai);
+}
+
+/**
+ * ⚠️ ON NE REPEINT JAMAIS SOUS LES DOIGTS DE QUELQU'UN.
+ *
+ * `peindreAgenda()` remplace TOUT le contenu de l'agenda : si le commercant est
+ * en train de parcourir sa journee au clavier, le focus retomberait sur le
+ * document et il repartirait du haut de la page. C'est supportable apres un
+ * clic qu'il vient de faire ; ca ne l'est pas quand c'est une minuterie qui le
+ * decide, sans qu'il ait rien demande.
+ *
+ * On attend donc qu'il ait quitte l'agenda. Le rendez-vous de 10h25 gagnera ses
+ * boutons trente secondes plus tard, ce qui n'a aucune importance — il vient
+ * d'attendre son creneau entier.
+ */
+function repeindreLePointage() {
+  if ($('#agenda')?.contains(document.activeElement)) {
+    minuterieDuPointage = setTimeout(repeindreLePointage, 30000);
+    return;
+  }
+
+  peindreAgenda();
 }
 
 /** Enregistre le pointage, ou l'annule si on reclique le meme. */

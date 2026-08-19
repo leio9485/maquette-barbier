@@ -214,251 +214,282 @@
 
         <p class="message" id="messageReglages" hidden></p>
 
-        <nav class="reglages-sommaire etiquette" aria-label="Sections des réglages">
-          <a href="#reglagesCoordonnees">Coordonnées</a>
-          <a href="#reglagesHoraires">Horaires</a>
-          <a href="#reglagesPrestations">Prestations</a>
-          <a href="#reglagesEquipe">Équipe</a>
-          <a href="#reglagesAvis">Avis</a>
-          <a href="#reglagesPhotos">Photos</a>
-          <a href="#reglagesAcces">Accès</a>
-          <a href="#reglagesExport">Export</a>
-        </nav>
+        <!--# LE SOMMAIRE, ET LE RAIL QU'IL DEVIENT.
 
-        <section class="reglages-bloc" id="reglagesCoordonnees">
-          <h2>Coordonnées</h2>
-          <div class="reglages-grille" id="champsCoordonnees"></div>
-        </section>
+             ⚠️ L'ORDRE DES LIENS EST CELUI DU DOCUMENT, et il ne l'était pas :
+                « Accès » était écrit avant « Export » alors que sa section
+                vient trois sections après. Tant que le sommaire n'était qu'une
+                rangée de raccourcis, ça ne se voyait pas. Dès qu'il dit OÙ L'ON
+                EST, un rail qui marque son quatrième élément pendant qu'on lit
+                le huitième ne se lit plus du tout. Y ajouter une section, c'est
+                l'ajouter à sa place.
 
-        <section class="reglages-bloc" id="reglagesHoraires">
-          <h2>Horaires</h2>
-          <p class="secondaire petit">
-            Une ligne par jour. Décochez pour fermer, laissez la pause vide pour
-            une journée continue.
-          </p>
-          <div id="champsHoraires"></div>
+             Deux sections restent hors du sommaire, et c'est délibéré :
+             « Demander un avis » et « Remise à zéro » tiennent chacune en un
+             bouton. Elles héritent alors du repère de la section qui les
+             précède — ce qui est vrai : on est encore dans les photos, on est
+             encore dans les accès. #-->
+        <!--# ⚠️ CE CONTENEUR EXISTE POUR QUE LE RAIL PUISSE SE POSER À CÔTÉ.
 
-          <div class="reglages-grille reglages-creneaux">
-            <div class="champ">
-              <label for="reglagePas">Un créneau toutes les</label>
-              <select id="reglagePas">
-                <option value="10">10 minutes</option>
-                <option value="15">15 minutes</option>
-                <option value="20">20 minutes</option>
-                <option value="30">30 minutes</option>
-                <option value="60">60 minutes</option>
-              </select>
-            </div>
-            <div class="champ">
-              <label for="reglageDelai">Délai minimum avant un rendez-vous en ligne</label>
-              <select id="reglageDelai">
-                <option value="0">Aucun</option>
-                <option value="30">30 minutes</option>
-                <option value="60">1 heure</option>
-                <option value="120">2 heures</option>
-                <option value="1440">1 jour</option>
-              </select>
-            </div>
-          </div>
-        </section>
+             À partir de 1080 px, le sommaire et ce bloc forment les deux
+             colonnes d'une grille (styles/16-reglages.css). Sans lui, il aurait
+             fallu faire du VOLET la grille — et la barre de brouillon, qui en
+             est le premier enfant, y serait devenue une cellule : son
+             `position: sticky; bottom: 0` se serait alors calé sur la hauteur
+             de sa seule rangée, en haut de l'écran, au lieu de la hauteur du
+             volet entier. Elle reste donc dehors, avec le message. #-->
+        <div class="reglages-mise-en-page">
 
-        <section class="reglages-bloc" id="reglagesPrestations">
-          <h2>Prestations</h2>
-          <div id="champsCategories"></div>
-          <button type="button" class="action-douce" id="ajouterCategorie">Ajouter un rayon</button>
+          <nav class="reglages-sommaire etiquette" aria-label="Sections des réglages">
+            <a href="#reglagesCoordonnees">Coordonnées</a>
+            <a href="#reglagesHoraires">Horaires</a>
+            <a href="#reglagesPrestations">Prestations</a>
+            <a href="#reglagesEquipe">Équipe</a>
+            <a href="#reglagesAvis">Avis</a>
+            <a href="#reglagesPhotos">Photos</a>
+            <a href="#reglagesExport">Export</a>
+            <a href="#reglagesCompte">Compte</a>
+            <a href="#reglagesAcces">Accès</a>
+          </nav>
 
-          <div id="champsPrestations"></div>
-          <button type="button" class="action-douce" id="ajouterPrestation">Ajouter une prestation</button>
-        </section>
+          <div class="reglages-corps">
 
-        <section class="reglages-bloc" id="reglagesEquipe">
-          <h2>Équipe</h2>
-          <p class="secondaire petit">
-            Une prestation que personne ne coche est assurée par tout le monde.
-            Dès qu'une seule personne la coche, elle n'est plus qu'à elle.
-          </p>
-          <div id="champsEquipe"></div>
-          <button type="button" class="action-douce" id="ajouterPersonne">Ajouter une personne</button>
-        </section>
+            <section class="reglages-bloc" id="reglagesCoordonnees">
+              <h2>Coordonnées</h2>
+              <div class="reglages-grille" id="champsCoordonnees"></div>
+            </section>
 
-        <section class="reglages-bloc" id="reglagesAvis">
-          <h2>Avis</h2>
-          <p class="secondaire petit">
-            Vide, la section disparaît du site. Le plus simple : recopier de
-            vrais avis de votre fiche Google.
-          </p>
-          <div id="champsAvis"></div>
-          <button type="button" class="action-douce" id="ajouterAvis">Ajouter un avis</button>
-        </section>
-
-        <section class="reglages-bloc" id="reglagesPhotos">
-          <h2>Photos</h2>
-          <p class="secondaire petit">
-            Les photos sont réduites par votre navigateur avant d'être envoyées.
-            Le site les passe en noir et blanc : inutile de le faire avant.
-          </p>
-          <div class="reglages-photos" id="champsPhotos"></div>
-        </section>
-
-        <section class="reglages-bloc" id="reglagesAvisGoogle">
-          <h2>Demander un avis</h2>
-          <p class="secondaire petit">
-            Le message tout prêt à envoyer par SMS à quelqu'un qui sort de la
-            boutique. Il porte le lien qui ouvre directement la fenêtre d'avis
-            — celui que vous avez saisi dans les coordonnées.
-          </p>
-          <button type="button" class="action-douce" id="demanderAvis">
-            Copier le message
-          </button>
-        </section>
-
-        <!--# L'EXPORT. « Vos données vous appartiennent » est un argument de
-             vente ; sans ce bouton, c'est une phrase, et un prospect averti le
-             sent. Avec, c'est une démonstration de dix secondes.
-
-             ⚠️ Les deux fichiers sont en UTF-8 AVEC BOM et séparés par des
-                point-virgules, sans quoi Excel en configuration française
-                affiche « RÃ©mi » et met tout dans une seule colonne. Le
-                détail est dans src/routes/tableaudebord.js. #-->
-        <section class="reglages-bloc" id="reglagesExport">
-          <h2>Exporter mes données</h2>
-          <p class="secondaire petit">
-            Deux fichiers, à ouvrir dans Excel ou LibreOffice. Vos données vous
-            appartiennent : elles sortent d'ici quand vous voulez, sans rien
-            demander à personne.
-          </p>
-          <div class="reglages-export">
-            <a class="action-douce" href="/api/admin/export/clients" download>
-              Exporter les clients
-            </a>
-            <a class="action-douce" href="/api/admin/export/rendez-vous" download>
-              Exporter les rendez-vous
-            </a>
-          </div>
-        </section>
-
-        <!--# LE COMPTE.
-
-             ⚠️ CETTE SECTION N'EXISTAIT PAS, et la route non plus côté écran :
-                `PUT /api/admin/password` était écrite, testée, et n'avait
-                aucun formulaire. Un commerçant à qui l'on livre un identifiant
-                créé en ligne de commande (`npm run admin:create`) ne pouvait
-                donc JAMAIS changer son mot de passe, ni le renouveler quand un
-                employé partait. Pour un produit facturé, c'est la première
-                chose qu'un acheteur oppose.
-
-             Aucune règle de composition — pas de « une majuscule, un chiffre et
-             un caractère spécial ». Ces règles produisent des mots de passe
-             notés sur un papier collé à la caisse, ce qui est exactement ce
-             qu'on cherche à éviter. Une longueur minimale, et c'est tout.
-
-             ⚠️ CE FORMULAIRE NE PASSE PAS PAR LE BROUILLON. Un mot de passe
-                n'est pas un réglage : il ne s'accumule pas avec d'autres
-                changements en attente d'un « Enregistrer » commun, et il ne
-                doit pas rester en mémoire dans la page. Il part seul, et les
-                trois champs sont vidés aussitôt. #-->
-        <section class="reglages-bloc" id="reglagesCompte">
-          <h2>Compte</h2>
-
-          <dl class="fiche" id="ficheCompte"></dl>
-
-          <h3>Changer le mot de passe</h3>
-          <p class="secondaire petit">
-            Toutes les autres sessions seront fermées : c'est le geste à faire
-            quand quelqu'un s'en va, ou quand vous vous êtes connecté sur un
-            ordinateur qui n'est pas le vôtre. La vôtre reste ouverte.
-          </p>
-
-          <form id="formulaireMotDePasse" novalidate>
-            <div class="champ">
-              <label for="motDePasseActuel">Mot de passe actuel</label>
-              <input type="password" id="motDePasseActuel" autocomplete="current-password" required>
-            </div>
-            <div class="champ">
-              <label for="motDePasseNouveau">Nouveau mot de passe</label>
-              <input type="password" id="motDePasseNouveau" autocomplete="new-password" required>
-              <p class="aide" id="aideMotDePasse">Au moins 10 caractères. Une phrase courte fait un très bon mot de passe.</p>
-            </div>
-            <div class="champ">
-              <label for="motDePasseConfirmation">Le retaper</label>
-              <input type="password" id="motDePasseConfirmation" autocomplete="new-password" required>
-            </div>
-
-            <p class="message" id="messageMotDePasse" hidden></p>
-
-            <button type="submit" class="action" id="changerMotDePasse">
-              Changer le mot de passe
-            </button>
-          </form>
-        </section>
-
-        <!-- LES PERSONNES AUTORISÉES ---------------------------------------
-
-             ⚠️ UN SEUL MOT DE PASSE POUR TOUTE L'ÉQUIPE, C'ÉTAIT LE DÉFAUT.
-                La base acceptait plusieurs comptes depuis le premier jour, mais
-                la seule façon d'en créer un était `npm run admin:create`, en
-                ligne de commande, sur le serveur — que le commerçant n'a pas.
-
-             Un salon de trois personnes se retrouvait donc avec un mot de passe
-             partagé écrit près de la caisse : personne ne sait qui a supprimé
-             quoi, couper l'accès de quelqu'un qui part oblige à déconnecter
-             tout le monde, et un ancien employé garde l'entrée du fichier
-             client.
-
-             Il n'y a PAS de rôles : tous les accès peuvent tout faire. C'est
-             assumé pour un salon de trois personnes, et la colonne est prévue
-             en base pour le jour où ça ne suffira plus. # -->
-        <section class="reglages-bloc" id="reglagesAcces">
-          <h2>Personnes autorisées</h2>
-          <p class="secondaire petit">
-            Chaque personne entre avec son propre identifiant. C'est ce qui
-            permet de couper l'accès de quelqu'un qui s'en va sans changer le
-            mot de passe de tout le monde.
-          </p>
-
-          <div id="listeComptes"></div>
-
-          <p class="message" id="messageComptes" hidden></p>
-
-          <h3>Ajouter un accès</h3>
-          <p class="secondaire petit">
-            Choisissez un mot de passe et donnez-le de vive voix : la personne
-            le changera elle-même depuis « Compte ».
-          </p>
-
-          <form id="formulaireCompte" novalidate>
-            <div class="champ">
-              <label for="compteIdentifiant">Identifiant</label>
-              <input type="text" id="compteIdentifiant" autocomplete="off" maxlength="40" required>
-              <p class="aide" id="aideCompteIdentifiant">
-                Lettres, chiffres, point, tiret. Le prénom suffit.
+            <section class="reglages-bloc" id="reglagesHoraires">
+              <h2>Horaires</h2>
+              <p class="secondaire petit">
+                Une ligne par jour. Décochez pour fermer, laissez la pause vide pour
+                une journée continue.
               </p>
-            </div>
-            <div class="champ">
-              <label for="compteMotDePasse">Mot de passe initial</label>
-              <input type="password" id="compteMotDePasse" autocomplete="new-password" required>
-              <p class="aide">Au moins 10 caractères.</p>
-            </div>
+              <div id="champsHoraires"></div>
 
-            <p class="message" id="messageNouveauCompte" hidden></p>
+              <div class="reglages-grille reglages-creneaux">
+                <div class="champ">
+                  <label for="reglagePas">Un créneau toutes les</label>
+                  <select id="reglagePas">
+                    <option value="10">10 minutes</option>
+                    <option value="15">15 minutes</option>
+                    <option value="20">20 minutes</option>
+                    <option value="30">30 minutes</option>
+                    <option value="60">60 minutes</option>
+                  </select>
+                </div>
+                <div class="champ">
+                  <label for="reglageDelai">Délai minimum avant un rendez-vous en ligne</label>
+                  <select id="reglageDelai">
+                    <option value="0">Aucun</option>
+                    <option value="30">30 minutes</option>
+                    <option value="60">1 heure</option>
+                    <option value="120">2 heures</option>
+                    <option value="1440">1 jour</option>
+                  </select>
+                </div>
+              </div>
+            </section>
 
-            <button type="submit" class="action" id="ajouterCompte">
-              Ajouter cet accès
-            </button>
-          </form>
-        </section>
+            <section class="reglages-bloc" id="reglagesPrestations">
+              <h2>Prestations</h2>
+              <div id="champsCategories"></div>
+              <button type="button" class="action-douce" id="ajouterCategorie">Ajouter un rayon</button>
 
-        <section class="reglages-bloc">
-          <h2>Remise à zéro</h2>
-          <p class="secondaire petit">
-            Ramène tous les réglages aux valeurs d'origine. Les rendez-vous ne
-            sont pas touchés.
-          </p>
-          <button type="button" class="action-douce" id="reinitialiserReglages">
-            Revenir aux valeurs d'origine
-          </button>
-        </section>
+              <div id="champsPrestations"></div>
+              <button type="button" class="action-douce" id="ajouterPrestation">Ajouter une prestation</button>
+            </section>
 
+            <section class="reglages-bloc" id="reglagesEquipe">
+              <h2>Équipe</h2>
+              <p class="secondaire petit">
+                Une prestation que personne ne coche est assurée par tout le monde.
+                Dès qu'une seule personne la coche, elle n'est plus qu'à elle.
+              </p>
+              <div id="champsEquipe"></div>
+              <button type="button" class="action-douce" id="ajouterPersonne">Ajouter une personne</button>
+            </section>
+
+            <section class="reglages-bloc" id="reglagesAvis">
+              <h2>Avis</h2>
+              <p class="secondaire petit">
+                Vide, la section disparaît du site. Le plus simple : recopier de
+                vrais avis de votre fiche Google.
+              </p>
+              <div id="champsAvis"></div>
+              <button type="button" class="action-douce" id="ajouterAvis">Ajouter un avis</button>
+            </section>
+
+            <section class="reglages-bloc" id="reglagesPhotos">
+              <h2>Photos</h2>
+              <p class="secondaire petit">
+                Les photos sont réduites par votre navigateur avant d'être envoyées.
+                Le site les passe en noir et blanc : inutile de le faire avant.
+              </p>
+              <div class="reglages-photos" id="champsPhotos"></div>
+            </section>
+
+            <section class="reglages-bloc" id="reglagesAvisGoogle">
+              <h2>Demander un avis</h2>
+              <p class="secondaire petit">
+                Le message tout prêt à envoyer par SMS à quelqu'un qui sort de la
+                boutique. Il porte le lien qui ouvre directement la fenêtre d'avis
+                — celui que vous avez saisi dans les coordonnées.
+              </p>
+              <button type="button" class="action-douce" id="demanderAvis">
+                Copier le message
+              </button>
+            </section>
+
+            <!--# L'EXPORT. « Vos données vous appartiennent » est un argument de
+                 vente ; sans ce bouton, c'est une phrase, et un prospect averti le
+                 sent. Avec, c'est une démonstration de dix secondes.
+
+                 ⚠️ Les deux fichiers sont en UTF-8 AVEC BOM et séparés par des
+                    point-virgules, sans quoi Excel en configuration française
+                    affiche « RÃ©mi » et met tout dans une seule colonne. Le
+                    détail est dans src/routes/tableaudebord.js. #-->
+            <section class="reglages-bloc" id="reglagesExport">
+              <h2>Exporter mes données</h2>
+              <p class="secondaire petit">
+                Deux fichiers, à ouvrir dans Excel ou LibreOffice. Vos données vous
+                appartiennent : elles sortent d'ici quand vous voulez, sans rien
+                demander à personne.
+              </p>
+              <div class="reglages-export">
+                <a class="action-douce" href="/api/admin/export/clients" download>
+                  Exporter les clients
+                </a>
+                <a class="action-douce" href="/api/admin/export/rendez-vous" download>
+                  Exporter les rendez-vous
+                </a>
+              </div>
+            </section>
+
+            <!--# LE COMPTE.
+
+                 ⚠️ CETTE SECTION N'EXISTAIT PAS, et la route non plus côté écran :
+                    `PUT /api/admin/password` était écrite, testée, et n'avait
+                    aucun formulaire. Un commerçant à qui l'on livre un identifiant
+                    créé en ligne de commande (`npm run admin:create`) ne pouvait
+                    donc JAMAIS changer son mot de passe, ni le renouveler quand un
+                    employé partait. Pour un produit facturé, c'est la première
+                    chose qu'un acheteur oppose.
+
+                 Aucune règle de composition — pas de « une majuscule, un chiffre et
+                 un caractère spécial ». Ces règles produisent des mots de passe
+                 notés sur un papier collé à la caisse, ce qui est exactement ce
+                 qu'on cherche à éviter. Une longueur minimale, et c'est tout.
+
+                 ⚠️ CE FORMULAIRE NE PASSE PAS PAR LE BROUILLON. Un mot de passe
+                    n'est pas un réglage : il ne s'accumule pas avec d'autres
+                    changements en attente d'un « Enregistrer » commun, et il ne
+                    doit pas rester en mémoire dans la page. Il part seul, et les
+                    trois champs sont vidés aussitôt. #-->
+            <section class="reglages-bloc" id="reglagesCompte">
+              <h2>Compte</h2>
+
+              <dl class="fiche" id="ficheCompte"></dl>
+
+              <h3>Changer le mot de passe</h3>
+              <p class="secondaire petit">
+                Toutes les autres sessions seront fermées : c'est le geste à faire
+                quand quelqu'un s'en va, ou quand vous vous êtes connecté sur un
+                ordinateur qui n'est pas le vôtre. La vôtre reste ouverte.
+              </p>
+
+              <form id="formulaireMotDePasse" novalidate>
+                <div class="champ">
+                  <label for="motDePasseActuel">Mot de passe actuel</label>
+                  <input type="password" id="motDePasseActuel" autocomplete="current-password" required>
+                </div>
+                <div class="champ">
+                  <label for="motDePasseNouveau">Nouveau mot de passe</label>
+                  <input type="password" id="motDePasseNouveau" autocomplete="new-password" required>
+                  <p class="aide" id="aideMotDePasse">Au moins 10 caractères. Une phrase courte fait un très bon mot de passe.</p>
+                </div>
+                <div class="champ">
+                  <label for="motDePasseConfirmation">Le retaper</label>
+                  <input type="password" id="motDePasseConfirmation" autocomplete="new-password" required>
+                </div>
+
+                <p class="message" id="messageMotDePasse" hidden></p>
+
+                <button type="submit" class="action" id="changerMotDePasse">
+                  Changer le mot de passe
+                </button>
+              </form>
+            </section>
+
+            <!-- LES PERSONNES AUTORISÉES ---------------------------------------
+
+                 ⚠️ UN SEUL MOT DE PASSE POUR TOUTE L'ÉQUIPE, C'ÉTAIT LE DÉFAUT.
+                    La base acceptait plusieurs comptes depuis le premier jour, mais
+                    la seule façon d'en créer un était `npm run admin:create`, en
+                    ligne de commande, sur le serveur — que le commerçant n'a pas.
+
+                 Un salon de trois personnes se retrouvait donc avec un mot de passe
+                 partagé écrit près de la caisse : personne ne sait qui a supprimé
+                 quoi, couper l'accès de quelqu'un qui part oblige à déconnecter
+                 tout le monde, et un ancien employé garde l'entrée du fichier
+                 client.
+
+                 Il n'y a PAS de rôles : tous les accès peuvent tout faire. C'est
+                 assumé pour un salon de trois personnes, et la colonne est prévue
+                 en base pour le jour où ça ne suffira plus. # -->
+            <section class="reglages-bloc" id="reglagesAcces">
+              <h2>Personnes autorisées</h2>
+              <p class="secondaire petit">
+                Chaque personne entre avec son propre identifiant. C'est ce qui
+                permet de couper l'accès de quelqu'un qui s'en va sans changer le
+                mot de passe de tout le monde.
+              </p>
+
+              <div id="listeComptes"></div>
+
+              <p class="message" id="messageComptes" hidden></p>
+
+              <h3>Ajouter un accès</h3>
+              <p class="secondaire petit">
+                Choisissez un mot de passe et donnez-le de vive voix : la personne
+                le changera elle-même depuis « Compte ».
+              </p>
+
+              <form id="formulaireCompte" novalidate>
+                <div class="champ">
+                  <label for="compteIdentifiant">Identifiant</label>
+                  <input type="text" id="compteIdentifiant" autocomplete="off" maxlength="40" required>
+                  <p class="aide" id="aideCompteIdentifiant">
+                    Lettres, chiffres, point, tiret. Le prénom suffit.
+                  </p>
+                </div>
+                <div class="champ">
+                  <label for="compteMotDePasse">Mot de passe initial</label>
+                  <input type="password" id="compteMotDePasse" autocomplete="new-password" required>
+                  <p class="aide">Au moins 10 caractères.</p>
+                </div>
+
+                <p class="message" id="messageNouveauCompte" hidden></p>
+
+                <button type="submit" class="action" id="ajouterCompte">
+                  Ajouter cet accès
+                </button>
+              </form>
+            </section>
+
+            <section class="reglages-bloc">
+              <h2>Remise à zéro</h2>
+              <p class="secondaire petit">
+                Ramène tous les réglages aux valeurs d'origine. Les rendez-vous ne
+                sont pas touchés.
+              </p>
+              <button type="button" class="action-douce" id="reinitialiserReglages">
+                Revenir aux valeurs d'origine
+              </button>
+            </section>
+
+          </div>
+        </div>
       </section>
 
     </main>

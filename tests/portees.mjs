@@ -229,6 +229,10 @@ const CONNUS = new Set([
   'CustomEvent', 'Event', 'MutationObserver', 'AbortController', 'AbortSignal',
   'document', 'window', 'navigator', 'localStorage', 'sessionStorage',
   'console', 'alert', 'confirm', 'prompt', 'CSS',
+  // `getComputedStyle` sert a RELIRE une valeur que la feuille de style a deja
+  // decidee, plutot qu'a la recopier en JavaScript : le seuil du sommaire des
+  // reglages se cale sur le `scroll-padding-top` de `<html>` (js/08-reglages.js).
+  'getComputedStyle',
 ]);
 
 console.log('Portée du JavaScript, document par document\n');

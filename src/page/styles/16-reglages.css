@@ -2,9 +2,57 @@
    LES RÉGLAGES
    --------------------------------------------------------------------------- */
 
+/* --- LE SOMMAIRE DIT OÙ L'ON EST -------------------------------------------
+
+   >>> C'ÉTAIT UNE RANGÉE DE LIENS BLEUS SOULIGNÉS, ET ELLE NE RÉPONDAIT QU'À
+       LA MOITIÉ DE LA QUESTION. <<<
+
+   Elle savait EMMENER quelque part — huit raccourcis, ça marche — mais elle ne
+   savait pas DIRE OÙ L'ON ÉTAIT. Neuf sections, deux cents champs, et le seul
+   repère était le titre de section qu'on venait de dépasser : on descendait
+   trois écrans dans les horaires, on relevait les yeux, et rien à l'écran ne
+   disait « horaires ».
+
+   Deux choses changent, et il faut les deux.
+
+   D'abord le SOULIGNEMENT PART. Un lien souligné en bleu de travail est la
+   forme que le site donne à ce qui EMMÈNE AILLEURS — le téléphone, l'adresse,
+   le lien Google. Le sommaire, lui, déplace à l'intérieur de la page qu'on
+   regarde déjà : c'est le vocabulaire des onglets de la barre du haut
+   (`.espace-onglet`, 14-connexion.css), pas celui d'un lien. Il le reprend
+   donc mot pour mot — texte en acier, filet de 3 px sous l'élément courant,
+   aplat en encre pour le mot lui-même.
+
+   Ensuite l'ÉLÉMENT COURANT est marqué, et c'est js/08-reglages.js qui le
+   pose au défilement (`aria-current`).
+
+   ⚠️ `[aria-current="true"]` ET NON `[aria-current]`. Le JavaScript pose
+      l'attribut sur TOUS les liens — « true » sur un seul, « false » sur les
+      huit autres, ce qui est correct côté ARIA. Un sélecteur qui teste la
+      seule présence de l'attribut les marquerait tous, et plus rien ne dirait
+      où l'on est. C'est exactement la faute déjà commise, puis corrigée, sur
+      les onglets de la barre du haut. */
 .reglages-sommaire a {
-  display: inline-block;
+  display: flex;
+  align-items: center;
+  min-height: 32px;
   padding: 7px 0;
+  border-bottom: 3px solid transparent;
+  color: var(--acier);
+  text-decoration: none;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.reglages-sommaire a:hover { color: var(--encre); }
+
+/* ⚠️ PAS DE CHANGEMENT DE TAILLE TANT QUE LE SOMMAIRE EST UNE RANGÉE. Elle
+   passe à la ligne selon la largeur : un élément qui grandit en devenant
+   courant recompose la rangée entière À CHAQUE SECTION FRANCHIE, et le
+   sommaire sautille pendant qu'on descend. Dans le rail (plus bas), la
+   colonne a une largeur fixe et le mot peut grossir sans rien déplacer. */
+.reglages-sommaire a[aria-current="true"] {
+  color: var(--encre);
+  border-bottom-color: var(--encre);
 }
 
 /* --- LE SOMMAIRE SUIT LE DÉFILEMENT -----------------------------------------
@@ -69,6 +117,91 @@
        compterait la barre deux fois. */
     scroll-margin-top: var(--h-sommaire, 44px);
   }
+}
+
+/* --- LE SOMMAIRE DEVIENT UN RAIL, À GAUCHE ---------------------------------
+
+   >>> UNE RANGÉE DE NEUF MOTS NE MONTRE PAS UN PLAN, ELLE L'ÉPELLE. <<<
+
+   Collée en haut, elle prenait toute la largeur d'un écran d'ordinateur pour
+   neuf mots de treize pixels, et volait une bande à un formulaire déjà long.
+   Debout à gauche, la même liste se lit comme un plan : neuf lignes, l'une
+   d'elles en gros et en gras, et l'œil sait où il en est sans lire.
+
+   C'est aussi ce qui autorise le changement de taille. Le rail a une largeur
+   FIXE (`--largeur-rail`, celui des repères de section de la vitrine) : le mot
+   courant peut passer de 13 px en chasse fixe à 18 px en Condensed 600 sans
+   déplacer quoi que ce soit — ni le formulaire à côté, ni les huit autres
+   lignes, dont la hauteur est tenue par `min-height`.
+
+   ⚠️ LE SEUIL EST À 1080 px, ET IL SE CALCULE. Le rail et sa gouttière
+      coûtent 160 + 64 = 224 px pris au formulaire. En dessous, le tunnel des
+      horaires — sept lignes de quatre champs d'heure — commence à se casser,
+      et un plan de navigation ne vaut pas qu'on abîme ce qu'il sert à
+      atteindre.
+
+   ⚠️ AUCUN FILET ENTRE LE RAIL ET LE FORMULAIRE. Il n'irait que jusqu'en bas
+      du rail — un trait de 400 px le long d'une colonne qui en fait 4000 —
+      et se lirait comme un trait interrompu, pas comme une séparation. Les
+      64 px de gouttière suffisent : c'est la règle du site, la hiérarchie se
+      fait par les blancs. */
+@media (min-width: 1080px) {
+  .reglages-mise-en-page {
+    display: grid;
+    grid-template-columns: var(--largeur-rail) minmax(0, 1fr);
+    column-gap: var(--e5);
+    align-items: start;
+  }
+
+  /* Sans lui, une colonne de grille ne descend pas sous la largeur de son
+     contenu, et la moindre ligne de champs large déborde. Même précaution que
+     pour `.agenda-colonne`. */
+  .reglages-corps { min-width: 0; }
+
+  /* La rangée redevient une colonne, et perd tout ce qui allait avec : l'aplat
+     pleine bande, les marges négatives qui lui faisaient franchir le
+     rembourrage, le filet du bas. Rien de tout ça n'a de sens debout. */
+  .reglages-sommaire {
+    display: block;
+    margin: 0;
+    padding: 0;
+    background: none;
+    border-bottom: 0;
+
+    top: calc(var(--h-barre, 64px) + var(--e3));
+    align-self: start;
+  }
+
+  .reglages-sommaire a {
+    min-height: 44px;
+    padding: 0 0 0 var(--e2);
+    border-bottom: 0;
+    /* Le filet passe à gauche : c'est le même repère, tourné d'un quart de
+       tour avec la liste. */
+    border-left: 3px solid transparent;
+  }
+
+  /* « Plus gros et plus gras », et les deux viennent de cuts qui existent : le
+     Condensed est livré en 600 et en 600 seulement (`--g-titre`), si bien
+     qu'aucun faux gras ne peut être synthétisé ici. C'est la voix des titres
+     de section — ce que le rail désigne est justement un titre de section. */
+  .reglages-sommaire a[aria-current="true"] {
+    font-family: var(--f-titre);
+    font-weight: var(--g-titre);
+    font-size: var(--t-sous);
+    letter-spacing: var(--ls-section);
+    border-bottom-color: transparent;
+    border-left-color: var(--encre);
+  }
+
+  /* ⚠️ LE DÉCALAGE DES ANCRES REPART À ZÉRO, ET C'EST OBLIGATOIRE.
+     `--h-sommaire` est la hauteur mesurée du sommaire : quarante-quatre pixels
+     couché, quatre cents debout. Le laisser en place ferait atterrir chaque
+     ancre quatre cents pixels TROP BAS — le titre de section hors de l'écran
+     par le haut, et le formulaire ouvert en plein milieu. Debout, le sommaire
+     ne couvre plus rien : la barre du haut, déjà déduite par le
+     `scroll-padding-top` de `<html>`, est le seul décalage qui reste. */
+  .reglages-bloc { scroll-margin-top: 0; }
 }
 
 .reglages-bloc { margin-bottom: var(--e5); }

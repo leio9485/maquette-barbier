@@ -73,6 +73,151 @@ function peindreReglages() {
   peindreEquipeReglages();
   peindreAvisReglages();
   peindrePhotosReglages();
+
+  marquerSectionCourante();
+}
+
+// --- LE SOMMAIRE DIT OU L'ON EST --------------------------------------------
+//
+// >>> IL SAVAIT EMMENER, IL NE SAVAIT PAS SITUER. <<< Neuf sections, pres de
+// deux cents champs : on descendait trois ecrans dans les horaires, on relevait
+// les yeux, et rien a l'ecran ne disait « horaires ». Le sommaire etait pourtant
+// la, colle en haut — mais ses neuf mots avaient tous exactement le meme air.
+//
+// ⚠️ AU DEFILEMENT, ET NON PAR UN `IntersectionObserver`. Ce n'est PAS le
+//    motif du refus des observateurs dans js/espace/demarrage.js, et les
+//    confondre serait s'appuyer sur un argument faux : un onglet qui ne rend
+//    pas ne distribue pas davantage l'evenement `scroll` — mesure.
+//
+//    La raison est ailleurs, et elle est plus simple. Un observateur repond a
+//    « cette section est-elle a l'ecran ? », et sur une page qui en montre trois
+//    a la fois, ca ne designe pas la section COURANTE : il faut de toute facon
+//    comparer leurs positions pour trancher, c'est-a-dire refaire a la main ce
+//    qu'on croyait avoir delegue, avec un seuil de plus a regler. La question
+//    posee ici — « laquelle est passee sous les barres ? » — est une
+//    comparaison de neuf `getBoundingClientRect()`, et elle se lit d'un trait.
+
+/**
+ * A partir de quelle hauteur d'ecran une section compte comme « atteinte ».
+ *
+ * >>> C'EST EXACTEMENT L'ENDROIT OU UN SAUT D'ANCRE DEPOSE UNE SECTION. <<<
+ *
+ * Et ce n'est pas une coquetterie : le seuil valait le bas de la barre du haut,
+ * seize pixels plus bas que ce point. Cliquer « Equipe » amenait donc la
+ * section a l'ecran ET LAISSAIT LE RAIL SUR « PRESTATIONS » — un plan de
+ * navigation qui contredit le clic qu'on vient de faire est pire que pas de
+ * plan du tout.
+ *
+ * Il se lit donc la ou le site l'a deja ecrit : `scroll-padding-top`, pose sur
+ * `<html>` par styles/14-connexion.css. Recalculer la meme somme ici en ferait
+ * deux endroits a tenir d'accord, et c'est un endroit de trop.
+ *
+ * ⚠️ LE SOMMAIRE NE COMPTE QUE LORSQU'IL EST COUCHE. Couche, il est POSE
+ *    AU-DESSUS du formulaire et masque la premiere bande de chaque section :
+ *    sa hauteur s'ajoute — c'est aussi ce que fait le `scroll-margin-top` des
+ *    blocs, avec la meme valeur, si bien que les deux restent d'accord. Debout,
+ *    il est A COTE, ne cache rien, et le `scroll-margin-top` repart a zero.
+ *
+ *    On distingue les deux sur leur POSITION HORIZONTALE — le rail est
+ *    entierement a gauche du formulaire — et non sur un `matchMedia` qui
+ *    recopierait le seuil de 1080 px ecrit dans la feuille de style.
+ */
+function seuilDuSommaire() {
+  const retrait = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop);
+
+  // `scroll-padding-top: auto` ne se lit pas en pixels : on retombe alors sur
+  // le bas de la barre du haut, qui est la mesure que ce retrait vaut presque.
+  let seuil = Number.isFinite(retrait)
+    ? retrait
+    : ($('.espace-barre')?.getBoundingClientRect().bottom ?? 0);
+
+  const sommaire = $('.reglages-sommaire');
+  const corps = $('.reglages-corps');
+
+  if (sommaire && corps) {
+    const rail = sommaire.getBoundingClientRect();
+    const colonne = corps.getBoundingClientRect();
+    if (rail.right > colonne.left) seuil += rail.height;
+  }
+
+  return seuil;
+}
+
+/**
+ * Marque dans le sommaire la section que l'on est en train de lire.
+ *
+ * La section courante est LA DERNIERE dont le haut est deja passe sous les
+ * barres. Deux cas particuliers, et ils comptent tous les deux :
+ *
+ *   - tout en haut, aucune section n'a encore passe le seuil : c'est la
+ *     premiere, sans quoi le rail ne marquerait rien pendant le premier ecran ;
+ *   - tout en bas, les trois dernieres sections tiennent ensemble dans le
+ *     dernier ecran et aucune n'atteindra jamais le haut : c'est la derniere,
+ *     sinon « Acces » resterait impossible a atteindre au defilement.
+ *
+ * ⚠️ `aria-current` EST POSE SUR TOUS LES LIENS, « false » compris. Le style
+ *    teste `[aria-current="true"]` et non la seule presence de l'attribut —
+ *    voir styles/16-reglages.css, et l'erreur deja commise sur les onglets de
+ *    la barre du haut.
+ */
+function marquerSectionCourante() {
+  const liens = $$('.reglages-sommaire a');
+  if (!liens.length) return;
+
+  // Un lien dont la section a disparu du document ne compte pas.
+  const paires = liens
+    .map((lien) => ({ lien, bloc: $(lien.getAttribute('href')) }))
+    .filter(({ bloc }) => bloc);
+  if (!paires.length) return;
+
+  const seuil = seuilDuSommaire();
+  const auBout = window.innerHeight + window.scrollY >= document.body.scrollHeight - 2;
+
+  let courant = paires[0].lien;
+  if (auBout) {
+    courant = paires[paires.length - 1].lien;
+  } else {
+    // Deux pixels de jeu : un saut d'ancre depose la section EXACTEMENT sur le
+    // seuil, et une position fractionnaire — un ecran a 1,25 de rapport, une
+    // hauteur de barre arrondie — la ferait manquer d'un demi-pixel.
+    for (const { lien, bloc } of paires) {
+      if (bloc.getBoundingClientRect().top <= seuil + 2) courant = lien;
+    }
+  }
+
+  for (const lien of liens) lien.setAttribute('aria-current', String(lien === courant));
+}
+
+/**
+ * Le defilement est ecoute une fois pour toutes, et le calcul est GROUPE : une
+ * molette envoie des dizaines d'evenements par seconde, et neuf mesures de
+ * position a chacun feraient des centaines de lectures de mise en page par
+ * seconde pour un attribut qui ne change que huit fois sur toute la page.
+ *
+ * ⚠️ UN DELAI, ET NON `requestAnimationFrame`. Rien ici n'a besoin d'etre juste
+ *    a l'image pres : c'est un mot qui change de graisse huit fois sur une page
+ *    de dix-sept mille pixels, pas une animation. Un dixieme de seconde ne se
+ *    voit pas, et coute six fois moins de lectures de mise en page qu'un calcul
+ *    par image.
+ *
+ *    Ce n'est PAS le meme argument que le refus des observateurs dans
+ *    js/espace/demarrage.js, et il ne faut pas les confondre : dans un
+ *    navigateur qui ne rend pas, l'evenement `scroll` lui-meme n'est jamais
+ *    distribue — mesure. Aucun etranglement ne rattrape ca, et il n'y a de
+ *    toute facon rien a rattraper : personne ne defile une page que personne ne
+ *    regarde.
+ */
+let sommaireEnAttente = false;
+
+function suivreLeDefilementDuSommaire() {
+  if (sommaireEnAttente) return;
+  sommaireEnAttente = true;
+
+  setTimeout(() => {
+    sommaireEnAttente = false;
+    // Le volet ferme n'a rien a marquer, et ses sections mesureraient zero.
+    if (ESPACE.volet === 'reglages') marquerSectionCourante();
+  }, 100);
 }
 
 // --- Les coordonnees --------------------------------------------------------
@@ -1121,6 +1266,11 @@ function brancherReglages() {
     peindreReglages();
     marquerModifie();
   });
+
+  // Le sommaire suit ce qu'on lit. Le clic sur un de ses liens n'a besoin de
+  // rien de plus : le saut d'ancre fait defiler, et le defilement repasse ici.
+  window.addEventListener('scroll', suivreLeDefilementDuSommaire, { passive: true });
+  window.addEventListener('resize', suivreLeDefilementDuSommaire);
 
   $('#enregistrerReglages')?.addEventListener('click', envoyerReglages);
   $('#annulerBrouillon')?.addEventListener('click', chargerReglages);

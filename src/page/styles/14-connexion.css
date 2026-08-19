@@ -278,5 +278,6 @@ html {
      journée et le sommaire des réglages redeviennent donc du texte dans le
      flux — c'est ce qu'on veut d'une journée scotchée près de la caisse. */
   .agenda-jour-tete,
+  .agenda-colonne-nom,
   .reglages-sommaire { position: static !important; }
 }

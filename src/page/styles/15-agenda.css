@@ -348,6 +348,49 @@
   color: var(--acier);
 }
 
+/* --- LE PRÉNOM SUIT LE DÉFILEMENT, COMME LA DATE ----------------------------
+
+   >>> LA DATE COLLAIT, LES COLONNES NON — ET C'ÉTAIT LA MOITIÉ DE LA RÉPONSE.
+   <<<
+
+   L'en-tête de journée reste sous la barre du haut depuis qu'on ne savait plus
+   quel jour on lisait. Mais un samedi à trois personnes fait trois colonnes de
+   trente lignes : au deuxième écran, on savait de nouveau QUEL JOUR, et on ne
+   savait plus DE QUI. Le prénom était sorti par le haut avec le reste, et la
+   colonne n'était plus portée que par sa POSITION — soit exactement le défaut
+   que `.agenda-qui` en `.hors-ecran` existe déjà pour réparer côté lecteur
+   d'écran, laissé entier pour l'œil.
+
+   Il se colle donc à son tour, JUSTE SOUS l'en-tête de journée : deux barres
+   empilées, la date puis le prénom, dans l'ordre où on se pose les questions.
+
+   ⚠️ `top` EST UNE SOMME DE DEUX MESURES, et aucune des deux n'est écrite à la
+      main. `--h-barre` est posée par js/espace/demarrage.js, `--h-tete-jour`
+      par `peindreAgenda()` — l'en-tête de journée porte un nom de jour long
+      (« Mercredi 20 août ») et un compte, et sa hauteur dépend de la police
+      chargée. Les valeurs de repli couvrent le cas où le JavaScript ne serait
+      pas passé.
+
+   ⚠️ SOUS L'EN-TÊTE DE JOURNÉE DANS LA PILE (4 contre 5), sinon la journée
+      suivante glisserait DERRIÈRE les prénoms de la précédente au lieu de les
+      pousser.
+
+   ⚠️ LA MARGE DU BAS DEVIENT DU REMBOURRAGE. Une marge n'est pas peinte : les
+      lignes de rendez-vous auraient défilé en transparence dans les huit
+      pixels sous le filet. L'écart à l'œil est le même. */
+@media (min-width: 900px) {
+  .agenda[data-colonnes="personnes"] .agenda-colonne-nom {
+    position: sticky;
+    top: calc(var(--h-barre, 64px) + var(--h-tete-jour, 40px));
+    z-index: 4;
+
+    margin-bottom: 0;
+    padding-top: var(--e1);
+    padding-bottom: var(--e1);
+    background: var(--craie);
+  }
+}
+
 /* « Libre » ou « Ne travaille pas » — deux réponses différentes, et les
    confondre ferait proposer quelqu'un qui ne vient pas ce jour-là. */
 .agenda-colonne-vide {
@@ -475,13 +518,33 @@
 
 .agenda-pointage:hover { border-color: currentColor; }
 
-/* Coché : l'aplat s'inverse. C'est le même vocabulaire que les onglets de
-   « avec qui ? » dans le tunnel (styles/05-controles.css). */
+/* >>> COCHÉ : L'APLAT S'INVERSE — ET IL S'INVERSAIT DU MAUVAIS CÔTÉ. <<<
+
+   C'était `background: var(--craie)` sur une page qui EST en craie. Le bouton
+   coché y perdait donc son aplat ET son filet : il devenait plus discret que
+   celui qu'on n'avait pas coché. Le commerçant lisait l'exact contraire de ce
+   qu'il venait de pointer — « Pas venu » encadré, « Venu » effacé — et en
+   concluait que les deux cases restaient prises ensemble.
+
+   ⚠️ LE POINTAGE, LUI, ÉTAIT JUSTE DEPUIS LE DÉBUT. Cliquer « Venu » écrit
+      `presence = 'venu'` (js/09-agenda.js), et la repeinte relâche forcément
+      « Pas venu » : une seule valeur, jamais deux. Il ne se VOYAIT pas, c'est
+      tout — un état correct rendu à l'envers vaut un état faux.
+
+   Encre sur craie, comme `.action:hover` (05-controles.css) : 15,2:1, et
+   surtout aucune couleur d'état — ni le vert du signal, ni le bleu de
+   l'action, qui ne disent ni l'un ni l'autre « c'est celui-ci qui est
+   pointé ». */
 .agenda-pointage[aria-pressed="true"] {
-  background: var(--craie);
-  color: var(--encre);
-  border-color: var(--craie);
+  background: var(--encre);
+  color: var(--craie);
+  border-color: var(--encre);
 }
+
+/* Le survol d'un bouton déjà coché ne l'allège pas. On peut le décocher — c'est
+   voulu — mais un aplat qui s'éclaircit au passage de la souris le ferait
+   passer pour décoché avant même le clic. */
+.agenda-pointage[aria-pressed="true"]:hover { border-color: var(--encre); }
 
 /* --- LE MARQUEUR D'ABSENCES ------------------------------------------------
 

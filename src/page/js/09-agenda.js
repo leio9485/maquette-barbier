@@ -120,6 +120,34 @@ function semaineEnColonnes() {
   return ESPACE.vue === 'semaine' && ECRAN_LARGE.matches && equipeActive().length > 0;
 }
 
+/**
+ * LA HAUTEUR DE L'EN-TETE DE JOURNEE, PUBLIEE EN JETON CSS.
+ *
+ * >>> A QUOI ELLE SERT. <<< Le nom de la personne se colle en tete de sa
+ * colonne (styles/15-agenda.css), et il doit se caler SOUS l'en-tete de
+ * journee, lui-meme colle sous la barre du haut. Trois barres empilees, donc
+ * deux hauteurs a connaitre — et celle-ci n'est pas plus decidable d'avance que
+ * `--h-barre` : elle depend du nom du jour (« Mercredi 20 aout » contre « Lundi
+ * 1er »), de la police une fois chargee, et de la largeur.
+ *
+ * ⚠️ MESUREE APRES LA PEINTE, ET A CHAQUE PEINTE. Un `ResizeObserver` serait
+ *    plus elegant et ne marcherait pas : ses rappels sont livres pendant les
+ *    etapes de rendu, et un onglet qui ne rend pas n'en recoit aucun — le motif
+ *    complet est dans js/espace/demarrage.js, qui a fait le meme choix pour la
+ *    barre du haut.
+ *
+ * ⚠️ ZERO VEUT DIRE « RIEN A L'ECRAN », PAS « PLUS RIEN A DECALER ». On garde
+ *    alors la derniere hauteur connue, plutot que de coller les prenoms sous la
+ *    barre du haut.
+ */
+function mesurerTeteDeJournee() {
+  const tete = $('.agenda-jour-tete');
+  if (!tete) return;
+
+  const hauteur = Math.round(tete.getBoundingClientRect().height);
+  if (hauteur > 0) document.documentElement.style.setProperty('--h-tete-jour', `${hauteur}px`);
+}
+
 function peindreAgenda() {
   const cible = $('#agenda');
   if (!cible || !CONFIG) return;
@@ -131,6 +159,8 @@ function peindreAgenda() {
   else delete cible.dataset.colonnes;
 
   cible.innerHTML = joursAffiches().map(peindreJour).join('');
+
+  mesurerTeteDeJournee();
 }
 
 /**
@@ -1234,6 +1264,12 @@ function brancherAgenda() {
   ECRAN_LARGE.addEventListener('change', () => {
     if (ESPACE.vue === 'semaine') peindreAgenda();
   });
+
+  // La largeur change SANS franchir 900 px : le dessin ne bouge pas, mais le
+  // nom du jour peut passer a la ligne — et les prenoms colles dessous se
+  // calent sur sa hauteur.
+  window.addEventListener('resize', mesurerTeteDeJournee);
+  document.fonts?.ready.then(mesurerTeteDeJournee);
 
   $('#ouvrirAjoutRdv')?.addEventListener('click', () => ouvrirAjout());
   $('#ouvrirBlocage')?.addEventListener('click', ouvrirBlocage);

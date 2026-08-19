@@ -279,6 +279,27 @@ serait plus portée que par la **position** — la même faute que de la porter
 par la seule couleur. Il passe donc en `.hors-ecran`. Le téléphone, lui, est
 bien retiré : il est dans la fiche, à un clic, en lien `tel:`.
 
+**Le prénom en tête de colonne suit le défilement, comme la date.** L'en-tête de
+journée collait déjà ; les colonnes, non. Un samedi à trois personnes fait trois
+colonnes de trente lignes : au deuxième écran on savait de nouveau quel jour,
+plus de qui — et la colonne n'était plus portée que par sa **position**, le
+défaut exact que le `.hors-ecran` ci-dessus répare pour les lecteurs d'écran et
+laissait entier pour l'œil. Le nom se colle donc juste sous la date.
+Son `top` est la somme de **deux mesures** : `--h-barre` (posé par
+`js/espace/demarrage.js`) et `--h-tete-jour` (posé par `peindreAgenda()`, parce
+qu'un nom de jour long et la police chargée en décident). Il passe **sous**
+l'en-tête de journée dans la pile — 4 contre 5 — sinon la journée suivante
+glisserait derrière les prénoms de la précédente au lieu de les pousser.
+
+⚠️ **« Venu » et « Pas venu » s'inversaient du mauvais côté.** L'état coché
+posait `background: var(--craie)` — la couleur de la page. Le bouton coché y
+perdait son aplat *et* son filet, et devenait donc plus discret que celui qu'on
+n'avait pas coché : on lisait l'exact contraire de ce qu'on venait de pointer, et
+on en concluait que les deux cases restaient prises ensemble. Le pointage,
+lui, était juste depuis le début — une seule valeur, jamais deux. **Un état
+correct rendu à l'envers vaut un état faux.** C'est encre sur craie aujourd'hui,
+et toujours aucune couleur d'état : ni vert, ni rouge.
+
 **Un rendez-vous se DÉPLACE, il ne se supprime plus pour être re-noté.** La
 fiche n'offrait que « Supprimer » : décaler quelqu'un d'une heure — l'opération
 la plus fréquente d'un agenda de barbier — passait donc par une suppression
@@ -316,6 +337,41 @@ n'avait écrites, et tout s'affichait en HTML nu. C'est la moitié de ce qu'on
 vend. Elle est aujourd'hui dans `14-connexion.css`, sur le même aplat encre que
 l'en-tête de la vitrine — le commerçant passe de l'un à l'autre, les deux
 doivent se ressembler.
+
+**Le sommaire des réglages dit où l'on est, et il est devenu un rail.** Il
+savait emmener — huit raccourcis, ça marche — mais pas situer : on descendait
+trois écrans dans les horaires, on relevait les yeux, et rien ne disait
+« horaires ». Trois choses ont changé, et il faut les trois.
+
+- **Le soulignement part.** Un lien bleu souligné est la forme que le site donne
+  à ce qui **emmène ailleurs** ; le sommaire déplace à l'intérieur d'une page
+  qu'on regarde déjà. Il reprend donc le vocabulaire des onglets de la barre du
+  haut, mot pour mot : texte acier, filet de 3 px sur l'élément courant.
+- **La section courante est marquée**, au défilement, par `aria-current` posé
+  dans `js/08-reglages.js`. ⚠️ Le style teste `[aria-current="true"]` et non la
+  seule présence de l'attribut — la faute déjà commise sur `.espace-onglet`.
+- **À partir de 1080 px, la rangée se lève en rail à gauche.** Neuf mots de
+  13 px sur toute la largeur n'exposent pas un plan, ils l'épellent ; debout,
+  la liste **se lit** comme un plan. C'est aussi ce qui autorise l'élément
+  courant à passer en plus gros et plus gras (Condensed 600, 18 px) : dans une
+  colonne de largeur fixe il ne déplace rien, alors qu'une rangée qui passe à la
+  ligne se recomposerait à chaque section franchie.
+
+⚠️ **Le seuil du repérage se lit dans `scroll-padding-top`, il ne se recalcule
+pas.** Il valait le bas de la barre du haut, seize pixels au-dessus de l'endroit
+où un saut d'ancre dépose une section : cliquer « Équipe » ouvrait la section
+**et laissait le rail sur « Prestations »**. Un plan qui contredit le clic qu'on
+vient de faire est pire que pas de plan.
+
+⚠️ **Le `scroll-margin-top` des blocs repart à zéro dans le rail.**
+`--h-sommaire` est la hauteur mesurée du sommaire : 44 px couché, 400 px debout.
+Le laisser en place ferait atterrir chaque ancre 400 px trop bas.
+
+⚠️ **`.reglages-mise-en-page` et `.reglages-corps` existent pour la grille du
+rail, pas par goût du `<div>`.** Faire du volet lui-même la grille ferait de la
+barre de brouillon — son premier enfant — une cellule, et son
+`position: sticky; bottom: 0` se calerait alors sur la hauteur de sa seule
+rangée au lieu de celle du volet.
 
 **Les têtes de ligne des réglages portent l'identité, pas le rang.** Elles
 disaient « Rayon 3 », « Prestation 9 » : il fallait lire le champ du dessous

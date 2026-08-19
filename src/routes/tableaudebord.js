@@ -21,6 +21,7 @@ import { prisma } from '../db.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
 import { loadStaff } from '../lib/availability.js';
 import { tableauDeBord, clePhone, absencesParClient } from '../lib/statistiques.js';
+import { todayIso } from '../lib/time.js';
 import { consommationDuMois } from '../lib/notifications.js';
 
 export const tableauDeBordRouter = express.Router();
@@ -137,11 +138,19 @@ tableauDeBordRouter.get('/admin/export/rendez-vous', requireAdmin, async (req, r
     const nomPrestation = (id) => prestations.find((p) => p.id === id)?.name ?? '';
     const nomPersonne = (id) => equipe.find((p) => p.id === id)?.name ?? '';
 
+    // ⚠️ LE FICHIER DIT CE QUE L'ECRAN DIT. Un rendez-vous passe est venu tant
+    //    qu'il n'est pas marque « absent » — la regle est en tete de
+    //    `absences()`, src/lib/statistiques.js. Laisser la case vide pour tous
+    //    ceux qui sont venus donnerait un tableur ou la colonne « Etat » est
+    //    vide quarante fois sur quarante-deux, et contredirait l'agenda.
+    //
+    //    Un rendez-vous a venir n'a PAS d'etat, et sa case reste vide : il n'y
+    //    a rien a en dire, et ecrire « Venu » sur demain serait faux.
+    const aujourdhui = todayIso();
     const etat = (r) => {
       if (r.annuleLe) return 'Annulé par le client';
-      if (r.presence === 'venu') return 'Venu';
-      if (r.presence === 'absent') return 'Absent';
-      return '';
+      if (r.date >= aujourdhui) return '';
+      return r.presence === 'absent' ? 'Absent' : 'Venu';
     };
 
     const lignes = rendezVous.map((r) => [
@@ -187,6 +196,7 @@ tableauDeBordRouter.get('/admin/export/clients', requireAdmin, async (req, res, 
       orderBy: [{ date: 'asc' }, { startMin: 'asc' }],
     });
 
+    const aujourdhui = todayIso();
     const clients = new Map();
 
     for (const r of rendezVous) {
@@ -204,11 +214,15 @@ tableauDeBordRouter.get('/admin/export/clients', requireAdmin, async (req, res, 
       if (r.date < fiche.premier) fiche.premier = r.date;
       if (r.date > fiche.dernier) fiche.dernier = r.date;
 
+      // Meme regle que l'autre export : passe et non marque « absent » vaut
+      // venu. Un rendez-vous a venir ne compte ni dans l'un ni dans l'autre —
+      // il est dans `total`, et c'est tout ce qu'on en sait.
       if (r.annuleLe) fiche.annules += 1;
       else {
         fiche.total += 1;
-        if (r.presence === 'venu') fiche.venus += 1;
-        if (r.presence === 'absent') fiche.absents += 1;
+        if (r.date >= aujourdhui) { /* a venir : rien a compter */ }
+        else if (r.presence === 'absent') fiche.absents += 1;
+        else fiche.venus += 1;
       }
 
       clients.set(cle, fiche);

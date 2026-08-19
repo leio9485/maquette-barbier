@@ -401,31 +401,41 @@ function estTermine(rdv, iso) {
 }
 
 /**
- * Les deux boutons « Venu » / « Pas venu », sur les rendez-vous TERMINES.
+ * LE BOUTON « PAS VENU », SUR LES RENDEZ-VOUS TERMINES. UN SEUL.
  *
- * Ils n'apparaissent pas avant : pointer un rendez-vous de la semaine
- * prochaine n'a aucun sens, et deux boutons de plus sur chaque ligne d'une
- * journee a venir encombreraient l'ecran qu'on ouvre vingt fois par jour.
+ * >>> VENU EST L'ETAT PAR DEFAUT : ON NE SIGNALE QUE L'EXCEPTION. <<<
+ *
+ * Ils etaient deux, et c'etait quarante-deux clics par jour pour repeter ce qui
+ * arrive quarante fois sur quarante-deux — le client est venu. La regle
+ * complete est en tete de `absences()`, src/lib/statistiques.js : un rendez-vous
+ * passe est venu tant qu'il n'est pas marque « absent ».
+ *
+ * ⚠️ « VENU » NE PEUT PLUS ETRE UN BOUTON, et pas par economie de place. Il
+ *    serait enfonce d'entree, et le cliquer ne pourrait que ramener a `null` —
+ *    c'est-a-dire a « venu » de nouveau. Un bouton dont le clic ne change rien
+ *    de visible est pire qu'un bouton absent : on le presse deux fois, puis on
+ *    doute de tout l'ecran.
+ *
+ * Ils n'apparaissent pas avant la fin du creneau : pointer un rendez-vous de la
+ * semaine prochaine n'a aucun sens, et un bouton de plus sur chaque ligne d'une
+ * journee a venir encombrerait l'ecran qu'on ouvre vingt fois par jour.
  *
  * Un rendez-vous annule n'a personne a pointer.
  *
- * ⚠️ ON PEUT REVENIR EN ARRIERE : cliquer le bouton deja actif l'efface. Le
- *    cas le plus frequent d'un pointage est le clic a cote, et un etat qu'on ne
- *    peut pas defaire ferait hesiter avant chacun.
+ * ⚠️ ON PEUT REVENIR EN ARRIERE : recliquer le bouton enfonce le relache, et le
+ *    rendez-vous redevient venu. Le cas le plus frequent d'un pointage est le
+ *    clic a cote, et un etat qu'on ne peut pas defaire ferait hesiter avant
+ *    chacun.
  */
 function pointage(rdv, iso, annule) {
   if (annule || !estTermine(rdv, iso)) return '';
 
-  const bouton = (valeur, libelle) => {
-    const actif = rdv.presence === valeur;
-    return `<button type="button" class="agenda-pointage" data-pointage="${esc(rdv.id)}"`
-      + ` data-valeur="${esc(valeur)}"${actif ? ' aria-pressed="true"' : ' aria-pressed="false"'}>`
-      + `${esc(libelle)}</button>`;
-  };
+  const absent = rdv.presence === 'absent';
 
   return '<span class="agenda-pointages">'
-    + bouton('venu', 'Venu')
-    + bouton('absent', 'Pas venu')
+    + `<button type="button" class="agenda-pointage" data-pointage="${esc(rdv.id)}"`
+      + ` data-valeur="absent" aria-pressed="${absent ? 'true' : 'false'}">`
+      + 'Pas venu</button>'
     + '</span>';
 }
 
@@ -986,8 +996,14 @@ function ouvrirFicheRdv(id) {
   ];
 
   if (rdv.cancelledAt) lignes.push(['Annulé par le client', dateCourte(rdv.cancelledAt.slice(0, 10))]);
-  if (rdv.presence === 'venu') lignes.push(['Pointé', 'Venu']);
-  if (rdv.presence === 'absent') lignes.push(['Pointé', 'Pas venu']);
+
+  // La fiche dit l'etat ENTIER, y compris quand il est implicite : sur l'agenda,
+  // « venu » se lit a l'absence de marque, ce qui suffit quand on parcourt une
+  // journee mais ne repond pas quand on ouvre une ligne pour la regarder. La
+  // regle est en tete de `absences()`, src/lib/statistiques.js.
+  if (!rdv.cancelledAt && estTermine(rdv, rdv.date)) {
+    lignes.push(['Pointé', rdv.presence === 'absent' ? 'Pas venu' : 'Venu']);
+  }
 
   peindreFicheDeTravail($('#ficheAgenda'), lignes);
 

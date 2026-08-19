@@ -291,7 +291,34 @@ qu'un nom de jour long et la police chargée en décident). Il passe **sous**
 l'en-tête de journée dans la pile — 4 contre 5 — sinon la journée suivante
 glisserait derrière les prénoms de la précédente au lieu de les pousser.
 
-⚠️ **« Venu » et « Pas venu » s'inversaient du mauvais côté.** L'état coché
+**>>> UN RENDEZ-VOUS PASSÉ EST VENU TANT QU'IL N'EST PAS MARQUÉ « absent ».
+<<<** La règle vaut **partout où `presence` est lu**, et elle est écrite en tête
+de `absences()` (`src/lib/statistiques.js`) : `null` et `'venu'` disent la même
+chose, seul `'absent'` diffère. Ce qui vient d'une base plus ancienne et porte
+encore `'venu'` continue donc de se lire sans migration.
+
+L'agenda n'a plus qu'**un seul bouton**, « Pas venu ». C'étaient deux boutons,
+donc quarante-deux clics par jour pour répéter ce qui arrive quarante fois sur
+quarante-deux.
+
+⚠️ **« Venu » ne peut plus être un bouton, et ce n'est pas une économie de
+place.** Il serait enfoncé d'entrée, et le cliquer ne pourrait que ramener à
+`null` — c'est-à-dire à « venu » de nouveau. Un bouton dont le clic ne change
+rien de visible est pire qu'un bouton absent : on le presse deux fois, puis on
+doute de tout l'écran. On peut toujours revenir en arrière, en relâchant
+« Pas venu ».
+
+⚠️ **Ce qui doit suivre la règle, et qui l'a suivie** : le taux d'absence
+(ci-dessous), les deux exports CSV — sans quoi la colonne « État » serait vide
+quarante fois sur quarante-deux et contredirait l'agenda —, la fiche d'une
+ligne, qui écrit « Pointé : Venu » même quand l'état est implicite, et le
+générateur de données de démonstration, qui ne pose plus que des absences.
+
+⚠️ **Un rendez-vous à venir n'a pas d'état.** Ni dans la fiche, ni dans les
+exports : écrire « Venu » sur demain serait faux.
+
+⚠️ **« Venu » et « Pas venu » s'inversaient du mauvais côté** (corrigé avant que
+« Venu » ne disparaisse, et la raison vaut pour le bouton restant). L'état coché
 posait `background: var(--craie)` — la couleur de la page. Le bouton coché y
 perdait son aplat *et* son filet, et devenait donc plus discret que celui qu'on
 n'avait pas coché : on lisait l'exact contraire de ce qu'on venait de pointer, et
@@ -479,8 +506,11 @@ l'oublier rendrait son créneau invendable pour toujours.
 
 **Le volet « Chiffres »** (`src/lib/statistiques.js`). Le taux de remplissage se
 compte **en minutes, pas en créneaux** — sinon il monterait quand le barbier
-fait des prestations courtes. Le taux d'absence se calcule sur **ce qui a été
-pointé**, pas sur ce qui est passé.
+fait des prestations courtes. Le taux d'absence se calcule sur **tout ce qui est
+passé**, depuis que « venu » est l'état par défaut (voir plus haut) : il portait
+sur « ce qui a été pointé », et ce dénominateur se retourne dès qu'on ne coche
+que les absences — il afficherait **100 %** à quelqu'un qui a eu deux lapins sur
+quarante-deux rendez-vous.
 
 **Les plafonds de réservation.** Rien n'empêchait de remplir l'agenda d'un
 client avec une boucle de dix lignes — aucun acompte, aucun compte à créer,
@@ -634,7 +664,7 @@ Changer l'un sans l'autre remet les titres de section sous la barre.
 npm test
 ```
 
-**864 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
+**867 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
 `.env`.
 
 ⚠️ **`npm run dev` ne convient pas pour lancer la suite.** `node --watch`

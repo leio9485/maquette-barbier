@@ -526,13 +526,19 @@ export function rendezVousDemo({ equipe = [], maintenant = new Date() } = {}) {
 }
 
 /**
- * « Venu », « pas venu », ou rien.
+ * « Pas venu », ou rien — et « rien » veut dire venu.
  *
- * ⚠️ SEULS LES RENDEZ-VOUS PASSES SONT POINTES, et pas tous : le taux d'absence
- *    se calcule sur CE QUI A ETE POINTE, pas sur ce qui est passe (voir
- *    src/lib/statistiques.js). Pointer tout ferait mentir la phrase qui
- *    l'explique ; ne rien pointer laissait le taux a « — », ce qui etait le
- *    defaut constate.
+ * ⚠️ ON NE POSE PLUS QUE LES ABSENCES. « Venu » est l'etat par defaut : le
+ *    laisser implicite est exactement ce que fait le commercant a l'ecran, et
+ *    des donnees de demonstration qui ecriraient `presence: 'venu'` partout
+ *    montreraient un usage que personne n'a. La regle est en tete de
+ *    `absences()`, src/lib/statistiques.js.
+ *
+ *    L'ancien tirage laissait 18 % des rendez-vous passes « pas encore
+ *    pointes », parce que le taux d'absence se calculait alors sur ce qui avait
+ *    ete pointe et qu'un agenda entierement pointe aurait fait mentir la phrase
+ *    qui l'expliquait. Ce garde-fou n'a plus d'objet : le denominateur est tout
+ *    ce qui est passe.
  *
  * Une visite sur douze finit en absence : credible pour un barbier sans acompte
  * ni carte bancaire — et c'est justement l'argument de vente du produit, donc
@@ -541,9 +547,7 @@ export function rendezVousDemo({ equipe = [], maintenant = new Date() } = {}) {
 function pointage({ dateIso, aujourdhui, hasard }) {
   if (dateIso >= aujourdhui) return {};
 
-  const tirageDuPointage = hasard();
-  if (tirageDuPointage > 0.82) return {};              // pas encore pointe
-  return { presence: hasard() < 0.11 ? 'absent' : 'venu' };
+  return hasard() < 0.085 ? { presence: 'absent' } : {};
 }
 
 /**

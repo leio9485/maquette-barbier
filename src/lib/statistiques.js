@@ -327,21 +327,42 @@ export async function absencesParClient() {
 /**
  * Le taux d'absence d'une periode.
  *
- * ⚠️ LE DENOMINATEUR EST « CE QUI A ETE POINTE », pas « ce qui est passe ». Un
- *    commercant qui ne coche rien pendant trois semaines ne doit pas voir son
- *    taux d'absence tomber a 2 % ; il doit voir qu'il n'a rien pointe. `pointes`
- *    est renvoye pour que la page puisse le dire.
+ * >>> LA REGLE DU POINTAGE, ET ELLE VAUT PARTOUT OU `presence` EST LU. <<<
+ *
+ * UN RENDEZ-VOUS PASSE EST VENU TANT QU'IL N'EST PAS MARQUE « absent ».
+ * `null` et `'venu'` disent donc la meme chose ; seul `'absent'` differe.
+ *
+ * ⚠️ LE DENOMINATEUR ETAIT « CE QUI A ETE POINTE », ET CE N'EST PLUS TENABLE.
+ *    Il l'etait tant que les deux etats se cochaient a la main : un commercant
+ *    qui ne cochait rien pendant trois semaines ne devait pas voir son taux
+ *    tomber a 2 %, il devait voir qu'il n'avait rien pointe — d'ou `pointes`,
+ *    renvoye pour que la page le dise.
+ *
+ *    Depuis que « venu » est l'etat par defaut, ce garde-fou se retourne : le
+ *    commercant ne coche QUE les absences, donc « ce qui a ete pointe » ne
+ *    contient plus que des absents, et le taux afficherait 100 % a quelqu'un
+ *    qui a eu deux lapins sur quarante-deux rendez-vous. Le denominateur est
+ *    desormais tout ce qui est passe, ce qui est aussi le vrai taux de lapins.
+ *
+ * ⚠️ 0 % VEUT DIRE « PERSONNE N'A ETE SIGNALE ABSENT », et c'est maintenant une
+ *    phrase vraie plutot qu'un trou dans la saisie : ne rien marquer EST
+ *    l'affirmation que tout le monde est venu. L'ecran des chiffres enonce la
+ *    convention (js/10-chiffres.js) — sans elle, un zero se lirait comme un
+ *    sans-faute alors qu'il decrit un choix de saisie.
+ *
+ * ⚠️ « PASSE » SE COMPTE EN JOURS ENTIERS, et c'est voulu ici : une journee en
+ *    cours n'est pas encore un resultat. C'est la difference avec l'agenda, qui
+ *    compare des heures (`estTermine`, js/09-agenda.js) parce qu'on y pointe au
+ *    fil de la journee.
  */
 function absences(rendezVous) {
   const passes = rendezVous.filter((r) => r.date < todayIso());
-  const pointes = passes.filter((r) => r.presence === 'venu' || r.presence === 'absent');
-  const absents = pointes.filter((r) => r.presence === 'absent');
+  const absents = passes.filter((r) => r.presence === 'absent');
 
   return {
     passes: passes.length,
-    pointes: pointes.length,
     absents: absents.length,
-    taux: pourcent(absents.length, pointes.length),
+    taux: pourcent(absents.length, passes.length),
   };
 }
 

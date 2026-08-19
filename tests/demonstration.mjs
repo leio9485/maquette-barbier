@@ -268,16 +268,23 @@ try {
     verifie('et « nouveaux » non plus : les deux existent',
       tb.clientele.nouveaux > 0, tb.clientele);
 
-    // ⚠️ LE TAUX D'ABSENCE SE CALCULE SUR LE MOIS EN COURS, ET SUR CE QUI A ETE
-    //    POINTE. Le premier et le deuxieme jour d'un mois, il n'y a rien de
-    //    passe a pointer : le tableau affiche alors « — », legitimement, et
-    //    aucune graine ne peut y changer quoi que ce soit. On ne verifie donc
-    //    la valeur que lorsqu'il y a matiere.
-    if (tb.absences.pointes > 0) {
+    // ⚠️ LE TAUX D'ABSENCE SE CALCULE SUR LE MOIS EN COURS, ET SUR TOUT CE QUI
+    //    EST PASSE. Le premier jour d'un mois, il n'y a rien de passe : le
+    //    tableau affiche alors « — », legitimement, et aucune graine ne peut y
+    //    changer quoi que ce soit. On ne verifie donc la valeur que lorsqu'il y
+    //    a matiere.
+    //
+    // ⚠️ LA GARDE PORTE SUR `passes`, ET C'EST TOUT L'INTERET DE CETTE LIGNE.
+    //    Elle portait sur `absences.pointes`, champ retire le jour ou « venu »
+    //    est devenu l'etat par defaut. `undefined > 0` vaut `false` sans rien
+    //    casser : le test s'est donc DESACTIVE EN SILENCE, et la suite est
+    //    restee verte en verifiant une chose de moins. Une garde qui nomme un
+    //    champ disparu ne saute pas, elle se tait.
+    if (tb.absences.passes > 0) {
       verifie('>>> LE TAUX D\'ABSENCE EST CREDIBLE (5 A 15 %) <<<',
         tb.absences.taux >= 5 && tb.absences.taux <= 15, tb.absences);
     } else {
-      console.log('     (debut de mois : rien de passe a pointer, taux non verifiable)');
+      console.log('     (debut de mois : rien de passe, taux non verifiable)');
     }
 
     verifie('les heures creuses designent de vraies heures, pas « aucun »',

@@ -182,20 +182,25 @@ function peindreChiffres(c) {
 
   // --- Les absences --------------------------------------------------------
   //
-  // ⚠️ LE DENOMINATEUR EST « CE QUI A ETE POINTE », et l'ecran le dit. Un
-  //    commercant qui ne coche rien ne doit pas lire « 0 % d'absence » : il doit
-  //    lire qu'il n'a rien pointe.
+  // ⚠️ LA NOTE ENONCE LA CONVENTION, ET CE N'EST PAS UN ORNEMENT. Le
+  //    denominateur est tout ce qui est passe, et « venu » est l'etat par
+  //    defaut : sans la phrase, un taux a 0 % se lirait comme un sans-faute
+  //    alors qu'il decrit aussi bien un commercant qui n'a rien signale. La
+  //    regle complete est en tete de `absences()`, src/lib/statistiques.js.
+  //
+  //    L'ecran disait auparavant « pointes : 3 sur 42 ». Ce chiffre n'existe
+  //    plus : depuis qu'on ne coche que les absences, « ce qui a ete pointe »
+  //    ne contient plus que des absents, et le taux aurait affiche 100 % a
+  //    quelqu'un qui a eu deux lapins sur quarante-deux rendez-vous.
   const a = c.absences;
   morceaux.push(bloc('Absences, ce mois-ci', [
     ['Rendez-vous passés', String(a.passes)],
-    ['Pointés', `${a.pointes} sur ${a.passes}`],
     ['Absents', String(a.absents)],
-    ['Taux d\'absence', a.pointes ? `${a.taux} %` : '—', 'appui'],
+    ['Taux d\'absence', a.passes ? `${a.taux} %` : '—', 'appui'],
   ], {
-    note: a.pointes < a.passes
-      ? 'Le taux ne porte que sur les rendez-vous pointés. Cochez « venu » ou '
-        + '« pas venu » dans l\'agenda pour qu\'il veuille dire quelque chose.'
-      : 'Calculé sur les rendez-vous pointés dans l\'agenda.',
+    note: 'Un rendez-vous passé compte comme honoré tant qu\'il n\'est pas '
+      + 'marqué « pas venu » dans l\'agenda. Le taux porte sur tous les '
+      + 'rendez-vous passés du mois.',
   }));
 
   // --- Les notifications ---------------------------------------------------

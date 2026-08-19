@@ -237,10 +237,30 @@ try {
   {
     const c = await chiffres();
     verifie('le bloc absences existe', Boolean(c.absences), c.absences);
-    verifie('il distingue « passes » et « pointes »',
-      Number.isInteger(c.absences.passes) && Number.isInteger(c.absences.pointes), c.absences);
-    verifie('le taux ne vaut jamais NaN, meme sans rien de pointe',
+    verifie('il compte les passes et les absents',
+      Number.isInteger(c.absences.passes) && Number.isInteger(c.absences.absents), c.absences);
+    verifie('le taux ne vaut jamais NaN, meme sans rien de passe',
       Number.isInteger(c.absences.taux), c.absences.taux);
+
+    // ⚠️ « POINTES » A DISPARU, ET IL DOIT LE RESTER. Depuis que « venu » est
+    //    l'etat par defaut, le commercant ne coche QUE les absences : « ce qui
+    //    a ete pointe » ne contiendrait plus que des absents, et un taux
+    //    calcule dessus afficherait 100 % a quelqu'un qui a eu deux lapins sur
+    //    quarante-deux rendez-vous. Le champ est retire pour que personne ne
+    //    puisse rebrancher ce denominateur sans le voir.
+    verifie('le denominateur « pointes » n\'existe plus',
+      c.absences.pointes === undefined, c.absences);
+
+    // Le denominateur est bien TOUT ce qui est passe : les absents ne peuvent
+    // pas depasser les passes, et un absent sur les passes doit se retrouver
+    // dans le taux.
+    verifie('les absents tiennent dans les passes',
+      c.absences.absents <= c.absences.passes, c.absences);
+    verifie('le taux est bien absents sur passes',
+      c.absences.taux === (c.absences.passes
+        ? Math.round((c.absences.absents / c.absences.passes) * 100)
+        : 0),
+      c.absences);
   }
 
   // --- 8. La clientele ------------------------------------------------------

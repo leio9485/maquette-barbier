@@ -21,6 +21,8 @@ import {
   RESERVATIONS_HEURE_MAX,
   RESERVATIONS_TENTATIVES_MAX,
   RESERVATIONS_FENETRE_MS,
+  RESERVATIONS_MINUTE_MAX,
+  RESERVATIONS_MINUTE_MS,
 } from '../config.js';
 import { prisma } from '../db.js';
 import { requireAdmin } from '../middleware/requireAdmin.js';
@@ -135,10 +137,22 @@ function identifiantOptionnel(valeur) {
  * consulte. Voir src/config.js pour le raisonnement sur les valeurs.
  */
 const PLAFONDS = [
+  { nom: 'minute', max: RESERVATIONS_MINUTE_MAX, fenetreMs: RESERVATIONS_MINUTE_MS },
   { nom: 'tentatives', max: RESERVATIONS_TENTATIVES_MAX, fenetreMs: RESERVATIONS_FENETRE_MS },
   { nom: 'rafale', max: RESERVATIONS_RAFALE_MAX, fenetreMs: RESERVATIONS_RAFALE_MS },
   { nom: 'heure', max: RESERVATIONS_HEURE_MAX, fenetreMs: RESERVATIONS_FENETRE_MS },
 ];
+
+/**
+ * Les plafonds qui comptent CHAQUE PASSAGE, aboutissement ou non.
+ *
+ * >>> C'ETAIT LE TROU. <<< « rafale » et « heure » ne notent que ce qui a
+ * vraiment cree un rendez-vous : quarante requetes invalides d'affilee ne les
+ * touchaient pas. « tentatives » les comptait bien, mais a l'heure — quarante
+ * requetes en une seconde et demie restaient donc sous son seuil. « minute »
+ * est le plafond qui manquait, et il se note ici, avec l'autre.
+ */
+const PLAFONDS_PAR_TENTATIVE = ['minute', 'tentatives'];
 
 const cleDe = (nom, ip) => `resa:${nom}:${ip}`;
 
@@ -156,6 +170,14 @@ const cleDe = (nom, ip) => `resa:${nom}:${ip}`;
  */
 function trop(res, secondes) {
   const minutes = Math.max(1, Math.ceil((secondes ?? 60) / 60));
+
+  // `Retry-After` EN PLUS DE LA PHRASE, et pas a sa place : la phrase est pour
+  // le client, l'en-tete est pour ce qui n'a pas d'yeux — un moniteur, un
+  // relais, une bibliotheque qui reessaie toute seule. Sans lui, un client
+  // programme reessaie a l'aveugle, souvent tout de suite, ce qui est
+  // exactement ce qu'on cherche a eviter.
+  res.setHeader('Retry-After', String(Math.max(1, Math.ceil(secondes ?? 60))));
+
   return res.status(429).json({
     error: `Trop de réservations depuis cette connexion. Réessayez dans ${minutes} minute${minutes > 1 ? 's' : ''}, ou appelez le salon.`,
   });
@@ -417,7 +439,10 @@ bookingsRouter.post('/bookings', async (req, res, next) => {
         if (verdict.bloque) return trop(res, verdict.secondes);
       }
 
-      noterPassage(cleDe('tentatives', req.ip), { fenetreMs: RESERVATIONS_FENETRE_MS });
+      for (const nom of PLAFONDS_PAR_TENTATIVE) {
+        const plafond = PLAFONDS.find((p) => p.nom === nom);
+        noterPassage(cleDe(nom, req.ip), { fenetreMs: plafond.fenetreMs });
+      }
     }
 
     const { date, start, serviceId } = req.body ?? {};

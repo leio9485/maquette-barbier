@@ -22,6 +22,11 @@ import { TIMEZONE } from '../config.js';
 import { OCCUPENT } from './annulation.js';
 import { toMin, toHHMM, todayIso } from './time.js';
 import { DEFAULT_CONFIG } from './defaults.js';
+// LE MEME CONTROLE DE TELEPHONE QUE LE TUNNEL, ET NON UN SECOND. Le numero du
+// commerce est celui qu'on affiche partout et qu'on pose en lien `tel:` : il
+// n'y a aucune raison qu'il soit accepte sous une forme que le numero d'un
+// client se verrait refuser.
+import { normaliserTelephone } from './coordonnees.js';
 
 const JOURS = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
@@ -570,16 +575,107 @@ function plagesDuJour(h) {
 }
 
 /**
+ * Un refus, avec LE CHAMP QU'IL FAUT ALLER CORRIGER.
+ *
+ * >>> LE MESSAGE SEUL NE SUFFISAIT PAS. <<< Un formulaire de reglages tient en
+ * huit sections et quarante champs : « La note doit être comprise entre 0 et
+ * 5 » laisse chercher, et l'ordre des controles faisait meme remonter ce
+ * message-la pour un envoi ou la note n'avait pas ete touchee. Le chemin
+ * renvoye ici est celui du `data-chemin` de l'ecran (js/08-reglages.js), qui
+ * s'en sert pour marquer le champ et l'amener sous les yeux.
+ *
+ * `champ` peut rester vide : tous les refus n'ont pas de case a montrer (deux
+ * prestations qui portent le meme identifiant, par exemple).
+ */
+function refus(message, champ = '') {
+  return { message, champ };
+}
+
+/** Les caracteres de controle : rien de ce qu'un clavier produit volontairement. */
+const CARACTERE_DE_CONTROLE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/;
+
+/**
+ * Les champs de `salon` qui sont du texte libre, avec leur intitule et leur
+ * longueur maximale.
+ *
+ * ⚠️ LES LONGUEURS SONT PLUS COURTES QUE CELLES DE `normalizeConfig`, et c'est
+ *    voulu : la normalisation COUPE (a 120, 160, 100), ce controle-ci REFUSE.
+ *    Un nom coupe en silence est le defaut qu'on repare — le commercant croit
+ *    avoir enregistre « Salon de coiffure et barbier … », le site affiche une
+ *    phrase tronquee, et rien ne le lui a dit.
+ */
+const CHAMPS_TEXTE = [
+  ['name', 'Le nom du commerce', 80],
+  ['street', "L'adresse", 120],
+  ['city', 'La ville', 80],
+];
+
+/**
  * Controles de coherence, repris un a un de ceux du site.
- * Renvoie un message d'erreur, ou null si tout va bien.
+ * Renvoie `{ message, champ }`, ou null si tout va bien.
+ *
+ * >>> LES CHAMPS DE TEXTE N'ETAIENT PAS GARDES, LES NOMBRES L'ETAIENT. <<<
+ * Mesure sur l'instance en ligne, un champ fautif a la fois dans un objet
+ * complet : `reviews.rating: 99` -> 400, `slotStep: 0` -> 400, mais
+ * `postalCode: "ABCDE"` -> 200, `phone: "aaaa"` -> 200, un nom de dix mille
+ * caracteres -> 200, `slotStep: 9999` -> 200. Un pas de creneau de 9 999
+ * minutes ne propose plus aucun creneau : le site reste debout et ne prend
+ * plus un seul rendez-vous.
  */
 export function validateConfig(config) {
+  const probleme = controler(config);
+  if (!probleme) return null;
+
+  // >>> LES REFUS ECRITS EN CHAINE RESTENT DES CHAINES DANS `controler`. <<<
+  // Il y en a une quarantaine — prestations, horaires, equipe, temoignages — et
+  // les reecrire tous pour ajouter un champ que l'ecran ne saurait pas montrer
+  // (« Deux prestations portent le meme identifiant ») serait du bruit. Ceux qui
+  // designent une case du formulaire appellent `refus()` ; les autres arrivent
+  // ici et repartent avec un champ vide, ce que l'ecran sait traiter.
+  return typeof probleme === 'string' ? refus(probleme) : probleme;
+}
+
+function controler(config) {
   const { salon, reviews, hours, services, staff, categories, testimonials } = config;
 
-  if (!salon.name) return 'Le nom du commerce est obligatoire.';
-  if (!salon.street || !salon.postalCode || !salon.city) return "L'adresse est incomplète.";
-  if (!salon.phone) return 'Le téléphone est obligatoire.';
-  if (!salon.email || !salon.email.includes('@')) return "L'email n'est pas valide.";
+  // --- Les coordonnees ------------------------------------------------------
+  //
+  // ELLES PASSENT AVANT TOUT LE RESTE, et cet ordre-la est le correctif : un
+  // envoi ou seule l'adresse etait fautive se voyait refuser sur la note.
+  for (const [cle, intitule, maxi] of CHAMPS_TEXTE) {
+    const valeur = salon[cle];
+    if (!valeur) return refus(`${intitule} est obligatoire.`, `salon.${cle}`);
+    if (valeur.length > maxi) {
+      return refus(`${intitule} ne doit pas dépasser ${maxi} caractères.`, `salon.${cle}`);
+    }
+    if (CARACTERE_DE_CONTROLE.test(valeur)) {
+      return refus(`${intitule} contient un caractère qui ne s'affiche pas. Retapez-le.`, `salon.${cle}`);
+    }
+  }
+
+  // Cinq chiffres, et rien d'autre. Un code postal sert a se faire trouver : il
+  // part dans les donnees structurees que lisent les moteurs de recherche, et
+  // dans le plan du quartier dessine depuis l'adresse.
+  //
+  // ⚠️ CINQ CHIFFRES, DONC LA FRANCE, alors que le telephone accepte les
+  //    numeros etrangers. Ce n'est pas une incoherence : un client belge
+  //    reserve avec son numero belge, mais le commerce, lui, est a une seule
+  //    adresse — celle de sa devanture. Le jour ou une instance sort de France,
+  //    c'est cette regle-ci qu'on desserre, pas celle du telephone.
+  if (!/^\d{5}$/.test(salon.postalCode)) {
+    return refus('Le code postal doit faire cinq chiffres. Exemple : 59570.', 'salon.postalCode');
+  }
+
+  // LE MEME CONTROLE QUE POUR UN CLIENT, la meme fonction, le meme message.
+  const telephone = normaliserTelephone(salon.phone);
+  if (telephone.erreur) return refus(telephone.erreur, 'salon.phone');
+
+  if (!salon.email || !salon.email.includes('@')) {
+    return refus("L'email n'est pas valide.", 'salon.email');
+  }
+  if (CARACTERE_DE_CONTROLE.test(salon.email)) {
+    return refus("L'email contient un caractère qui ne s'affiche pas. Retapez-le.", 'salon.email');
+  }
 
   // Les liens sont FACULTATIFS — un commerce sans Instagram n'a rien à remplir —
   // mais ceux qui sont renseignés deviennent des `href` sur la vitrine. Un
@@ -594,12 +690,19 @@ export function validateConfig(config) {
   for (const [cle, intitule] of Object.entries(LIENS)) {
     const adresse = salon.links[cle];
     if (adresse && !lienAcceptable(adresse)) {
-      return `L'adresse de ${intitule} n'est pas une adresse web valide (elle doit commencer par https://).`;
+      return refus(
+        `L'adresse de ${intitule} n'est pas une adresse web valide (elle doit commencer par https://).`,
+        `salon.links.${cle}`
+      );
     }
   }
 
-  if (!(reviews.rating >= 0 && reviews.rating <= 5)) return 'La note doit être comprise entre 0 et 5.';
-  if (!(reviews.count >= 0)) return "Le nombre d'avis est invalide.";
+  if (!(reviews.rating >= 0 && reviews.rating <= 5)) {
+    return refus('La note doit être comprise entre 0 et 5.', 'reviews.rating');
+  }
+  if (!(reviews.count >= 0)) {
+    return refus("Le nombre d'avis est invalide.", 'reviews.count');
+  }
 
   // --- Les temoignages -----------------------------------------------------
   //
@@ -621,8 +724,25 @@ export function validateConfig(config) {
     }
   }
 
-  if (!(config.slotStep > 0)) return 'Le pas des créneaux doit être supérieur à zéro.';
-  if (!(config.leadTimeMinutes >= 0)) return 'Le délai minimum de réservation est invalide.';
+  // >>> DES BORNES HAUTES, ET PAS SEULEMENT UN SIGNE. <<< `slotStep: 9999`
+  // etait accepte : le site restait debout et ne proposait plus un seul
+  // creneau — la panne la plus couteuse qui soit, puisqu'elle ne se voit que
+  // du cote du client, qui s'en va sans rien dire. Cinq minutes en bas parce
+  // qu'en dessous la liste des heures devient illisible ; soixante en haut
+  // parce qu'au-dela le pas ne decoupe plus rien d'utile dans une journee.
+  if (!Number.isInteger(config.slotStep) || config.slotStep < 5 || config.slotStep > 60) {
+    return refus('Le pas des créneaux doit être compris entre 5 et 60 minutes.', 'slotStep');
+  }
+
+  // Trente jours en minutes. Un delai plus long fermerait la reservation en
+  // ligne sans le dire : plus rien ne serait jamais assez loin dans le temps.
+  if (!Number.isInteger(config.leadTimeMinutes)
+      || config.leadTimeMinutes < 0 || config.leadTimeMinutes > 43200) {
+    return refus(
+      "Le délai minimum de réservation doit être compris entre 0 minute et 30 jours (43 200 minutes).",
+      'leadTimeMinutes'
+    );
+  }
 
   const auMoinsUnJour = [0, 1, 2, 3, 4, 5, 6].some((j) => hours[j]);
   if (!auMoinsUnJour) return 'Le commerce doit être ouvert au moins un jour.';

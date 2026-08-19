@@ -291,8 +291,11 @@ settingsRouter.post('/admin/plan', requireAdmin, async (req, res, next) => {
 async function enregistrer(brut, { confirmRemovals }, res) {
   const config = normalizeConfig(brut);
 
+  // LE CHAMP PART AVEC LE MESSAGE. L'ecran s'en sert pour marquer la case
+  // fautive et l'amener sous les yeux : dans un formulaire de quarante champs,
+  // une phrase sans adresse laisse chercher (voir `refus()`, src/lib/settings.js).
   const probleme = validateConfig(config);
-  if (probleme) return res.status(400).json({ error: probleme });
+  if (probleme) return res.status(400).json({ error: probleme.message, champ: probleme.champ });
 
   // Prevenir avant de faire disparaitre une prestation ou une personne encore
   // attendue. Les deux listes partent ensemble : un commercant qui reorganise

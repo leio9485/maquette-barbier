@@ -30,6 +30,7 @@ import { lirePlan, planifierPlan } from './lib/plan.js';
 import { startRetention } from './lib/retention.js';
 import { compression } from './middleware/compression.js';
 import { securityHeaders } from './middleware/securityHeaders.js';
+import { plafondEcrituresAdmin } from './middleware/plafondAdmin.js';
 import { purgeExpiredSessions } from './lib/sessions.js';
 import { authRouter } from './routes/auth.js';
 import { bookingsRouter } from './routes/bookings.js';
@@ -98,6 +99,14 @@ app.get('/api/health', (req, res) => {
     heure: new Date().toISOString(),
   });
 });
+
+// Ce qu'une adresse peut ECRIRE dans l'espace commercant en une minute.
+//
+// Pose avant les routeurs d'administration, et sur ce chemin-la seulement : il
+// ne voit ni la vitrine, ni les creneaux, ni /api/rendez-vous, qui ont leurs
+// propres plafonds. Les LECTURES le traversent sans etre comptees — voir
+// src/middleware/plafondAdmin.js pour les trois decisions.
+app.use('/api/admin', plafondEcrituresAdmin);
 
 // Connexion et deconnexion de l'espace commercant.
 app.use('/api', authRouter);

@@ -574,7 +574,7 @@ export async function resetDemo() {
   const config = normalizeConfig({ ...DEFAULT_CONFIG, staff: EQUIPE_DEMO });
 
   const probleme = validateConfig(config);
-  if (probleme) throw new Error(`Valeurs de demonstration invalides : ${probleme}`);
+  if (probleme) throw new Error(`Valeurs de demonstration invalides : ${probleme.message}`);
 
   await saveConfig(config);
   await prisma.booking.deleteMany({});

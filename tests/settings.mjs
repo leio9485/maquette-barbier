@@ -1068,6 +1068,116 @@ try {
       coords.some(([x, y]) => Math.abs(x - 450) < 2 && Math.abs(y - 250) < 2), coords);
   }
 
+  // --- 10 septies. LA VALIDATION ETAIT ASYMETRIQUE (lot B, point B1) -------
+  //
+  // Mesure en direct sur l'instance en ligne, UN SEUL CHAMP FAUTIF A LA FOIS
+  // DANS UN OBJET COMPLET — c'est la seule facon d'eprouver la validation
+  // reelle, un objet partiel echouant pour une autre raison :
+  //
+  //     reviews.rating: 99      -> 400        salon.postalCode: "ABCDE" -> 200
+  //     reviews.rating: -3      -> 400        salon.postalCode: "123"   -> 200
+  //     reviews.count: -50      -> 400        salon.phone: "aaaa"       -> 200
+  //     slotStep: 0             -> 400        salon.name (10 000 car.)  -> 200
+  //     leadTimeMinutes: -9999  -> 400        slotStep: 9999            -> 200
+  //     salon.name: ""          -> 400
+  //     salon.email: "pas-un-email" -> 400
+  //
+  // Les nombres etaient gardes, les textes de l'adresse ne l'etaient pas.
+  console.log('\n10 septies. La validation des coordonnees');
+  {
+    const refuses = [
+      ['code postal en lettres', (d) => { d.salon.postalCode = 'ABCDE'; }, 'salon.postalCode'],
+      ['code postal trop court', (d) => { d.salon.postalCode = '123'; }, 'salon.postalCode'],
+      ['code postal trop long', (d) => { d.salon.postalCode = '595700'; }, 'salon.postalCode'],
+      ['telephone qui n\'en est pas un', (d) => { d.salon.phone = 'aaaa'; }, 'salon.phone'],
+      ['telephone a moitie', (d) => { d.salon.phone = '06 12'; }, 'salon.phone'],
+      ['nom de dix mille caracteres', (d) => { d.salon.name = 'X'.repeat(10000); }, 'salon.name'],
+      ['rue de mille caracteres', (d) => { d.salon.street = 'X'.repeat(1000); }, 'salon.street'],
+      ['ville vide', (d) => { d.salon.city = ''; }, 'salon.city'],
+      ['pas de creneau a zero', (d) => { d.slotStep = 0; }, 'slotStep'],
+      ['pas de creneau a 9999', (d) => { d.slotStep = 9999; }, 'slotStep'],
+      ['delai negatif', (d) => { d.leadTimeMinutes = -9999; }, 'leadTimeMinutes'],
+      ['delai de plus de trente jours', (d) => { d.leadTimeMinutes = 43201; }, 'leadTimeMinutes'],
+      ['note superieure a 5', (d) => { d.reviews.rating = 99; }, 'reviews.rating'],
+      ['note negative', (d) => { d.reviews.rating = -3; }, 'reviews.rating'],
+      ['nombre d\'avis negatif', (d) => { d.reviews.count = -50; }, 'reviews.count'],
+    ];
+
+    for (const [titre, modifier, champ] of refuses) {
+      const brouillon = copie(ORIGINE);
+      modifier(brouillon);
+      const r = await salon.appel('PUT', '/api/admin/settings', brouillon);
+
+      verifie(`${titre} : refuse`, r.status === 400, { status: r.status, donnees: r.donnees });
+
+      // >>> ET L'ERREUR DESIGNE LE BON CHAMP. <<< C'est la seconde moitie du
+      //     correctif : dans un formulaire de quarante champs, une phrase sans
+      //     adresse laisse chercher — et l'ordre des controles faisait meme
+      //     remonter « La note doit etre comprise entre 0 et 5 » pour un envoi
+      //     ou la note n'avait pas ete touchee.
+      verifie(`${titre} : l'erreur nomme ${champ}`, r.donnees?.champ === champ, r.donnees);
+    }
+  }
+  {
+    // Un caractere de controle colle depuis un tableur ne se voit pas a
+    // l'ecran, et rend la ligne illisible partout ailleurs.
+    const brouillon = copie(ORIGINE);
+    brouillon.salon.name = `L'Éta bli`;
+    const r = await salon.appel('PUT', '/api/admin/settings', brouillon);
+    verifie('un caractere invisible dans le nom est refuse', r.status === 400, r.donnees);
+    verifie('et le champ est nomme', r.donnees?.champ === 'salon.name', r.donnees);
+  }
+  {
+    // >>> CE QUI EST VALABLE DOIT LE RESTER. <<< Une validation trop serree
+    //     est aussi couteuse qu'une validation absente : elle se decouvre
+    //     quand un commercant ne peut plus enregistrer sa propre adresse.
+    const acceptes = [
+      ['un code postal ordinaire', (d) => { d.salon.postalCode = '59570'; }],
+      ['un code postal commencant par zero', (d) => { d.salon.postalCode = '01000'; }],
+      ['un telephone ecrit avec des points', (d) => { d.salon.phone = '03.27.39.98.40'; }],
+      ['un telephone belge', (d) => { d.salon.phone = '+32 65 12 34 56'; }],
+      ['un pas de creneau de 5 minutes', (d) => { d.slotStep = 5; }],
+      ['un pas de creneau de 60 minutes', (d) => { d.slotStep = 60; }],
+      ['un delai nul', (d) => { d.leadTimeMinutes = 0; }],
+      ['un delai de trente jours pile', (d) => { d.leadTimeMinutes = 43200; }],
+      ['un nom de quatre-vingts caracteres', (d) => { d.salon.name = 'X'.repeat(80); }],
+      // ⚠️ UN PAS A VIRGULE EST ARRONDI, PAS REFUSE, et c'est en amont que ca
+      //    se joue : `normalizeConfig` arrondit avant que la validation ne
+      //    voie quoi que ce soit. Le controle `Number.isInteger` reste, mais
+      //    il garde contre ce qui viendrait d'ailleurs que de cette route.
+      ['un pas de creneau a virgule, arrondi', (d) => { d.slotStep = 7.5; }],
+      // Et une valeur qui n'est pas un nombre du tout retombe sur celle
+      // d'origine (15) : meme mecanique, meme endroit. Le champ de l'ecran est
+      // un nombre ; ce cas-ci ne peut venir que d'un appel ecrit a la main.
+      ['un pas illisible, remis a sa valeur de depart', (d) => { d.slotStep = 'beaucoup'; }],
+    ];
+
+    for (const [titre, modifier] of acceptes) {
+      const brouillon = copie(ORIGINE);
+      modifier(brouillon);
+      const r = await salon.appel('PUT', '/api/admin/settings', brouillon);
+      verifie(`${titre} : accepte`, r.status === 200, { status: r.status, donnees: r.donnees });
+    }
+
+    await restaurer();
+  }
+  {
+    // L'ECHAPPEMENT DU RENDU N'EST PAS REMPLACE PAR UN FILTRAGE A L'ENTREE :
+    // on garde les deux. Un nom qui contient du balisage s'enregistre — c'est
+    // un nom, pas une attaque — et ressort echappe dans la page.
+    const brouillon = copie(ORIGINE);
+    brouillon.salon.name = '<img src=x onerror=alert(1)>';
+    const r = await salon.appel('PUT', '/api/admin/settings', brouillon);
+    verifie('un nom contenant du balisage reste accepte', r.status === 200, r.donnees?.error);
+
+    const page = await lirePage();
+    verifie('et il ressort echappe dans la page servie',
+      page.includes('&lt;img src=x onerror=alert(1)&gt;') && !page.includes('<img src=x onerror='),
+      '');
+
+    await restaurer();
+  }
+
   // --- 11. Conservation des rendez-vous -----------------------------------
   //
   // La page « Données personnelles » annonce que les rendez-vous passes sont

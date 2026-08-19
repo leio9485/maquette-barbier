@@ -36,6 +36,7 @@ import { creerVerificateur, prochainJourOuvert } from './helpers.mjs';
 import { prisma } from '../src/db.js';
 import { bookingsRouter } from '../src/routes/bookings.js';
 import { rendezVousRouter } from '../src/routes/rendezvous.js';
+import { plafondEcrituresAdmin } from '../src/middleware/plafondAdmin.js';
 import {
   limiteApplicable,
   passageDisponible,
@@ -46,6 +47,8 @@ import {
   RESERVATIONS_RAFALE_MAX,
   RESERVATIONS_HEURE_MAX,
   RESERVATIONS_TENTATIVES_MAX,
+  RESERVATIONS_MINUTE_MAX,
+  ADMIN_ECRITURES_MAX,
 } from '../src/config.js';
 
 const { verifie, bilan } = creerVerificateur();
@@ -87,6 +90,20 @@ console.log('\n2. Les plafonds livres');
   verifie('les tentatives sont plus larges que les reussites',
     RESERVATIONS_TENTATIVES_MAX > RESERVATIONS_HEURE_MAX,
     [RESERVATIONS_TENTATIVES_MAX, RESERVATIONS_HEURE_MAX]);
+
+  // Le plafond a la minute (lot B) : il doit rester SOUS le plafond horaire,
+  // sinon il ne mordrait jamais — et au-dessus de ce qu'envoie un client qui
+  // se trompe et recommence.
+  verifie("la minute est plus serree que l'heure",
+    RESERVATIONS_MINUTE_MAX < RESERVATIONS_TENTATIVES_MAX,
+    [RESERVATIONS_MINUTE_MAX, RESERVATIONS_TENTATIVES_MAX]);
+  verifie('mais assez large pour un client qui se reprend (10 ou plus)',
+    RESERVATIONS_MINUTE_MAX >= 10, RESERVATIONS_MINUTE_MAX);
+
+  // Les ecritures de l'espace : LARGE, c'est le sujet. Un plafond qui se
+  // referme sur le commercant ne protege de rien et empeche de travailler.
+  verifie("les ecritures de l'espace sont largement plafonnees (60 ou plus)",
+    ADMIN_ECRITURES_MAX >= 60, ADMIN_ECRITURES_MAX);
 }
 
 // --- 3. Le compteur ---------------------------------------------------------
@@ -355,6 +372,158 @@ try {
     verifie('>>> UNE REFERENCE ACHARNEE EST BLOQUEE MEME DEPUIS DIX ADRESSES <<<',
       bloqueA !== null, bloqueA);
     verifie('et cela survient au onzieme essai', bloqueA === 11, bloqueA);
+  }
+
+  // --- 6. LES REQUETES INVALIDES, EN RAFALE (lot B, point B2) --------------
+  //
+  // >>> QUARANTE REQUETES INVALIDES EN UNE SECONDE ET DEMIE, AUCUN 429. <<<
+  // Mesure sur l'instance en ligne. Les deux plafonds « rafale » et « heure »
+  // ne comptent que ce qui ABOUTIT — une requete invalide ne cree rien, elle
+  // ne les touchait donc jamais ; et « tentatives », qui les compte bien, est
+  // horaire : quarante en une seconde et demie restaient sous son seuil.
+  //
+  // Le plafond « minute » est celui qui manquait. Ce qu'il coute a un vrai
+  // client : rien. Trente essais par minute, c'est dix fois ce qu'envoie
+  // quelqu'un qui se trompe de creneau et recommence.
+  console.log('\n6. Les requetes invalides en rafale');
+  {
+    const IP_RAFALE = '92.184.3.7';
+
+    // Invalide de la facon la plus economique qui soit : une date qui n'en est
+    // pas une. La route refuse avant d'ouvrir la base — c'est bien pour cela
+    // qu'on peut en envoyer quarante en une seconde et demie.
+    const invalide = async (ip) => {
+      const r = await fetch(`${BASE}/api/bookings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip },
+        body: JSON.stringify({ date: 'pas-une-date', start: 'midi', serviceId: '' }),
+      });
+      return { status: r.status, retryAfter: r.headers.get('retry-after') };
+    };
+
+    let premierRefus = null;
+    let derniereReponse = null;
+
+    for (let essai = 1; essai <= RESERVATIONS_MINUTE_MAX + 5 && premierRefus === null; essai++) {
+      derniereReponse = await invalide(IP_RAFALE);
+      if (derniereReponse.status === 429) premierRefus = essai;
+      else if (derniereReponse.status !== 400) {
+        verifie(`la requete ${essai} est bien refusee comme invalide`,
+          false, derniereReponse.status);
+      }
+    }
+
+    verifie('>>> UNE RAFALE DE REQUETES INVALIDES FINIT PAR ETRE BLOQUEE <<<',
+      premierRefus !== null, premierRefus);
+    verifie(`et le blocage survient au ${RESERVATIONS_MINUTE_MAX + 1}e essai`,
+      premierRefus === RESERVATIONS_MINUTE_MAX + 1, premierRefus);
+
+    // L'EN-TETE, POUR CE QUI N'A PAS D'YEUX. Un client programme reessaie
+    // sinon a l'aveugle, souvent tout de suite.
+    verifie('le refus porte un en-tete Retry-After',
+      Number(derniereReponse.retryAfter) > 0, derniereReponse.retryAfter);
+
+    // ⚠️ ET UNE AUTRE ADRESSE PASSE ENCORE : sans cela, le premier programme
+    //    venu fermerait la reservation a tout le monde.
+    const ailleurs = await invalide('92.184.3.8');
+    verifie('une autre adresse n\'est pas prise dans le meme panier',
+      ailleurs.status === 400, ailleurs.status);
+  }
+  {
+    // >>> LES LECTURES NE SONT JAMAIS PLAFONNEES. <<< /api/slots et /api/days
+    //     sont appeles a chaque clic du tunnel : les brider casserait le
+    //     parcours, et c'est le genre de panne qu'on ne voit pas — le client
+    //     s'en va sans rien dire.
+    const IP_LECTURE = '92.184.4.9';
+    const JOUR_LECTURE = prochainJourOuvert();
+    let refuse = 0;
+
+    for (let i = 0; i < 60; i++) {
+      const r = await fetch(`${BASE}/api/slots?date=${JOUR_LECTURE}&serviceId=coupe-homme`, {
+        headers: { 'X-Forwarded-For': IP_LECTURE },
+      });
+      if (r.status === 429) refuse++;
+    }
+
+    verifie('soixante lectures de creneaux d\'affilee : aucune refusee', refuse === 0, refuse);
+  }
+
+  // --- 7. LES ECRITURES DE L'ESPACE COMMERCANT (lot B, point B2) ----------
+  //
+  // Aucun 429 ne se declenchait sur /api/admin/… : une session volee, ou
+  // simplement un script laisse en boucle, pouvait ecrire sans limite.
+  //
+  // >>> LE PLAFOND EST EPROUVE SEUL, SUR SON PROPRE SERVEUR. <<< Le passer par
+  // les vraies routes demanderait une session, et une session pour chacune des
+  // cent vingt et une requetes : on verifierait alors `requireAdmin` autant que
+  // le plafond. Ce qu'on veut savoir tient en quatre points — les ecritures
+  // sont comptees, les lectures ne le sont pas, le refus porte un
+  // `Retry-After`, et deux adresses ne se genent pas.
+  console.log('\n7. Les ecritures de l\'espace commercant');
+  {
+    const appAdmin = express();
+    appAdmin.set('trust proxy', 1);
+    appAdmin.use(express.json());
+    appAdmin.use('/api/admin', plafondEcrituresAdmin);
+    appAdmin.all('/api/admin/{*reste}', (req, res) => res.json({ ok: true }));
+
+    const serveurAdmin = appAdmin.listen(PORT_SONDE + 1);
+    const BASE_ADMIN = `http://127.0.0.1:${PORT_SONDE + 1}`;
+
+    try {
+      const IP_ADMIN = '92.184.5.1';
+
+      const appeler = async (methode, ip = IP_ADMIN) => {
+        const r = await fetch(`${BASE_ADMIN}/api/admin/settings`, {
+          method: methode,
+          headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip },
+          body: methode === 'GET' ? undefined : '{}',
+        });
+        return { status: r.status, retryAfter: r.headers.get('retry-after') };
+      };
+
+      // Les lectures d'abord, et en nombre : elles ne doivent RIEN consommer.
+      // Si elles comptaient, le plafond se refermerait sur le commercant qui
+      // parcourt simplement sa semaine.
+      let lecturesRefusees = 0;
+      for (let i = 0; i < 200; i++) {
+        if ((await appeler('GET')).status === 429) lecturesRefusees++;
+      }
+      verifie('deux cents lectures d\'affilee : aucune refusee',
+        lecturesRefusees === 0, lecturesRefusees);
+
+      let premierRefus = null;
+      let derniere = null;
+
+      for (let essai = 1; essai <= ADMIN_ECRITURES_MAX + 3 && premierRefus === null; essai++) {
+        derniere = await appeler('PUT');
+        if (derniere.status === 429) premierRefus = essai;
+      }
+
+      verifie('>>> LES ECRITURES SONT DESORMAIS PLAFONNEES <<<',
+        premierRefus !== null, premierRefus);
+      verifie(`et le plafond mord au ${ADMIN_ECRITURES_MAX + 1}e envoi`,
+        premierRefus === ADMIN_ECRITURES_MAX + 1, premierRefus);
+      verifie('le refus porte un en-tete Retry-After',
+        Number(derniere.retryAfter) > 0, derniere.retryAfter);
+
+      // Les quatre methodes d'ecriture comptent dans le meme panier : sinon on
+      // ferait quatre fois le plafond en alternant les verbes.
+      for (const methode of ['POST', 'PATCH', 'DELETE']) {
+        verifie(`${methode} est refuse lui aussi une fois le plafond atteint`,
+          (await appeler(methode)).status === 429, methode);
+      }
+
+      // Une lecture passe encore, plafond d'ecriture atteint : c'est ce qui
+      // permet au commercant de continuer a consulter son agenda.
+      verifie('les lectures passent encore, plafond atteint',
+        (await appeler('GET')).status === 200, '');
+
+      verifie('une autre adresse n\'est pas prise dans le meme panier',
+        (await appeler('PUT', '92.184.5.2')).status === 200, '');
+    } finally {
+      serveurAdmin.close();
+    }
   }
 } finally {
   for (const id of crees) {

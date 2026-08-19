@@ -563,6 +563,25 @@ production, l'exemption n'existe pour personne (`src/lib/rateLimit.js`), et le
 site y tourne derrière un relais avec `trust proxy` : `req.ip` porte l'adresse
 réelle du visiteur.
 
+⚠️ **Trois plafonds ne voyaient pas une rafale de requêtes INVALIDES.**
+Mesuré : quarante requêtes malformées en une seconde et demie, aucun 429. Deux
+des trois ne comptent que ce qui **aboutit** — une requête invalide ne crée
+rien — et le troisième compte bien les tentatives, mais **à l'heure** : quarante
+en une seconde et demie restaient sous son seuil. Un quatrième plafond compte
+donc les tentatives **à la minute** (trente), et les refus portent un
+`Retry-After` : la phrase est pour le client, l'en-tête pour ce qui n'a pas
+d'yeux et réessaie tout de suite.
+
+**Les écritures de l'espace commerçant sont plafonnées elles aussi** — cent
+vingt par minute et par adresse (`src/middleware/plafondAdmin.js`). Large, et
+c'est le sujet : un plafond qui se referme sur son propre commerçant ne protège
+de rien et empêche de travailler.
+
+⚠️ **Les LECTURES ne sont jamais plafonnées**, ni côté client (`/api/slots`,
+`/api/days`, appelées à chaque clic du tunnel), ni côté commerçant (l'agenda se
+relit à chaque changement de jour). Les brider casserait le parcours, et c'est
+la panne qu'on ne voit pas : le client s'en va sans rien dire.
+
 Ce qu'ils font : transformer une catastrophe en désagrément. Ce qu'ils ne font
 pas : arrêter un adversaire disposant de plusieurs adresses — et la vraie parade
 contre celui-là (vérification par SMS, acompte, CAPTCHA) est refusée par le
@@ -617,6 +636,28 @@ jamais le déclencher volontairement dans un test — contrairement à
 serveur pour ceux qui n'exécutent pas de JavaScript, côté page pour la mise à
 jour sans rechargement. Les deux doivent produire exactement le même HTML. Un
 commentaire le rappelle des deux côtés, un test le vérifie.
+
+**La validation des réglages était asymétrique : les nombres étaient gardés, les
+textes de l'adresse ne l'étaient pas.** Mesuré un champ fautif à la fois dans un
+objet complet : `reviews.rating: 99` → 400, mais `postalCode: "ABCDE"` → 200,
+`phone: "aaaa"` → 200, un nom de dix mille caractères → 200, et `slotStep: 9999`
+→ 200 — ce dernier laissant un site debout qui ne propose plus **aucun**
+créneau. Le code postal fait cinq chiffres, le téléphone du commerce passe par
+**la même fonction que celui d'un client** (`normaliserTelephone`), le pas des
+créneaux tient entre 5 et 60 minutes, le délai minimum entre 0 et 30 jours, et
+aucune chaîne de `salon` n'accepte de caractère de contrôle.
+
+⚠️ **Le refus nomme le champ** (`{"error":…, "champ":"salon.postalCode"}`), et
+l'écran le marque en `aria-invalid` avant de l'amener sous les yeux. Dans un
+formulaire de quarante champs, une phrase juste posée nulle part laisse
+chercher — et l'ordre des contrôles faisait remonter « La note doit être
+comprise entre 0 et 5 » pour un envoi où la note n'avait pas été touchée. Le
+style teste `[aria-invalid="true"]`, la **valeur** et non la présence de
+l'attribut : `"false"` est une valeur légitime qui dit l'inverse.
+
+⚠️ **L'échappement du rendu n'est pas remplacé par un filtrage à l'entrée : on
+garde les deux.** Un nom qui contient du balisage s'enregistre — c'est un nom,
+pas une attaque — et ressort `&lt;img` dans la page.
 
 **Pas d'`aria-label` sur les lignes tarifaires.** Il y en avait un ; il violait
 WCAG 2.5.3 (« Label in Name ») en omettant la description visible. Conséquence
@@ -701,7 +742,7 @@ Changer l'un sans l'autre remet les titres de section sous la barre.
 npm test
 ```
 
-**945 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
+**1 007 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
 `.env`.
 
 ⚠️ **`npm run dev` ne convient pas pour lancer la suite.** `node --watch`

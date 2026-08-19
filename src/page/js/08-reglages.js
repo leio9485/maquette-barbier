@@ -982,10 +982,45 @@ async function envoyerReglages() {
   } catch (erreur) {
     if (erreur.code === 401) return exigerConnexion();
     afficherMessage(message, erreur.message);
+    marquerChampFautif(erreur.donnees?.champ);
   } finally {
     bouton.disabled = false;
     poserTexte(bouton, 'Enregistrer');
   }
+}
+
+/**
+ * Marque la case que le serveur a refusee, et l'amene sous les yeux.
+ *
+ * >>> LE MESSAGE SEUL LAISSAIT CHERCHER. <<< Le formulaire tient en huit
+ * sections et quarante champs, dont la moitie hors de l'ecran : « Le code
+ * postal doit faire cinq chiffres » est une phrase juste, posee a un endroit
+ * que le commercant ne relie a rien.
+ *
+ * `aria-invalid` PLUTOT QU'UNE CLASSE : c'est l'attribut que les lecteurs
+ * d'ecran annoncent (« saisie non valide »), et le style s'y accroche
+ * (styles/05-controles.css). Une classe maison n'aurait servi qu'a l'oeil.
+ *
+ * ⚠️ ON RETIRE LA MARQUE PRECEDENTE A CHAQUE FOIS, y compris quand le nouveau
+ *    refus n'en designe aucun : deux champs marques dont un seul est encore
+ *    fautif est pire que pas de marque du tout.
+ *
+ * ⚠️ AUCUNE COULEUR D'ALARME. La charte n'a pas de rouge, et un refus s'y
+ *    distingue par sa place et son filet.
+ */
+function marquerChampFautif(chemin) {
+  for (const champ of $$('[data-chemin][aria-invalid="true"]')) {
+    champ.removeAttribute('aria-invalid');
+  }
+
+  if (!chemin) return;
+
+  const champ = $(`[data-chemin="${chemin}"]`);
+  if (!champ) return;
+
+  champ.setAttribute('aria-invalid', 'true');
+  champ.scrollIntoView({ block: 'center' });
+  champ.focus();
 }
 
 async function demanderReinitialisation() {

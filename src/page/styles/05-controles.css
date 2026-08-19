@@ -133,6 +133,31 @@
       leur date dans la police du texte courant, a quelques centimetres d'un
       tunnel client ou chaque heure est en chasse fixe. La regle de la charte est
       pourtant sans exception : IBM Plex Mono pour TOUTE donnee. */
+/* --- LA CASE REFUSEE PAR LE SERVEUR ---------------------------------------
+
+   Le serveur nomme le champ fautif dans sa reponse ; l'ecran pose
+   `aria-invalid` dessus (`marquerChampFautif()`, js/08-reglages.js). Ici, on
+   ne fait que le rendre visible.
+
+   >>> AUCUNE COULEUR D'ALARME : LE FILET, ET LUI SEUL. <<< La charte n'a pas
+   de rouge (voir --refus dans 02-jetons.css), et un site de barbier n'a pas
+   d'alarme a sonner. Le filet passe de l'acier a l'encre et de 1 a 2 px :
+   c'est le meme vocabulaire que le reste du site — un trait qui se voit.
+
+   ⚠️ LE SELECTEUR TESTE LA VALEUR, pas la seule presence de l'attribut :
+      `aria-invalid="false"` est une valeur legitime, et elle dit l'inverse.
+      C'est la faute deja commise sur `.espace-onglet` et sur le sommaire des
+      reglages. */
+.champ input[aria-invalid="true"],
+.champ select[aria-invalid="true"],
+.champ textarea[aria-invalid="true"] {
+  border-color: var(--refus);
+  border-width: 2px;
+  /* Le padding compense le pixel de bordure gagne : sans lui, le texte du
+     champ marque se decale d'un pixel et la ligne entiere semble bouger. */
+  padding: 0 calc(var(--e2) - 1px);
+}
+
 .champ input[type="tel"],
 .champ input[type="date"],
 .champ input[type="time"],

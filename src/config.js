@@ -237,3 +237,41 @@ export const RESERVATIONS_TENTATIVES_MAX = plafondConfigure(process.env.RESERVAT
 
 /** La fenetre commune aux deux plafonds horaires. */
 export const RESERVATIONS_FENETRE_MS = 60 * 60 * 1000;
+
+/**
+ * LES TENTATIVES, PAR MINUTE : trente.
+ *
+ * >>> LE PLAFOND HORAIRE NE VOYAIT PAS UNE RAFALE. <<< Mesure sur l'instance
+ * en ligne : QUARANTE requetes invalides en UNE SECONDE ET DEMIE, aucun 429.
+ * Elles passaient toutes sous les soixante tentatives par heure, et les deux
+ * autres plafonds ne comptent que ce qui ABOUTIT — or une requete invalide
+ * n'aboutit jamais. Une boucle pouvait donc faire travailler la base
+ * quarante fois par seconde sans jamais rien creer, et sans jamais rien
+ * declencher.
+ *
+ * Trente par minute laisse tout le monde tranquille : un client qui se trompe
+ * de creneau, revient en arriere et recommence en envoie trois ou quatre. Le
+ * plafond horaire reste au-dessus, pour l'acharnement lent qui espace ses
+ * envois.
+ */
+export const RESERVATIONS_MINUTE_MAX = plafondConfigure(process.env.RESERVATIONS_MINUTE_MAX, 30);
+export const RESERVATIONS_MINUTE_MS = 60 * 1000;
+
+/**
+ * LES ECRITURES DE L'ESPACE COMMERCANT : cent vingt par minute et par adresse.
+ *
+ * Aucun 429 ne se declenchait sur /api/admin/… : une session volee, ou
+ * simplement un script laisse en boucle, pouvait ecrire sans limite.
+ *
+ * >>> LARGE, ET C'EST LE SUJET. <<< Un commercant qui saisit sa journee est
+ * legitime, et un plafond qui se referme sur lui est le pire des deux mondes —
+ * il ne protege de rien et il empeche de travailler. Cent vingt par minute,
+ * c'est deux ecritures par seconde en continu : personne ne fait cela a la
+ * main, et l'ecran lui-meme n'en envoie qu'une par enregistrement.
+ *
+ * ⚠️ LES LECTURES NE SONT PAS PLAFONNEES. L'agenda, les creneaux et les
+ *    chiffres se relisent a chaque clic ; les brider casserait l'ecran qu'on
+ *    vend.
+ */
+export const ADMIN_ECRITURES_MAX = plafondConfigure(process.env.ADMIN_ECRITURES_MAX, 120);
+export const ADMIN_ECRITURES_MS = 60 * 1000;

@@ -599,15 +599,31 @@ partant — la variable d'environnement l'emporte sur le `.env`, vérifié.
 figée accumulait ses échecs d'une exécution à l'autre et bloquait le second
 `npm test` lancé dans le quart d'heure.
 
-État au moment de la livraison — Lighthouse mobile : performance 99,
-accessibilité 100, bonnes pratiques 100, SEO 100. LCP 2,0 s en 4G lente simulée,
-CLS 0, 153 Ko transférés.
+Lighthouse mobile, refait le 19 août 2026 (13.4.1, en local,
+`--only-categories=performance,accessibility,best-practices,seo`) :
 
-⚠️ **Ces chiffres datent d'avant la reprise de la mise en page** et n'ont pas
-été refaits depuis. Rien n'a été ajouté au poids de la page — aucune requête,
-aucune police, aucun script — mais la photo d'accueil est passée sous le premier
-écran, ce qui peut en faire le nouvel élément de LCP. **Relancer Lighthouse
-avant de montrer le site à un prospect.**
+| | vitrine | `/annuler` | `/espace-salon` |
+|---|---:|---:|---:|
+| Performance | **99** | 100 | 100 |
+| Accessibilité | **100** | 100 | 100 |
+| Bonnes pratiques | **100** | 100 | 96 |
+| SEO | **100** | 63 | 54 |
+| LCP | 2,1 s | 1,4 s | 1,5 s |
+| CLS | **0** | 0 | 0 |
+
+Les SEO bas de `/annuler` et `/espace-salon` sont voulus : ces pages portent
+`noindex`, et Lighthouse le compte comme un défaut. Bonnes pratiques 96 sur
+l'espace : le contrôle de session journalise un 401 quand personne n'est
+connecté — la réponse correcte du serveur.
+
+⚠️ **NE PAS CROIRE UNE MESURE ISOLÉE DE LA VITRINE.** Le premier passage a
+donné **88**, avec un TBT de 460 ms ; les trois suivants, 97, 99 et 99, avec
+un TBT de 160, 0 et 20 ms. LCP et CLS n'avaient pas bougé d'un pouce. Le TBT
+mesure l'exécution du JavaScript, et il suffit qu'une autre tâche occupe la
+machine — un serveur, une suite de tests, un autre Chrome — pour qu'il
+quadruple. **Mesurer trois fois et retenir la médiane**, sinon on part
+chasser une régression qui n'existe pas. C'est le même piège que la mesure
+sur instance froide décrite dans `RAPPORT.md` § 7.
 
 Rendu vérifié après la reprise en 390, 768 et 1440 px : aucun défilement
 horizontal, aucune cible tactile sous 24 px, aucune combinaison de couleurs

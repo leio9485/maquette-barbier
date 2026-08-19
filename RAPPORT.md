@@ -1242,3 +1242,65 @@ Il n'y a pas de comportement serveur à vérifier : la vue est entièrement
 front-end, et `portees.mjs` couvre déjà la seule classe de bogue qui s'y
 produirait sans se voir — une fonction appelée mais absente du document. Le
 reste se regarde, et a été regardé.
+
+---
+
+## 13. Lighthouse, refait après les quatre lots
+
+Le § 7 le demandait depuis la reprise de la mise en page, et `CLAUDE.md` le
+répétait : « relancer Lighthouse avant de montrer le site à un prospect ».
+C'est fait. Lighthouse 13.4.1 — la même version qu'au § 4 — en local, profil
+mobile, `--only-categories=performance,accessibility,best-practices,seo`, les
+trois pages préchauffées d'abord pour ne pas mesurer le cache d'assemblage à
+froid.
+
+| | vitrine | `/annuler` | `/espace-salon` |
+|---|---:|---:|---:|
+| Performance | 99 → **99** | 100 → **100** | 100 → **100** |
+| Accessibilité | 100 → **100** | 100 → **100** | 100 → **100** |
+| Bonnes pratiques | 100 → **100** | 100 → **100** | 96 → **96** |
+| SEO | 100 → **100** | 63 → **63** | 54 → **54** |
+| LCP | 2,1 s → **2,1 s** | 1,4 s → **1,4 s** | 1,5 s → **1,5 s** |
+| CLS | 0 → **0** | 0 → **0** | 0 → **0** |
+| Poids | 173 Kio → 176 Kio | 95 Kio → **95 Kio** | 109 Kio → 119 Kio |
+
+**Aucun score n'a bougé.** Les SEO bas de `/annuler` et `/espace-salon` sont
+voulus — `noindex` — et les bonnes pratiques à 96 sur l'espace viennent du
+401 journalisé quand personne n'est connecté, qui est la réponse correcte du
+serveur. Les deux étaient déjà expliqués au § 4.
+
+### La fausse alerte, et pourquoi elle mérite d'être écrite
+
+⚠️ **Le premier passage sur la vitrine a donné 88.** De quoi croire à une
+régression de onze points introduite par les quatre lots.
+
+Ce n'en était pas une, et deux vérifications l'ont établi avant toute
+conclusion :
+
+- **la vitrine n'embarque pas une ligne de JavaScript modifiée.** Des dix-neuf
+  fichiers du commit, un seul figure dans `index.html` : `05-controles.css`,
+  qui a gagné quatre déclarations `grid-column: 1`. Or le TBT — le seul
+  indicateur qui avait bougé — mesure l'exécution du JavaScript ;
+- **trois passages de plus ont donné 97, 99, 99**, avec un TBT de 160, 0 et
+  20 ms contre 460 au premier. LCP figé à 2,1 s, CLS à 0 dans les quatre.
+
+La leçon rejoint celle du § 7 sur l'instance froide, sous une autre forme :
+**une mesure isolée de TBT ne vaut rien sur une machine qui travaille.**
+Mesurer trois fois, retenir la médiane, et ne se fier au TBT que si LCP et CLS
+racontent la même histoire.
+
+### Ce qui a réellement grossi
+
+**L'espace commerçant : 109 → 119 Kio.** Ce sont les lots 3 et 4 — la section
+« Personnes autorisées » et la vue semaine en colonnes. C'est le document que
+le commerçant charge, pas le visiteur, et son score reste à 100.
+
+**La vitrine ne bouge pas en substance.** Son document fait 29 Kio ; le reste
+de ses 176 Kio est la photo d'accueil (61 Kio en deux formats) et les quatre
+fontes (82 Kio). Les commentaires, abondants, ne coûtent rien : le minifieur
+les retire avant l'envoi (`src/lib/minify.js`), ce qui est précisément ce qui
+permet de commenter aussi largement dans ce dépôt.
+
+⚠️ **Ces chiffres sont mesurés EN LOCAL**, comme ceux du § 4. Sur l'instance
+déployée, ajouter la latence du relais et la mise en route de l'offre
+gratuite — et ne jamais mesurer dans la minute qui suit un déploiement (§ 8).

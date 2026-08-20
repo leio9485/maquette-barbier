@@ -400,6 +400,61 @@
   color: var(--acier);
 }
 
+/* >>> LE PRÉNOM SORT DE L'ÉCRAN, IL NE SORT PAS DE LA PAGE. <<<
+
+   Il est déjà en tête du groupe ; le répéter sur chaque ligne ne dit rien de
+   plus et vole la place du nom du client — sur un téléphone de 390 px, la place
+   est précisément ce qui manque.
+
+   `display: none` l'aurait retiré aux lecteurs d'écran aussi — et la personne
+   ne serait alors plus portée que par la POSITION. C'est la même faute que de
+   porter une information par la seule couleur, sous une autre forme : quelqu'un
+   qui parcourt les rendez-vous bouton par bouton entendrait « 09:30, Théo
+   Blanc, coupe homme » sans jamais savoir de quel groupe il s'agit.
+
+   `.hors-ecran` (03-fondations.css) le garde audible et invisible.
+
+   ⚠️ SUR `[data-groupe]` ET NON `[data-colonnes]`, et hors du `@media`. La règle
+      était écrite pour les colonnes de la semaine ; son motif — « le nom est
+      déjà en tête » — vaut à l'identique pour les groupes empilés de la journée
+      sur petit écran, qui sont la même chose dans une autre mise en page.
+
+   ⚠️ Il faut une position sur la ligne, sinon l'élément en `position: absolute`
+      se cale sur le premier ancêtre positionné — la même précaution que pour le
+      portrait des réglages (16-reglages.css). */
+.agenda[data-groupe="personnes"] .agenda-colonne .agenda-rdv,
+.agenda[data-groupe="personnes"] .agenda-colonne .agenda-bloc {
+  position: relative;
+}
+
+.agenda[data-groupe="personnes"] .agenda-colonne .agenda-qui {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --- LE REPLI SUR PETIT ÉCRAN : LES MÊMES GROUPES, EMPILÉS -----------------
+
+   >>> LA VUE JOUR SE RANGE PAR PERSONNE À TOUTES LES LARGEURS. <<< Trois
+   colonnes côte à côte ne tiennent pas sur un téléphone ; trois GROUPES
+   empilés, si. Et c'est la même information dans le même ordre — le rangement
+   par personne est décidé en JavaScript, la mise en page seulement ici.
+
+   Le seul réglage nécessaire est l'écart entre deux groupes : sans lui, le
+   dernier rendez-vous de Rémi et le nom de Karim se touchent, et on ne voit
+   plus où l'un finit. C'est le même écart qu'entre deux sections de la fiche.
+
+   Au-dessus de 900 px cette règle ne gêne rien : `.agenda-colonnes` y devient
+   une grille, et une marge supérieure sur un enfant de grille ne décale que
+   lui — d'où la remise à zéro dans le bloc `@media` ci-dessous. */
+.agenda-colonne + .agenda-colonne { margin-top: var(--e3); }
+
 @media (min-width: 900px) {
   /* Sans équipe : le dessin d'avant, inchangé. */
   .agenda[data-vue="semaine"]:not([data-colonnes]) {
@@ -428,6 +483,9 @@
   /* Le filet sépare les colonnes, il n'encadre rien : la hiérarchie du site se
      fait par des traits et des aplats, jamais par des boîtes. */
   .agenda-colonne + .agenda-colonne {
+    /* La pile du petit écran est finie : ici les groupes sont côte à côte, et
+       cette marge ne ferait que décaler une colonne sur deux vers le bas. */
+    margin-top: 0;
     padding-left: var(--e3);
     border-left: 1px solid var(--filet);
   }
@@ -449,40 +507,12 @@
      Le filet de couleur, lui, reste sur chaque ligne : c'est ce qui la
      rattache à sa colonne quand l'œil redescend. */
 
-  /* Le téléphone : retiré pour tout le monde. C'est un détail qu'on va
-     chercher dans la fiche, en lien `tel:`, et pas en survolant sa semaine. */
+  /* Le téléphone : retiré dans une COLONNE, et seulement là. Le motif est une
+     affaire de largeur — dans une colonne trois fois plus étroite le numéro
+     passe à la ligne — et il ne vaut donc pas pour les groupes empilés du petit
+     écran, qui prennent toute la largeur. C'est un détail qu'on va chercher
+     dans la fiche, en lien `tel:`, et pas en survolant sa semaine. */
   .agenda[data-colonnes="personnes"] .agenda-colonne .agenda-tel { display: none; }
-
-  /* >>> LE PRÉNOM SORT DE L'ÉCRAN, IL NE SORT PAS DE LA PAGE. <<<
-
-     `display: none` l'aurait retiré aux lecteurs d'écran aussi — et dans une
-     colonne, la personne n'est alors plus portée que par la POSITION. C'est
-     la même faute que de porter une information par la seule couleur, sous
-     une autre forme : quelqu'un qui parcourt les rendez-vous bouton par
-     bouton entendrait « 09:30, Théo Blanc, coupe homme » sans jamais savoir
-     de quelle colonne il s'agit.
-
-     `.hors-ecran` (03-fondations.css) le garde audible et invisible.
-
-     ⚠️ Il faut une position sur la ligne, sinon l'élément en `position:
-        absolute` se cale sur le premier ancêtre positionné — la même
-        précaution que pour le portrait des réglages (16-reglages.css). */
-  .agenda[data-colonnes="personnes"] .agenda-colonne .agenda-rdv,
-  .agenda[data-colonnes="personnes"] .agenda-colonne .agenda-bloc {
-    position: relative;
-  }
-
-  .agenda[data-colonnes="personnes"] .agenda-colonne .agenda-qui {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-    border: 0;
-  }
 }
 
 /* --- LE POINTAGE « VENU » / « PAS VENU » -----------------------------------

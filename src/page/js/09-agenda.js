@@ -110,14 +110,45 @@ async function chargerAgenda() {
 const ECRAN_LARGE = window.matchMedia('(min-width: 900px)');
 
 /**
- * Vrai quand la semaine se lit en colonnes : une par personne.
+ * Faut-il RANGER PAR PERSONNE plutot que par heure ?
  *
- * Trois conditions, et il faut les trois. Sans equipe enregistree, il n'y a
- * aucune colonne a dessiner et la liste reste la bonne reponse — c'est le cas
- * de l'agenda unique, celui du commerce qui travaille seul.
+ * >>> LA VUE JOUR N'AVAIT PAS LES COLONNES QUE LA SEMAINE AVAIT, ET C'ETAIT LA
+ *     HIERARCHIE INVERSE DE L'USAGE. <<<
+ *
+ * L'agenda est le volet par defaut « parce que c'est ce qu'on regarde vingt
+ * fois par jour » (voir espace-commercant.html) — et c'est cette vue-la qui
+ * rendait une liste plate de trente-trois lignes ou trois barbiers sont
+ * melanges dans l'ordre chronologique. A 14:15 il y a deux rendez-vous en meme
+ * temps, l'un pour Remi l'autre pour Yanis : en liste plate, savoir qui est
+ * libre demandait de lire le prenom a droite de chaque ligne et de reconstruire
+ * trois plannings de tete.
+ *
+ * Sans equipe enregistree il n'y a personne a grouper, et la liste
+ * chronologique reste la bonne reponse — c'est l'agenda unique, celui du
+ * commerce qui travaille seul.
+ *
+ * ⚠️ LA JOURNEE SE GROUPE A TOUTES LES LARGEURS, LA SEMAINE NON. Ce n'est pas
+ *    une exception : sur un telephone, trois colonnes cote a cote ne tiennent
+ *    pas, mais trois GROUPES empiles, si — et sept journees de trois groupes
+ *    empiles ne se lisent plus du tout. Le repli de la journee est donc « la
+ *    meme chose, en pile » ; celui de la semaine reste la liste chronologique.
  */
-function semaineEnColonnes() {
-  return ESPACE.vue === 'semaine' && ECRAN_LARGE.matches && equipeActive().length > 0;
+function grouperParPersonne() {
+  if (!equipeActive().length) return false;
+  if (ESPACE.vue === 'jour') return true;
+  return ECRAN_LARGE.matches;
+}
+
+/**
+ * Le rangement par personne se dessine-t-il en colonnes COTE A COTE ?
+ *
+ * C'est la seule chose que la largeur decide encore : l'ORDRE des lignes est
+ * deja fixe par `grouperParPersonne()`, et un empilement de groupes n'a besoin
+ * d'aucun JavaScript — la feuille s'en charge. `data-colonnes` ne dit donc plus
+ * « range par personne », il dit « et mets-les cote a cote ».
+ */
+function enColonnes() {
+  return grouperParPersonne() && ECRAN_LARGE.matches;
 }
 
 /**
@@ -155,7 +186,16 @@ function peindreAgenda() {
   cible.dataset.vue = ESPACE.vue;
 
   // Le CSS ne redecide rien : il applique le dessin que celui-ci a choisi.
-  if (semaineEnColonnes()) cible.dataset.colonnes = 'personnes';
+  //
+  // ⚠️ DEUX MARQUEURS, ET ILS NE DISENT PAS LA MEME CHOSE. `data-groupe` dit
+  //    que les lignes sont rangees par personne — c'est le JavaScript qui l'a
+  //    fait, aucune regle de style ne reordonne un contenu. `data-colonnes` dit
+  //    seulement de poser ces groupes COTE A COTE plutot qu'en pile, et cela,
+  //    la feuille sait le faire seule.
+  if (grouperParPersonne()) cible.dataset.groupe = 'personnes';
+  else delete cible.dataset.groupe;
+
+  if (enColonnes()) cible.dataset.colonnes = 'personnes';
   else delete cible.dataset.colonnes;
 
   cible.innerHTML = joursAffiches().map(peindreJour).join('');
@@ -220,7 +260,7 @@ function peindreJour(iso) {
     return `<section class="agenda-jour">${tete}</section>`;
   }
 
-  if (semaineEnColonnes()) return jourEnColonnes(iso, tete, liste);
+  if (grouperParPersonne()) return jourParPersonne(iso, tete, liste);
 
   return `<section class="agenda-jour">${tete}`
     + `<ul class="agenda-liste">${liste.map((r) => ligneRdv(r, iso)).join('')}</ul>`
@@ -228,25 +268,31 @@ function peindreJour(iso) {
 }
 
 /**
- * UNE JOURNEE EN COLONNES : UNE PAR PERSONNE.
+ * UNE JOURNEE RANGEE PAR PERSONNE : un groupe chacun.
  *
- * >>> A QUOI CETTE VUE REPOND, ET QUE LA LISTE NE FAISAIT PAS. <<< « Qui est
- * libre jeudi apres-midi ? » En liste, il faut lire la journee entiere et
- * tenir de tete qui apparait et qui manque. En colonnes, la reponse est la
- * colonne la plus courte.
+ * >>> A QUOI CE RANGEMENT REPOND, ET QUE LA LISTE NE FAISAIT PAS. <<< « Qui est
+ * libre jeudi apres-midi ? » En liste chronologique, il faut lire la journee
+ * entiere et tenir de tete qui apparait et qui manque. Range par personne, la
+ * reponse est le groupe le plus court.
+ *
+ * ⚠️ LE MEME BALISAGE SERT AUX DEUX FORMES, et c'est ce qui evite un second
+ *    dessin a maintenir. Cote a cote sur un ecran large, empiles en dessous :
+ *    l'ORDRE des lignes est le meme dans les deux cas, seule la mise en page
+ *    change, et une mise en page, la feuille sait la faire seule (voir
+ *    `enColonnes()`).
  *
  * ⚠️ CE N'EST PAS LE RETOUR DE LA GRILLE. L'agenda a cesse d'etre une grille
  *    parce qu'il dessinait cinquante et une cases vides pour trois rendez-vous.
- *    Ici, une colonne ne contient QUE des rendez-vous reels : aucune case a
+ *    Ici, un groupe ne contient QUE des rendez-vous reels : aucune case a
  *    l'heure, aucun quadrillage, et une seule ligne quand il n'y a rien.
  *
  * ⚠️ CE QUI N'APPARTIENT A PERSONNE PASSE AU-DESSUS, PLEINE LARGEUR. Un
  *    blocage du commerce entier et un rendez-vous non attribue occupent TOUT LE
- *    MONDE (voir prisma/schema.prisma) : les ranger dans une colonne les ferait
+ *    MONDE (voir prisma/schema.prisma) : les ranger dans un groupe les ferait
  *    passer pour l'affaire d'une seule personne, et laisserait croire les
  *    autres disponibles.
  */
-function jourEnColonnes(iso, tete, liste) {
+function jourParPersonne(iso, tete, liste) {
   const colonnes = equipeActive();
 
   const communs = liste.filter((r) => !r.staffId);

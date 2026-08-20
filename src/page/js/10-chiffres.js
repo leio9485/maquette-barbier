@@ -69,14 +69,26 @@ function barre(valeur, maximum) {
   return `<span class="chiffres-barre" aria-hidden="true"><span style="width:${part}%"></span></span>`;
 }
 
-/** Un classement : nom, barre, valeur. */
-function classement(titre, lignes, { note = '', vide = 'Rien sur la période.' } = {}) {
+/**
+ * Un classement : nom, barre, valeur.
+ *
+ * `echelle` borne la barre. Sans elle, la plus grande valeur de la liste fait
+ * une barre pleine — c'est ce qu'il faut pour un classement de prestations, ou
+ * seul le rapport entre les lignes compte.
+ *
+ * ⚠️ CE N'EST PAS CE QU'IL FAUT POUR UN POURCENTAGE. Les heures creuses
+ *    n'affichent que les cinq plus vides : si la moins vide des cinq est
+ *    remplie a 22 %, une echelle relative lui donnerait une barre PLEINE, et
+ *    l'ecran redirait « c'est charge » la ou il annonce le contraire. On passe
+ *    alors `echelle: 100`, et une barre courte veut dire ce qu'elle montre.
+ */
+function classement(titre, lignes, { note = '', vide = 'Rien sur la période.', echelle = null } = {}) {
   if (!lignes.length) {
     return `<section class="chiffres-bloc"><h3 class="etiquette">${esc(titre)}</h3>`
       + `<p class="secondaire petit">${esc(vide)}</p></section>`;
   }
 
-  const maximum = Math.max(...lignes.map((l) => l.valeur));
+  const maximum = echelle ?? Math.max(...lignes.map((l) => l.valeur));
 
   return `<section class="chiffres-bloc">`
     + `<h3 class="etiquette">${esc(titre)}</h3>`
@@ -158,15 +170,31 @@ function peindreChiffres(c) {
   //
   // Le chiffre le plus actionnable de l'ecran : on ne fait pas grand-chose d'un
   // chiffre d'affaires, on peut fermer le mardi matin.
+  //
+  // >>> IL SE LISAIT A L'ENVERS. <<< La barre encodait le VIDE et le nombre
+  //     encodait le VOLUME : les deux allaient en sens inverse sur la meme
+  //     ligne, si bien qu'une barre longue accompagnait « 6 rdv » et une barre
+  //     courte « 19 rdv ». Un patron qui survole lit « grande barre =
+  //     beaucoup », c'est-a-dire l'exact contraire de ce que le tableau dit.
+  //
+  //     La barre montre desormais LE REMPLISSAGE, dans le meme sens que le
+  //     chiffre ecrit a cote : barre courte = heure creuse. Et son echelle est
+  //     absolue (0 a 100 %), pas relative aux cinq lignes affichees — voir
+  //     `classement()`.
   morceaux.push(classement('Heures les plus creuses',
     c.creneauxMorts.map((h) => ({
       nom: `${JOURS_LONGS[h.jour]} ${String(h.heure).padStart(2, '0')}:00`,
-      // La barre montre le CREUX : plus elle est longue, plus l'heure est vide.
-      valeur: Math.max(...c.creneauxMorts.map((x) => x.nombre)) - h.nombre + 1,
-      affichage: h.nombre === 0 ? 'aucun' : `${h.nombre} rdv`,
+      valeur: h.remplissage,
+      // Le pourcentage decide, le nombre brut donne l'ordre de grandeur :
+      // 0 % sur deux places offertes et 0 % sur quarante ne demandent pas la
+      // meme decision.
+      affichage: `${h.remplissage} % · ${h.nombre === 0 ? 'aucun rdv' : `${h.nombre} rdv`}`,
     })), {
-      note: `Sur les ${c.reculSemaines} dernières semaines, heures d'ouverture `
-        + "seulement. C'est là qu'on peut fermer, décaler, ou proposer quelque chose.",
+      echelle: 100,
+      note: `Part du temps réellement vendue sur cette heure-là, sur les `
+        + `${c.reculSemaines} dernières semaines — heures d'ouverture seulement, `
+        + "congés déduits. C'est là qu'on peut fermer, décaler, ou proposer "
+        + 'quelque chose.',
       vide: 'Pas encore assez de recul.',
     }));
 

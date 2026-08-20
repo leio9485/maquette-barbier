@@ -322,6 +322,51 @@ try {
         r.donnees.aide.includes('avis'), r.donnees.aide);
     }
   }
+
+  // --- LES HEURES CREUSES SE LISENT DANS LE BON SENS ------------------------
+  //
+  // >>> LE GRAPHIQUE DISAIT LE CONTRAIRE DE CE QU'IL MONTRAIT. <<< La barre
+  // encodait le VIDE, le nombre encodait le VOLUME : une barre longue
+  // accompagnait « 6 rdv » et une barre courte « 19 rdv ». Et « 19 rdv » sans
+  // denominateur ne decide rien — dix-neuf sur combien de places ?
+  //
+  // Chaque ligne porte donc un taux de remplissage, et c'est LUI qui trie.
+  console.log('\nLes heures creuses');
+  {
+    const c = await chiffres();
+    const creux = c.creneauxMorts ?? [];
+
+    verifie('chaque heure porte son remplissage et son denominateur',
+      creux.every((h) => Number.isInteger(h.remplissage)
+        && Number.isInteger(h.minutesPrises) && Number.isInteger(h.minutesOuvertes)),
+      creux[0]);
+
+    verifie('le nombre brut est conserve en information secondaire',
+      creux.every((h) => Number.isInteger(h.nombre) && h.nombre >= 0), creux[0]);
+
+    // >>> UNE HEURE SANS CAPACITE N'EST PAS UNE HEURE CREUSE. <<< Sa division
+    //     donnerait 0 %, et elle trusterait le classement — un jour ferme
+    //     remonterait tout en haut de « ce qu'on peut remplir ».
+    verifie('aucune heure sans capacite ne figure au classement',
+      creux.every((h) => h.minutesOuvertes > 0), creux.filter((h) => !h.minutesOuvertes));
+
+    verifie('le remplissage est le rapport des deux minutes',
+      creux.every((h) => h.remplissage === Math.round((h.minutesPrises / h.minutesOuvertes) * 100)),
+      creux.map((h) => [h.remplissage, h.minutesPrises, h.minutesOuvertes]));
+
+    verifie('un taux est un pourcentage, entre 0 et 100',
+      creux.every((h) => h.remplissage >= 0 && h.remplissage <= 100),
+      creux.map((h) => h.remplissage));
+
+    // >>> ET LE TRI SUIT LE TITRE. <<< Il portait sur le NOMBRE de rendez-vous :
+    //     deux heures a 6 et 19 rendez-vous pouvaient etre remplies a 60 % et
+    //     20 %, et le classement les rangeait a l'envers de ce qu'il annonce.
+    verifie('>>> LE CLASSEMENT VA DU PLUS CREUX AU MOINS CREUX <<<',
+      creux.every((h, i) => i === 0 || h.remplissage >= creux[i - 1].remplissage),
+      creux.map((h) => h.remplissage));
+
+    verifie('il en montre au plus cinq', creux.length <= 5, creux.length);
+  }
 } finally {
   for (const id of aNettoyer) {
     await salon.appel('DELETE', `/api/admin/bookings/${id}`);

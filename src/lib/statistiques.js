@@ -234,34 +234,148 @@ function parPersonne(rendezVous, equipe, prestations) {
  * pas faire grand-chose de son chiffre d'affaires du mois ; il peut fermer le
  * mardi matin, decaler son ouverture d'une heure, ou y poser une promotion.
  *
+ * >>> IL SE LISAIT A L'ENVERS, ET IL FALLAIT UN DENOMINATEUR POUR LE REPARER.
+ * <<<
+ *
+ * Releve a l'ecran :
+ *
+ *     mardi 09:00      barre longue        6 rdv
+ *     vendredi 20:00   barre moyenne      11 rdv
+ *     mercredi 18:00   barre tres courte  19 rdv
+ *
+ * La barre encodait le VIDE, le nombre encodait le VOLUME : les deux allaient
+ * en sens inverse sur la meme ligne. Un patron qui survole lit « grande barre =
+ * beaucoup », c'est-a-dire l'exact contraire de ce que le tableau dit.
+ *
+ * Et « 19 rdv » sur huit semaines ne decidait rien : dix-neuf sur combien de
+ * places ? L'information qui tranche — « cette heure est remplie a 20 % » —
+ * n'etait affichee nulle part.
+ *
+ * ⚠️ LE REMPLISSAGE SE COMPTE EN MINUTES, PAS EN RENDEZ-VOUS. C'est la
+ *    troisieme regle en tete de ce fichier, et elle vaut ici comme ailleurs :
+ *    compter les rendez-vous ferait monter le taux d'une heure ou le barbier
+ *    n'enchaine que des coupes a la tondeuse. Le denominateur est le temps
+ *    reellement ouvert sur cette heure-la, personne par personne.
+ *
  * ⚠️ ON NE COMPTE QUE LES HEURES REELLEMENT OUVERTES. Sans ce filtre, les
  *    heures les moins reservees seraient toujours celles ou le commerce est
  *    ferme — le lundi, la pause de midi, huit heures du matin — ce qui
- *    n'apprend rien a personne.
+ *    n'apprend rien a personne. Une heure dont la capacite est nulle sur toute
+ *    la periode (un jour bloque de bout en bout) est ecartee de la meme facon :
+ *    sa division donnerait 0 %, et elle trusterait le classement.
+ *
+ * ⚠️ UN RENDEZ-VOUS A CHEVAL COMPTE DANS LES DEUX HEURES, au prorata. Une coupe
+ *    de 09:45 a 10:10 remplit un quart d'heure de 9h et dix minutes de 10h. La
+ *    version d'avant la rangeait entierement dans l'heure de DEBUT, ce qui
+ *    creusait artificiellement les heures qui commencent apres une prestation
+ *    longue.
  */
-function heuresCreuses(rendezVous, horaires) {
-  const compte = new Map();
+function heuresCreuses({ rendezVous, blocages, horaires, equipe, du, au }) {
+  /** Les minutes de [debut, fin) qui tombent dans l'heure `heure`. */
+  const dansLHeure = (debut, fin, heure) => Math.max(
+    0, Math.min(fin, (heure + 1) * 60) - Math.max(debut, heure * 60));
 
-  // Toutes les heures ouvertes de la semaine, a zero.
+  const pris = new Map();   // « jour-heure » -> minutes reservees
+  const offert = new Map(); // « jour-heure » -> minutes a vendre
+
+  // Toutes les heures ouvertes de la semaine, a zero. C'est ce qui fait
+  // apparaitre une heure ou PERSONNE n'a jamais reserve — le cas le plus
+  // interessant, et celui qu'un simple parcours des rendez-vous rate.
   for (let jour = 0; jour < 7; jour++) {
     for (const [debut, fin] of plagesDe(horaires[jour])) {
       for (let heure = Math.floor(debut / 60); heure < Math.ceil(fin / 60); heure++) {
-        compte.set(`${jour}-${heure}`, 0);
+        pris.set(`${jour}-${heure}`, 0);
+        offert.set(`${jour}-${heure}`, 0);
       }
     }
   }
 
-  for (const r of rendezVous) {
-    const cle = `${weekdayOf(r.date)}-${Math.floor(r.startMin / 60)}`;
-    if (compte.has(cle)) compte.set(cle, compte.get(cle) + 1);
+  // --- LA CAPACITE, jour reel par jour reel ---------------------------------
+  //
+  // Meme lecture que `minutesOuvertes()` : horaires du commerce, horaires
+  // propres de chaque personne, blocages deduits. La difference est qu'on ne
+  // cumule pas un total mais qu'on repartit heure par heure.
+  const blocagesParJour = new Map();
+  for (const b of blocages) {
+    if (!blocagesParJour.has(b.date)) blocagesParJour.set(b.date, []);
+    blocagesParJour.get(b.date).push(b);
   }
 
-  return [...compte.entries()]
-    .map(([cle, nombre]) => {
+  for (let date = du; date <= au; date = addDaysIso(date, 1)) {
+    const jour = weekdayOf(date);
+    const horaire = horaires[jour];
+    if (!horaire) continue;
+
+    const duJour = blocagesParJour.get(date) ?? [];
+    if (duJour.some((b) => !b.staffId)) continue;
+
+    // Sans equipe enregistree, le commerce compte pour UNE ressource : c'est la
+    // regle du reste du projet.
+    const ressources = equipe.length
+      ? equipe.filter((p) => !duJour.some((b) => b.staffId === p.id))
+        .map((p) => plagesTravaillees(p, horaire))
+      : [plagesDe(horaire)];
+
+    for (const plages of ressources) {
+      for (const [debut, fin] of plages) {
+        for (let heure = Math.floor(debut / 60); heure < Math.ceil(fin / 60); heure++) {
+          const cle = `${jour}-${heure}`;
+          if (!offert.has(cle)) continue;
+          offert.set(cle, offert.get(cle) + dansLHeure(debut, fin, heure));
+        }
+      }
+    }
+  }
+
+  // --- CE QUI A ETE VENDU ---------------------------------------------------
+  for (const r of rendezVous) {
+    const jour = weekdayOf(r.date);
+    const debut = r.startMin;
+    const fin = r.startMin + r.durationMin;
+
+    for (let heure = Math.floor(debut / 60); heure < Math.ceil(fin / 60); heure++) {
+      const cle = `${jour}-${heure}`;
+      if (!pris.has(cle)) continue;
+      pris.set(cle, pris.get(cle) + dansLHeure(debut, fin, heure));
+    }
+  }
+
+  // --- LE NOMBRE BRUT, garde en information secondaire ----------------------
+  //
+  // « 19 rdv sur 8 semaines » ne decide rien tout seul, mais il dit l'ordre de
+  // grandeur derriere le pourcentage : 0 % sur deux places offertes et 0 % sur
+  // quarante ne demandent pas la meme decision.
+  //
+  // Il se compte sur l'heure de DEBUT, contrairement aux minutes : un
+  // rendez-vous est UN rendez-vous, et le partager entre deux heures donnerait
+  // « 1,4 rdv ».
+  const nombres = new Map();
+  for (const r of rendezVous) {
+    const cle = `${weekdayOf(r.date)}-${Math.floor(r.startMin / 60)}`;
+    if (pris.has(cle)) nombres.set(cle, (nombres.get(cle) ?? 0) + 1);
+  }
+
+  return [...offert.entries()]
+    .filter(([, minutes]) => minutes > 0)
+    .map(([cle, minutesOffertes]) => {
       const [jour, heure] = cle.split('-').map(Number);
-      return { jour, heure, nombre };
+      const minutesPrises = pris.get(cle) ?? 0;
+      return {
+        jour,
+        heure,
+        nombre: nombres.get(cle) ?? 0,
+        minutesPrises,
+        minutesOuvertes: minutesOffertes,
+        remplissage: pourcent(minutesPrises, minutesOffertes),
+      };
     })
-    .sort((a, b) => a.nombre - b.nombre || a.jour - b.jour || a.heure - b.heure)
+    // >>> TRIE PAR REMPLISSAGE CROISSANT, dans le sens du titre. <<< C'etait le
+    //     nombre de rendez-vous : deux heures a 6 et 19 rendez-vous pouvaient
+    //     etre remplies a 60 % et 20 %, et le classement les rangeait a
+    //     l'envers de ce qu'il annonce.
+    .sort((a, b) => a.remplissage - b.remplissage
+      || a.minutesPrises - b.minutesPrises
+      || a.jour - b.jour || a.heure - b.heure)
     .slice(0, 5);
 }
 
@@ -407,11 +521,22 @@ export async function tableauDeBord(maintenant = new Date()) {
     select: { customerPhone: true },
   });
 
+  // ⚠️ LA FENETRE S'ARRETE HIER, ET PAS AUJOURD'HUI. La journee en cours est
+  //    incomplete : ses heures a venir offriraient de la capacite que personne
+  //    n'a encore eu l'occasion de remplir, et creuseraient artificiellement
+  //    les fins de journee du jour de la semaine ou l'on regarde l'ecran.
   const debutRecul = addDaysIso(aujourdHui, -RECUL_SEMAINES * 7);
-  const pourLesCreux = await prisma.booking.findMany({
-    where: ouSontLesRendezVous(debutRecul, aujourdHui),
-    select: { date: true, startMin: true },
-  });
+  const finRecul = addDaysIso(aujourdHui, -1);
+
+  const [pourLesCreux, blocagesDuRecul] = await Promise.all([
+    prisma.booking.findMany({
+      where: ouSontLesRendezVous(debutRecul, finRecul),
+      select: { date: true, startMin: true, durationMin: true },
+    }),
+    prisma.booking.findMany({
+      where: { kind: 'block', date: { gte: debutRecul, lte: finRecul }, ...OCCUPENT },
+    }),
+  ]);
 
   return {
     aujourdHui,
@@ -434,7 +559,14 @@ export async function tableauDeBord(maintenant = new Date()) {
 
     prestations: parPrestation(duMois, prestations),
     equipe: parPersonne(duMois, equipe, prestations),
-    creneauxMorts: heuresCreuses(pourLesCreux, horaires),
+    creneauxMorts: heuresCreuses({
+      rendezVous: pourLesCreux,
+      blocages: blocagesDuRecul,
+      horaires,
+      equipe,
+      du: debutRecul,
+      au: finRecul,
+    }),
     clientele: nouveauxEtHabitues(duMois, anterieurs),
     absences: absences(duMois),
     reculSemaines: RECUL_SEMAINES,

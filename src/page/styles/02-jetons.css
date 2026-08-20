@@ -56,6 +56,21 @@
      d'erreur se distingue par sa place et son filet, pas par sa couleur. */
   --refus:        var(--encre);
 
+  /* CE QUI EST ETEINT — un controle qu'on montre sans pouvoir s'en servir : un
+     creneau deja pris, et rien d'autre pour l'instant.
+
+     LA VALEUR EST MESUREE, comme les couleurs au-dessus. De l'encre a 0,65
+     donne 5,14:1 sur craie : au-dessus des 4,5:1 exiges d'un texte, donc encore
+     lu par qui a besoin de le lire. Ne pas descendre plus bas — 0,60 fait
+     4,41:1 et passe sous le seuil.
+
+     ⚠️ ON ETEINT DE L'ENCRE, PAS DE L'ACIER. L'acier est deja le gris du texte
+        secondaire (5,95:1) : l'affaiblir encore le ferait tomber a 2,85:1, et
+        un creneau « au second plan » deviendrait un creneau qu'on ne peut plus
+        lire. C'est l'ecart de traitement — un cadre contre pas de cadre — qui
+        fait la hierarchie ici, pas la disparition du texte. */
+  --eteint: 0.65;
+
   /* --- TYPOGRAPHIE --------------------------------------------------------
 
      Une superfamille, trois cuts, trois roles, aucun chevauchement :

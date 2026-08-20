@@ -71,6 +71,7 @@ function peindreReglages() {
   peindreCategoriesReglages();
   peindrePrestationsReglages();
   peindreEquipeReglages();
+  peindreNoteGoogle();
   peindreAvisReglages();
   peindrePhotosReglages();
 
@@ -670,6 +671,72 @@ function peindreEquipeReglages() {
 
 // --- Les avis ---------------------------------------------------------------
 
+/**
+ * La note Google et le nombre d'avis.
+ *
+ * >>> ILS N'ETAIENT REGLABLES QUE PAR UN APPEL DIRECT A L'API. <<< Le
+ * commercant ne pouvait ni les corriger ni, surtout, LES REMETTRE A ZERO —
+ * c'est-a-dire retirer de sa vitrine une note qu'il n'a pas.
+ *
+ * ⚠️ CE N'EST PAS UN CHAMP COMME UN AUTRE. Afficher une note qu'on n'a pas est
+ *    une pratique commerciale trompeuse (article L111-7-2 du code de la
+ *    consommation). L'avertissement est ecrit dans le balisage, AU-DESSUS des
+ *    deux champs : il se lit avant qu'on tape, pas apres.
+ */
+function peindreNoteGoogle() {
+  const cible = $('#champsNoteGoogle');
+  if (!cible) return;
+
+  cible.innerHTML = '<div class="reglages-grille">'
+    + champTexte('reviews.rating', 'Note Google', {
+      type: 'number',
+      aide: "De 0 à 5, telle qu'elle est affichée sur votre fiche. Zéro "
+        + 'retire la note du site, partout.',
+    })
+    + champTexte('reviews.count', "Nombre d'avis", {
+      type: 'number',
+      aide: "Le compte exact de votre fiche. La case n'apparaît sur le site "
+        + 'que si les deux valeurs sont renseignées.',
+    })
+    + '</div>'
+    // L'avertissement vit dans son propre conteneur : il se remet a jour a la
+    // frappe (voir `majAlerteNoteGoogle()`) sans que les champs soient
+    // redessines — un champ redessine, c'est un curseur qui saute.
+    + '<div id="alerteNoteGoogle"></div>';
+
+  majAlerteNoteGoogle();
+}
+
+/** Recalcule le seul avertissement, sans toucher aux champs. */
+function majAlerteNoteGoogle() {
+  const cible = $('#alerteNoteGoogle');
+  if (cible) cible.innerHTML = alerteNoteSansFiche();
+}
+
+/**
+ * L'avertissement quand une note est saisie SANS lien vers la fiche.
+ *
+ * Un visiteur ne peut alors rien verifier : il lit « 4,8/5 · 87 avis » et n'a
+ * aucun moyen d'aller voir. C'est exactement ce que la loi regarde.
+ *
+ * ⚠️ IL N'EMPECHE PAS D'ENREGISTRER. Le commercant peut avoir de bonnes raisons
+ *    — une fiche en cours de creation, un lien qu'il ajoutera ce soir — et
+ *    c'est sa responsabilite, pas celle du logiciel. On le dit, on ne bloque
+ *    pas.
+ */
+function alerteNoteSansFiche() {
+  const note = Number(brouillon().reviews?.rating) || 0;
+  const lien = brouillon().salon?.links?.google || '';
+
+  if (!note || lien) return '';
+
+  return '<p class="avertissement">'
+    + 'Une note est affichée sans lien vers votre fiche Google : le visiteur '
+    + "n'a aucun moyen de la vérifier. Ajoutez le lien dans « Coordonnées », "
+    + 'ou remettez la note à zéro.'
+    + '</p>';
+}
+
 function peindreAvisReglages() {
   const cible = $('#champsAvis');
   if (!cible) return;
@@ -1072,6 +1139,15 @@ function brancherReglages() {
       const derniere = cles.pop();
       const objet = cles.reduce((o, c) => o[c], brouillon());
       objet[derniere] = champ.value;
+
+      // La note Google et le lien de la fiche se repondent : une note sans
+      // lien n'est pas verifiable par le visiteur, et l'ecran doit le dire au
+      // moment ou la saisie le rend vrai — pas au prochain chargement.
+      if (champ.dataset.chemin.startsWith('reviews.')
+          || champ.dataset.chemin === 'salon.links.google') {
+        majAlerteNoteGoogle();
+      }
+
       return marquerModifie();
     }
 

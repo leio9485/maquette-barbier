@@ -312,9 +312,32 @@
 
             <section class="reglages-bloc" id="reglagesAvis">
               <h2>Avis</h2>
+
+              <!--# LA NOTE GOOGLE, ET L'AVERTISSEMENT QUI VA AVEC (lot F, F1).
+
+                   Ces deux champs n'existaient nulle part dans l'écran : la
+                   note et le nombre d'avis ne se réglaient que par un appel
+                   direct à l'API. Un commerçant ne pouvait donc ni les
+                   corriger, ni — c'est le point — les remettre à zéro.
+
+                   ⚠️ L'AVERTISSEMENT EST AU-DESSUS DES CHAMPS, PAS EN DESSOUS.
+                      Afficher une note qu'on n'a pas est une pratique
+                      commerciale trompeuse (article L111-7-2 du code de la
+                      consommation, contrôles DGCCRF sur les avis en ligne).
+                      Le commerçant doit le lire AVANT de taper, pas après. #-->
+              <p class="avertissement">
+                Ces chiffres doivent provenir de votre fiche Google réelle.
+                Afficher une note que vous n'avez pas est une pratique
+                commerciale trompeuse. Laissez à zéro tant que vous n'avez pas
+                de fiche.
+              </p>
+
+              <div id="champsNoteGoogle"></div>
+
               <p class="secondaire petit">
-                Vide, la section disparaît du site. Le plus simple : recopier de
-                vrais avis de votre fiche Google.
+                Les avis ci-dessous, eux, s'affichent en toutes lettres. Vide, la
+                section disparaît du site. Le plus simple : recopier de vrais
+                avis de votre fiche Google.
               </p>
               <div id="champsAvis"></div>
               <button type="button" class="action-douce" id="ajouterAvis">Ajouter un avis</button>

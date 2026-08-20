@@ -161,4 +161,50 @@ console.log('\n6. La session');
   verifie('un echec de connexion ne pose aucun cookie', cookies.length === 0, cookies);
 }
 
+// --- 7. LE GARDE-FOU SUR LA NOTE GOOGLE (lot F, point F1) -----------------
+//
+// La vitrine affiche « 4,8/5 · 87 avis Google ». Sur une demonstration c'est
+// legitime — les mentions legales disent que le commerce est fictif — mais un
+// client qui reprend le gabarit sans avoir la fiche correspondante est en
+// infraction (article L111-7-2 du code de la consommation, controles DGCCRF
+// sur les avis en ligne).
+//
+// ⚠️ ET LES DEUX CHAMPS N'EXISTAIENT PAS DANS L'ECRAN. La note et le nombre ne
+//    se reglaient que par un appel direct a l'API : le commercant ne pouvait
+//    donc NI les corriger, NI — c'est le point — les remettre a zero.
+console.log('\n7. La note Google');
+{
+  // ⚠️ LES CHAMPS SONT PEINTS PAR LE JAVASCRIPT, comme tout le formulaire des
+  //    reglages : ce qui voyage dans le document, c'est l'appel qui les
+  //    fabrique. C'est aussi ce qu'on veut verifier — que le chemin existe et
+  //    qu'il est le bon.
+  verifie("la note se regle depuis l'ecran",
+    espace.html.includes("'reviews.rating'"), 'champ absent');
+  verifie("le nombre d'avis aussi",
+    espace.html.includes("'reviews.count'"), 'champ absent');
+  verifie('leur conteneur existe dans le balisage',
+    espace.html.includes('id="champsNoteGoogle"'), 'conteneur absent');
+
+  // ⚠️ ON CHERCHE UNE PHRASE D'UNE SEULE LIGNE. Le balisage servi garde ses
+  //    retours a la ligne : « une pratique commerciale trompeuse » est coupee
+  //    en deux dans le fichier, et la chercher entiere echouerait alors que le
+  //    texte est bien la.
+  verifie('>>> L\'AVERTISSEMENT EST DANS LE DOCUMENT SERVI <<<',
+    espace.html.includes('Ces chiffres doivent provenir de votre fiche Google'),
+    'avertissement absent');
+  verifie("il dit quoi faire quand on n'a pas de fiche",
+    espace.html.includes("Laissez à zéro tant que vous n'avez pas"), 'consigne absente');
+
+  // Il est AU-DESSUS des champs : le commercant doit le lire avant de taper.
+  const posAvertissement = espace.html.indexOf('Ces chiffres doivent provenir');
+  const posChamps = espace.html.indexOf('id="champsNoteGoogle"');
+  verifie('et il vient avant les champs, pas apres',
+    posAvertissement > 0 && posChamps > posAvertissement, [posAvertissement, posChamps]);
+
+  // Le second avertissement — une note sans lien de fiche — est ecrit par le
+  // JavaScript, qui voyage dans ce meme document.
+  verifie('une note sans lien vers la fiche est signalee',
+    espace.html.includes('aucun moyen de la vérifier'), 'alerte absente');
+}
+
 process.exitCode = bilan() === 0 ? 0 : 1;

@@ -8,7 +8,17 @@
    tarifaire, appliquée à un autre contenu. C'est ce qui fait que la page tient
    ensemble sans qu'aucune section n'ait de décor propre.
 */
-.equipe-liste { margin-top: var(--e4); }
+/* >>> LE BLOC FAISAIT 884 px POUR TROIS LIGNES. <<< Mesure, pas
+   impression : 483 px de liste pour trois personnes, dans une section de
+   884 px. Dans un metier ou le client choisit son barbier, c'etait la section
+   qui vendait le moins pour la place qu'elle prenait — trois prenoms et trois
+   metiers occupaient une hauteur d'ecran entiere.
+
+   Ce qui a ete resserre : le portrait garde une seule taille (voir plus bas),
+   la ligne passe a un espacement de 16, et cette marge de 40 a 24. Ce qui n'a
+   PAS bouge : la respiration de la section elle-meme (96 px), qui est la
+   charte et qui tient toute la page. */
+.equipe-liste { margin-top: var(--e3); }
 
 .equipe-personne {
   display: flex;
@@ -20,7 +30,10 @@
   flex-wrap: wrap;
   align-items: flex-start;
   gap: var(--e3);
-  padding: var(--e3) 0;
+  /* 16 et non 24 : la ligne ne porte plus que trois choses — un portrait, un
+     prenom, un metier — depuis que le bouton « Reserver avec X » est parti.
+     Le filet suffit a les separer. */
+  padding: var(--e2) 0;
   border-bottom: 1px solid var(--filet);
 }
 
@@ -134,9 +147,10 @@
   .equipe-personne { align-items: center; }
 }
 
-@media (min-width: 768px) {
-  .equipe-portrait { width: 112px; height: 112px; }
-}
+/* (Il y avait ici un `@media (min-width: 768px)` qui portait le portrait a
+   112 px. Retire : c'est lui qui faisait de chaque ligne 162 px de haut sur
+   un ecran d'ordinateur, et un portrait de 88 px se lit parfaitement. Trois
+   lignes y gagnent 78 px, sans qu'aucune information ne parte.) */
 
 /* --- LES AVIS --------------------------------------------------------------
 

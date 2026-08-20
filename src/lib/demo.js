@@ -195,19 +195,51 @@ const PREMIER_NOUVEAU = PREMIER_DE_PASSAGE + NOMBRE_DE_PASSAGE;
 const NOMBRE_NOUVEAUX = 60;
 
 /**
+ * Le brouillage des quatre derniers chiffres — lot F, point F2.
+ *
+ * >>> LES NUMEROS SE SUIVAIENT, ET CA SE VOYAIT DANS L'AGENDA. <<< Constate
+ * sur l'instance en ligne : `06 39 98 00 29`, `06 39 98 00 63`,
+ * `06 39 98 00 83`, `07 39 98 01 18`… Quatre lignes d'affilee suffisent a
+ * comprendre que les clients sont engendres, et un prospect qui le remarque en
+ * deduit que TOUT est faux — y compris les chiffres du tableau de bord, qui
+ * sont pourtant justes et recalculables.
+ *
+ * Un multiplicateur premier avec 10 000 fait une BIJECTION de 0..9999 sur
+ * lui-meme : chaque rang garde donc un numero qui n'appartient qu'a lui. C'est
+ * indispensable et pas decoratif — deux clients qui partageraient un numero
+ * n'en feraient qu'un seul dans l'export « clients » et dans le partage
+ * « nouveaux / deja venus » du tableau de bord, qui regroupent par telephone.
+ */
+const BROUILLAGE = 4177;   // premier avec 10 000
+const DECALAGE = 3391;
+
+/**
  * Une personne, designee par son rang.
  *
  * ⚠️ LES NUMEROS RESTENT DANS LA PLAGE RESERVEE A LA FICTION
  *    (06/07 39 98 XX XX) : une demonstration ne fait sonner le telephone de
- *    personne. Deux mille rangs y tiennent largement.
+ *    personne. C'est la plage de l'ARCEP pour le cinema et la television, et
+ *    le brouillage ci-dessus ne touche QUE les quatre derniers chiffres — il
+ *    ne peut donc pas en faire sortir.
+ *
+ * ⚠️ LE PREFIXE NE S'ALTERNE PLUS. Un 06 sur deux, c'etait le second signe
+ *    qu'une machine avait ecrit la liste. Il se tire du numero brouille, ce
+ *    qui melange les deux sans jamais rendre deux rangs identiques : les
+ *    quatre derniers chiffres suffisent deja a les distinguer.
  */
 function personneDeRang(rang) {
   const nom = `${PRENOMS[rang % PRENOMS.length]} ${NOMS[Math.floor(rang / PRENOMS.length) % NOMS.length]}`;
 
-  const prefixe = rang % 2 ? '07' : '06';
-  const reste = Math.floor(rang / 2);
-  const ab = String(Math.floor(reste / 100) % 100).padStart(2, '0');
-  const cd = String(reste % 100).padStart(2, '0');
+  const melange = (rang * BROUILLAGE + DECALAGE) % 10000;
+
+  // Le prefixe se tire d'un melange NON LINEAIRE du numero : toute fonction
+  // simple d'une suite arithmetique reste une suite arithmetique, et on
+  // retomberait sur un motif regulier — c'est-a-dire sur le defaut qu'on
+  // repare. Un decalage et deux « ou exclusif » suffisent a le casser.
+  const brouille = melange ^ (melange >> 3) ^ (melange << 2);
+  const prefixe = brouille & 1 ? '07' : '06';
+  const ab = String(Math.floor(melange / 100)).padStart(2, '0');
+  const cd = String(melange % 100).padStart(2, '0');
 
   return [nom, `${prefixe} 39 98 ${ab} ${cd}`];
 }

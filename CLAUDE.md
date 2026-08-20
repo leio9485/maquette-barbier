@@ -197,13 +197,49 @@ Trois disent ce que le site fait — pas d'acompte, pas de compte à créer,
 réservation à toute heure : c'est aussi ce qui distingue un rendez-vous pris ici
 d'un rendez-vous pris sur une plateforme.
 
-⚠️ **La note Google est le quatrième, et il part masqué.** `reviews` vaut zéro
-dans `defaults.js`, délibérément : ce commerce n'existe pas, il n'a pas de fiche
-Google, et un chiffre inventé affiché en grand est un chiffre faux. La case
-apparaît dès qu'une note est saisie, ainsi que son rappel en tête de la section
-« Avis » et le lien « Lire les avis sur Google » (celui-ci suit
-`salon.links.google`, vide lui aussi). **Sur la démonstration, ces deux champs
-sont donc les deux lignes à remplir pour montrer la section complète.**
+⚠️ **La note Google est le quatrième, et il ne s'affiche que s'il y a une note.**
+La case apparaît dès qu'une note **et** un nombre d'avis sont saisis, avec son
+rappel en tête de la section « Avis » ; le lien « Lire les avis sur Google »,
+lui, suit `salon.links.google`. Zéro fait disparaître les trois.
+
+⚠️ **`defaults.js` porte 4,8 et 87 — des chiffres INVENTÉS, et c'est un choix
+assumé pour la démonstration seule.** Le raisonnement complet, y compris
+l'argument contraire, est écrit au-dessus de la valeur ; les deux garde-fous
+sont l'en-tête `noindex` de la démonstration et l'absence de données
+structurées `aggregateRating`. **À remettre à zéro, ou à remplacer par les vrais
+chiffres de la fiche, dès la première instance client.**
+
+⚠️ **C'est pour cela que les deux champs existent dans les Réglages, et qu'un
+avertissement les précède** — « afficher une note que vous n'avez pas est une
+pratique commerciale trompeuse » (article L111-7-2 du code de la consommation).
+Ils ne se réglaient que par un appel direct à l'API : le commerçant ne pouvait
+ni les corriger, ni — c'est le point — **les remettre à zéro**.
+
+⚠️ **Une note saisie sans lien de fiche est signalée, et n'est pas bloquée.** Le
+visiteur n'aurait alors aucun moyen de la vérifier. Mais le commerçant peut
+avoir une fiche en cours de création : on le dit, on ne l'empêche pas. Le
+message se met à jour à la frappe, dans les deux sens.
+
+### La section Équipe, et ce qu'elle coûtait en hauteur
+
+**884 px pour trois lignes — mesuré, pas ressenti.** Dans un métier où le client
+choisit son barbier, c'était la section qui vendait le moins pour la place
+qu'elle prenait : trois prénoms et trois métiers sur une hauteur d'écran
+entière. Trois réglages l'ont ramenée à 748 px, et aucun ne retire une
+information : le portrait garde **une seule taille** (88 px — le
+`@media (min-width: 768px)` qui le portait à 112 est parti, à lui seul 78 px sur
+trois lignes), la ligne passe à un espacement de 16, la liste démarre à 24 du
+titre.
+
+⚠️ **La respiration de la section elle-même n'a pas bougé** (96 px en haut et en
+bas, comme toutes les autres). C'est la charte, et c'est ce qui tient la page :
+la resserrer ici la déséquilibrerait partout.
+
+**Le repli par initiale reste**, et c'est le bon comportement quand aucune photo
+n'est déposée. ⚠️ **Le portrait, lui, se téléverse depuis Réglages → Équipe
+depuis le lot 6** — bouton « Choisir une photo », réduction dans le navigateur
+à 240 × 240, « Retirer » pour revenir à l'initiale. Chez un vrai client, c'est
+le premier geste à faire.
 
 ### Ce que la démonstration ne peut pas enregistrer
 
@@ -726,6 +762,22 @@ vérifier qu'il n'existe pas, obtient une session valide, et six contrôles d'ac
 passent alors au vert à tort. Si des tests d'autorisation échouent
 inexplicablement, chercher d'abord un compte `demo` résiduel.
 
+**Les numéros de la démonstration ne se suivent plus.** Ils sortaient dans
+l'ordre — `06 39 98 00 29`, `06 39 98 00 63`, `06 39 98 00 83`,
+`07 39 98 01 18` — et quatre lignes d'agenda suffisaient à comprendre que les
+clients sont engendrés. Le prospect qui le remarque doute alors de tout le
+reste, y compris des chiffres du tableau de bord, qui sont pourtant justes et
+recalculables.
+
+⚠️ **La plage de fiction n'a pas bougé** (`06/07 39 98 XX XX`, celle que l'ARCEP
+réserve au cinéma) : le brouillage ne touche que les quatre derniers chiffres.
+
+⚠️ **Et il reste une bijection.** Un multiplicateur premier avec 10 000 garantit
+qu'aucun rang ne partage son numéro avec un autre. Ce n'est pas de la
+coquetterie : l'export « clients » et le partage « nouveaux / déjà venus »
+regroupent **par téléphone**, et deux numéros identiques feraient d'eux une
+seule personne — les chiffres qu'on montre au prospect deviendraient faux.
+
 **Les journées n'ont pas toutes les mêmes heures.** Nocturne le vendredi
 jusqu'à 21 h, samedi en journée continue de 8 h 30 à 17 h. Tout code qui écrit
 une heure en dur — un test, un rendez-vous de démonstration — doit vérifier
@@ -883,7 +935,7 @@ Changer l'un sans l'autre remet les titres de section sous la barre.
 npm test
 ```
 
-**1 097 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
+**1 110 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
 `.env`.
 
 ⚠️ **`npm run dev` ne convient pas pour lancer la suite.** `node --watch`
@@ -951,6 +1003,29 @@ machine — un serveur, une suite de tests, un autre Chrome — pour qu'il
 quadruple. **Mesurer trois fois et retenir la médiane**, sinon on part
 chasser une régression qui n'existe pas. C'est le même piège que la mesure
 sur instance froide décrite dans `RAPPORT.md` § 7.
+
+### La hauteur de la vitrine, et pourquoi elle ne descendra pas beaucoup plus
+
+**6 791 px avant le lot F, 6 655 après** (1440 × 900). Un audit a demandé de la
+ramener « sous 9 écrans », en resserrant **uniquement les zones
+mesurément vides**. Les zones en question ont été mesurées, une par une :
+
+| Zone | Ce qu'on y trouve |
+|---|---|
+| Bloc Équipe | 884 px pour trois lignes → **748** (voir plus haut) |
+| Bas du bloc Contact | 196 px de colonne gauche vide à 1440 px — mais c'est une **colonne de grille** que le plan, plus haut, allonge ; la retirer ne raccourcit pas la page, et à 768 px les colonnes s'empilent, il n'y a plus rien de vide |
+| Blancs inter-sections | le plus grand fait **192 px** (2 × 96) : aucun n'approche la hauteur d'un écran |
+| Prestations, 1 893 px | treize prestations en quatre rayons — du contenu, pas du vide |
+
+⚠️ **La cible chiffrée n'est pas atteignable sans toucher au rythme des
+sections.** Il faudrait retirer ~1 040 px ; les zones réellement vides en
+contiennent ~140, que le lot F a prises. Le reste ne peut venir que des 96 px
+de respiration en tête et en pied de chaque section — 1 728 px au total, la
+règle qui donne à la page sa tenue, et que le même audit demande de ne pas
+sacrifier. **Les deux moitiés de la consigne se contredisent ; c'est la charte
+qui tranche** (voir « Ce qu'une direction sans ornement demande en échange » :
+une page épurée dont on serre les blancs ne se lit pas plus dense, elle se lit
+inachevée).
 
 Rendu vérifié après la reprise en 390, 768 et 1440 px : aucun défilement
 horizontal, aucune cible tactile sous 24 px, aucune combinaison de couleurs

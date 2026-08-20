@@ -427,6 +427,87 @@ try {
       datesSansAujourdhui === 0, datesSansAujourdhui);
   }
 
+  // --- LES NUMEROS DE TELEPHONE DE DEMONSTRATION (lot F, point F2) --------
+  //
+  // >>> ILS SE SUIVAIENT, ET CA SE VOYAIT DANS L'AGENDA. <<< Constate sur
+  // l'instance en ligne : 06 39 98 00 29, 06 39 98 00 63, 06 39 98 00 83,
+  // 07 39 98 01 18. Quatre lignes suffisent a comprendre que les clients sont
+  // engendres — et un prospect qui le remarque doute de tout le reste, y
+  // compris des chiffres du tableau de bord, qui sont pourtant justes.
+  console.log('\nLes numeros de telephone');
+  {
+    const lignes = rendezVousDemo({ equipe: DEFAULT_CONFIG.staff.map((p) => p.id) })
+      .filter((l) => l.kind !== 'block' && l.customerPhone);
+
+    const numeros = lignes.map((l) => l.customerPhone);
+
+    verifie('la demonstration engendre bien des numeros', numeros.length > 50, numeros.length);
+
+    // ⚠️ LA PLAGE DE FICTION N'A PAS BOUGE : 06/07 39 98 XX XX est celle que
+    //    l'ARCEP reserve au cinema et a la television. Une demonstration ne
+    //    fait sonner le telephone de personne.
+    const horsPlage = numeros.filter((n) => !/^0[67] 39 98 \d{2} \d{2}$/.test(n));
+    verifie('tous restent dans la plage reservee a la fiction',
+      horsPlage.length === 0, horsPlage.slice(0, 3));
+
+    // Les deux prefixes se melangent, sans alternance.
+    const sept = numeros.filter((n) => n.startsWith('07')).length;
+    verifie('les deux prefixes coexistent',
+      sept > 0 && sept < numeros.length, { sept, total: numeros.length });
+
+    // >>> ET SURTOUT : DEUX CLIENTS DIFFERENTS N'ONT PAS LE MEME NUMERO. <<<
+    //     L'export « clients » et le partage « nouveaux / deja venus » du
+    //     tableau de bord regroupent PAR TELEPHONE : deux numeros identiques
+    //     feraient d'eux une seule personne, et les chiffres qu'on montre au
+    //     prospect deviendraient faux.
+    const parNom = new Map();
+    for (const l of lignes) {
+      if (!parNom.has(l.customerName)) parNom.set(l.customerName, new Set());
+      parNom.get(l.customerName).add(l.customerPhone);
+    }
+    const nomsADeuxNumeros = [...parNom].filter(([, n]) => n.size > 1).map(([nom]) => nom);
+    verifie("un client garde le meme numero d'un rendez-vous a l'autre",
+      nomsADeuxNumeros.length === 0, nomsADeuxNumeros.slice(0, 3));
+
+    const parNumero = new Map();
+    for (const l of lignes) {
+      if (!parNumero.has(l.customerPhone)) parNumero.set(l.customerPhone, new Set());
+      parNumero.get(l.customerPhone).add(l.customerName);
+    }
+    const numerosPartages = [...parNumero].filter(([, n]) => n.size > 1).map(([num]) => num);
+    verifie(">>> ET DEUX CLIENTS N'ONT JAMAIS LE MEME <<<",
+      numerosPartages.length === 0, numerosPartages.slice(0, 3));
+
+    // LE DEFAUT LUI-MEME : des numeros qui se suivent. On regarde les quatre
+    // derniers chiffres des rendez-vous VOISINS dans l'agenda — c'est dans cet
+    // ordre-la que le prospect les lit.
+    const parJour = new Map();
+    for (const l of lignes) {
+      if (!parJour.has(l.date)) parJour.set(l.date, []);
+      parJour.get(l.date).push(l);
+    }
+
+    let voisinsQuiSeSuivent = 0;
+    let voisinsComptes = 0;
+    for (const jour of parJour.values()) {
+      const ordonnes = [...jour].sort((a, b) => a.startMin - b.startMin);
+      for (let i = 1; i < ordonnes.length; i++) {
+        const quatre = (n) => Number(n.slice(-5).replace(' ', ''));
+        voisinsComptes++;
+        if (Math.abs(quatre(ordonnes[i].customerPhone) - quatre(ordonnes[i - 1].customerPhone)) <= 100) {
+          voisinsQuiSeSuivent++;
+        }
+      }
+    }
+
+    // Au hasard, deux numeros voisins tombent a moins de 100 l'un de l'autre
+    // environ deux fois sur cent. On accepte large — c'est un test de motif,
+    // pas de hasard parfait — mais l'ancienne version en donnait la moitie.
+    verifie('>>> LES NUMEROS VOISINS NE SE SUIVENT PLUS <<<',
+      voisinsQuiSeSuivent / voisinsComptes < 0.15,
+      { voisinsQuiSeSuivent, voisinsComptes });
+  }
+
   code = bilan();
 } finally {
   arreterServeur();

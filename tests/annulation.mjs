@@ -25,6 +25,9 @@
 // test` dans le quart d'heure echouerait d'un bout a l'autre.
 // ---------------------------------------------------------------------------
 
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+
 import {
   creerClient,
   clientConnecte,
@@ -33,6 +36,7 @@ import {
   prochainJourOuvert,
   BASE,
 } from './helpers.mjs';
+import { ROOT_DIR } from '../src/config.js';
 
 const { verifie, bilan } = creerVerificateur();
 
@@ -580,6 +584,102 @@ try {
       reference: aDeplacer.reference, telephone: QUATRE,
     });
     verifie('le jeton juste a debloque la ligne', r.status === 200, r.status);
+  }
+
+  // --- L'ECRAN APRES L'ANNULATION -------------------------------------------
+  //
+  // >>> UN RENDEZ-VOUS ANNULE NE S'AJOUTE PLUS A UN AGENDA. <<<
+  //
+  // « Ajouter a mon agenda » restait affiche, et cliquable, sous « Le
+  // rendez-vous est annule ». Le client repartait avec un fichier .ics pour un
+  // rendez-vous qui n'existe plus, et un evenement fantome dans son agenda, a
+  // l'heure exacte ou il ne doit pas se presenter. C'est pire que pas de bouton
+  // du tout : l'agenda, lui, n'a aucun moyen d'apprendre l'annulation.
+  //
+  // ⚠️ CE COMPORTEMENT VIT DANS LE NAVIGATEUR, et une suite qui ne parlerait
+  //    qu'au serveur ne le verrait jamais. On evalue donc LE VRAI MORCEAU de la
+  //    page, comme tests/ics.mjs le fait pour le fichier d'agenda : le fichier
+  //    ne declare que des fonctions, aucune ligne ne s'execute a l'evaluation,
+  //    et les seules choses qu'il regarde en dehors de ses arguments sont
+  //    passees en parametres. Le code du site n'est pas modifie d'un caractere.
+  console.log('\n10. L\'ecran de confirmation, une fois le rendez-vous annule');
+  {
+    const source = await readFile(
+      path.join(ROOT_DIR, 'src', 'page', 'js', '07-tunnel.js'), 'utf8');
+
+    /** Les deux boutons de l'ecran 04, et leur visibilite. */
+    const boutons = {
+      '#ajouterAgenda': { hidden: false, disabled: false },
+      '#annulerReservation': { hidden: false, disabled: false },
+      '#messageAnnulation': { hidden: true, textContent: '' },
+    };
+
+    // ⚠️ ON NE FOURNIT QUE CE QUE LE FICHIER N'A PAS. `allerEtape()`,
+    //    `peindreFiche()` et `defilerVersTunnel()` sont declares DANS
+    //    07-tunnel.js : un parametre du meme nom serait masque par la
+    //    declaration, et c'est le vrai code qui tournerait — ce qu'on veut. Ils
+    //    ne demandent alors rien d'autre que `$` et `$$`, et s'arretent d'eux-
+    //    memes sur les elements absents.
+    const usine = new Function(
+      '$', '$$', 'montrer', 'afficherMessage', 'poserTexte', 'dateLongue', 'fmtHeure',
+      'annulerReservation', 'annulerParReference', 'oublierRendezVous',
+      'document', 'CONFIG',
+      `${source}\nreturn { demanderAnnulation, confirmer, RESERVATION };`);
+
+    const tunnel = usine(
+      (selecteur) => boutons[selecteur] ?? null,
+      () => [],
+      (element, visible = true) => { if (element) element.hidden = !visible; },
+      (element, texte) => { if (element) element.textContent = texte; },
+      () => {},
+      () => '',
+      () => '',
+      async () => ({ ok: true }),
+      async () => ({ ok: true }),
+      () => {},
+      { dispatchEvent: () => {} },
+      { staff: [] },
+    );
+
+    // On arrive de la reservation : identifiant, jeton, et la matiere du .ics.
+    tunnel.RESERVATION.confirmee = { id: 'rdv-de-test', cancelToken: 'jeton', reference: 'MQJYBK' };
+    tunnel.RESERVATION.pourAgenda = { date: JOUR, start: 570, duree: 25, reference: 'MQJYBK' };
+
+    verifie('avant : les deux boutons sont affiches',
+      boutons['#ajouterAgenda'].hidden === false
+      && boutons['#annulerReservation'].hidden === false,
+      [boutons['#ajouterAgenda'].hidden, boutons['#annulerReservation'].hidden]);
+
+    await tunnel.demanderAnnulation();
+
+    verifie('« Annuler ce rendez-vous » disparait',
+      boutons['#annulerReservation'].hidden === true, boutons['#annulerReservation'].hidden);
+    verifie('>>> « AJOUTER A MON AGENDA » DISPARAIT AVEC LUI <<<',
+      boutons['#ajouterAgenda'].hidden === true, boutons['#ajouterAgenda'].hidden);
+
+    // La matiere du fichier part aussi, et pas seulement le bouton : sans cela,
+    // tout chemin qui remontrerait le bouton ecrirait encore l'ancien
+    // rendez-vous.
+    verifie('et la matiere du fichier .ics est effacee',
+      tunnel.RESERVATION.pourAgenda === null, tunnel.RESERVATION.pourAgenda);
+
+    // >>> LE MEME ECRAN DOIT REDEVENIR COMPLET. <<< « Prendre un autre
+    //     rendez-vous » ramene a l'etape 1, et l'ecran de confirmation suivant
+    //     doit retrouver SES DEUX boutons — sans quoi le correctif aurait
+    //     simplement deplace le defaut d'un cran : plus d'evenement fantome,
+    //     mais plus d'ajout a l'agenda du tout apres la premiere annulation.
+    tunnel.RESERVATION.prestation = { name: 'Coupe homme', duration: 25 };
+    tunnel.confirmer({
+      date: JOUR, start: 600, duration: 25, reference: 'PQRSTV', staffId: null,
+    });
+
+    verifie('>>> UNE NOUVELLE RESERVATION LES REMONTRE TOUS LES DEUX <<<',
+      boutons['#ajouterAgenda'].hidden === false
+      && boutons['#annulerReservation'].hidden === false,
+      [boutons['#ajouterAgenda'].hidden, boutons['#annulerReservation'].hidden]);
+    verifie('et la matiere du fichier .ics est de nouveau posee',
+      tunnel.RESERVATION.pourAgenda?.reference === 'PQRSTV',
+      tunnel.RESERVATION.pourAgenda);
   }
 } finally {
   // Menage : la base doit retrouver son etat initial.

@@ -292,7 +292,16 @@
                 rendez-vous, pas celui qui l'efface.
 
              Le bouton se retire tout seul si le navigateur ne sait pas
-             télécharger un fichier fabriqué sur place. #-->
+             télécharger un fichier fabriqué sur place.
+
+             ⚠️ IL DISPARAÎT AUSSI QUAND LE RENDEZ-VOUS EST ANNULÉ. Il restait
+                affiché sous « Le rendez-vous est annulé », et cliquable : le
+                client repartait avec un fichier .ics pour un rendez-vous qui
+                n'existe plus, et un événement fantôme dans son agenda, à
+                l'heure exacte où il ne doit pas se présenter. C'est pire que
+                pas de bouton du tout — l'agenda, lui, n'a aucun moyen
+                d'apprendre l'annulation. Voir `demanderAnnulation()` dans
+                js/07-tunnel.js. #-->
         <div class="tunnel-actions-fin">
           <button type="button" class="action-douce" id="ajouterAgenda">Ajouter à mon agenda</button>
           <button type="button" class="action-douce" id="annulerReservation">Annuler ce rendez-vous</button>

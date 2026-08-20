@@ -726,6 +726,16 @@ function confirmer(reponse) {
     version: 0,
   };
 
+  // ⚠️ LES DEUX BOUTONS SE REMONTRENT ENSEMBLE, et pas seulement le premier.
+  //    Une annulation masque les deux (voir `demanderAnnulation()`) ; sans
+  //    cette ligne, prendre un nouveau rendez-vous dans la foulée — ce que
+  //    « Prendre un autre rendez-vous » propose juste en dessous — aboutissait à
+  //    un écran de confirmation sans « Ajouter à mon agenda ».
+  //
+  //    `montrer()` ne fait rien si l'élément n'existe pas : sur un navigateur
+  //    incapable de télécharger un fichier fabriqué sur place, le bouton a été
+  //    retiré du document (`preparerBoutonAgenda()`) et il le reste.
+  montrer($('#ajouterAgenda'), true);
   montrer($('#annulerReservation'), true);
   afficherMessage($('#messageAnnulation'), '');
   allerEtape(4);
@@ -756,6 +766,22 @@ async function demanderAnnulation() {
 
     afficherMessage(message, 'Le rendez-vous est annulé. Le créneau repart à quelqu\'un d\'autre.', 'bon');
     montrer(bouton, false);
+
+    // >>> « AJOUTER À MON AGENDA » PART AVEC LUI. <<<
+    //
+    // Il restait affiché, et cliquable, sous « Le rendez-vous est annulé » : le
+    // client repartait avec un fichier .ics pour un rendez-vous qui n'existe
+    // plus, et un événement fantôme dans son agenda — à l'heure exacte où il ne
+    // doit pas se présenter. C'est pire que pas de bouton du tout, parce que
+    // l'agenda, lui, n'a aucun moyen d'apprendre l'annulation.
+    //
+    // Le fichier se fabrique dans le navigateur, à partir de
+    // `RESERVATION.pourAgenda` (js/07-mon-agenda.js) : on efface aussi la
+    // matière, et pas seulement le bouton. Sans cela, un chemin qui remontrerait
+    // le bouton sans repasser par une réservation écrirait encore l'ancien
+    // rendez-vous.
+    montrer($('#ajouterAgenda'), false);
+    RESERVATION.pourAgenda = null;
 
     // Le tiroir du navigateur suit, sinon le bandeau « Votre rendez-vous »
     // continuerait de l'annoncer en haut de la vitrine.
@@ -1022,6 +1048,9 @@ function confirmerDeplacement(rdv, preuve) {
   // et la preuve qui vient de servir au deplacement lui convient telle quelle,
   // jeton OU quatre chiffres. On la garde donc pour l'ecran de confirmation.
   RESERVATION.preuve = preuve;
+  // Les deux boutons ensemble, comme après une réservation : une annulation
+  // précédente a pu les masquer tous les deux.
+  montrer($('#ajouterAgenda'), true);
   montrer($('#annulerReservation'), true);
   afficherMessage($('#messageAnnulation'), '');
 

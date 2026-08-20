@@ -126,9 +126,25 @@ donne au site une devanture au lieu d'un document.
 **Le bandeau d'état**, collé en haut de chaque page (`src/lib/etat.js`) :
 
 ```
-OUVERT · FERME À 19H00 · PROCHAIN CRÉNEAU AUJOURD'HUI 16H45   [ RÉSERVER ]
-FERMÉ · OUVRE DEMAIN 9H00 · PROCHAIN CRÉNEAU DEMAIN 9H30      [ RÉSERVER ]
+OUVERT · FERME À 19H00 · PROCHAIN CRÉNEAU AUJOURD'HUI DÈS 16H45  [ RÉSERVER ]
+FERMÉ · OUVRE DEMAIN 9H00 · PROCHAIN CRÉNEAU DEMAIN DÈS 9H30     [ RÉSERVER ]
 ```
+
+⚠️ **« DÈS », et ce mot répare une contradiction visible à l'écran.** Relevé le
+20 août : le bandeau annonçait « PROCHAIN CRÉNEAU AUJOURD'HUI 17H15 » pendant
+que le tunnel barrait 17:15 et proposait 17:30. Les deux avaient raison — le
+bandeau compte sur la prestation la plus **courte** (`prestationDeReference()`,
+15 min), le tunnel sur celle que le visiteur a choisie (25 min), qui ne tient
+pas dans le même trou. Le calcul du bandeau est le bon : le visiteur n'a encore
+rien choisi, et prendre la plus longue afficherait une disponibilité plus
+lointaine que la réalité pour la majorité des visites. C'était donc la
+**formulation** qui était fausse, et une formulation se corrige sans rien payer.
+
+⚠️ **La variante « calculer sur la prestation la plus réservée » a été
+écartée.** Elle demanderait un regroupement sur la table des rendez-vous à
+chaque affichage du bandeau — donc à chaque visite — pour *déplacer* l'écart
+sans le supprimer : une prestation plus longue que la plus réservée retomberait
+dans le même décalage, et « dès » resterait nécessaire.
 
 C'est là que passe **toute** l'audace du site, et nulle part ailleurs. Il se
 justifie sur trois plans : la question qu'on se pose en arrivant sur la page d'un

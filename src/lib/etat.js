@@ -82,6 +82,26 @@ function quandParle(dateIso, aujourdhui) {
  * Prendre la plus longue afficherait une disponibilite plus lointaine que la
  * realite pour la majorite des visites ; le tunnel, lui, recalcule tout depuis
  * la prestation reellement choisie, et c'est lui qui fait foi.
+ *
+ * >>> ET C'EST POUR CELA QUE LA PHRASE DIT « DÈS ». <<<
+ *
+ * Releve le 20 aout : le bandeau annoncait « PROCHAIN CRÉNEAU AUJOURD'HUI
+ * 17H15 », et dans le tunnel 17:15 etait barre — le premier creneau reel etait
+ * 17:30. Les deux avaient raison : le bandeau comptait sur « Coupe a la
+ * tondeuse » (15 min), le tunnel sur « Coupe homme » (25 min), qui ne tient pas
+ * dans le meme trou. C'etait donc la FORMULATION qui etait fausse, pas le
+ * calcul, et une formulation se corrige sans rien payer.
+ *
+ * « PROCHAIN CRÉNEAU AUJOURD'HUI DÈS 17H15 » est vrai dans tous les cas : rien
+ * n'est disponible avant, et ce qui l'est a partir de la depend de ce qu'on
+ * vient faire. C'est aussi ce qu'un barbier repond au telephone.
+ *
+ * ⚠️ LA VARIANTE « CALCULER SUR LA PRESTATION LA PLUS RESERVEE » A ETE ECARTEE.
+ *    Elle demanderait un regroupement sur la table des rendez-vous a CHAQUE
+ *    affichage du bandeau, c'est-a-dire a chaque visite et a chaque appel de
+ *    /api/status — pour deplacer l'ecart de quinze minutes sans le supprimer :
+ *    une prestation plus longue que la plus reservee retomberait dans le meme
+ *    decalage, et « dès » resterait necessaire.
  */
 async function prestationDeReference() {
   const prestations = await prisma.service.findMany({
@@ -210,7 +230,12 @@ export async function etatDuMoment(maintenant = new Date()) {
       });
 
       if (creneau) {
-        prochain = `PROCHAIN CRÉNEAU ${quandParle(creneau.date, aujourdhui)} ${heureParlee(creneau.start)}`;
+        // « DÈS » : voir `prestationDeReference()`. L'heure est celle de la
+        // prestation la plus COURTE ; une plus longue ne tiendra pas forcement
+        // dans ce trou-la, et le tunnel affichera alors un premier creneau plus
+        // tardif. Sans ce mot, le bandeau et le tunnel se contredisent a
+        // l'ecran pour deux calculs pourtant justes tous les deux.
+        prochain = `PROCHAIN CRÉNEAU ${quandParle(creneau.date, aujourdhui)} DÈS ${heureParlee(creneau.start)}`;
       }
     }
 

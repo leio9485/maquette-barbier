@@ -39,6 +39,16 @@ const addJours = (iso, n) => {
   return d.toISOString().slice(0, 10);
 };
 
+// >>> CE QUE LA SECTION 10 POSE, ET QU'IL FAUT RETIRER QUOI QU'IL ARRIVE. <<<
+//
+// Elle FERME les journees qui precedent JOUR, pour forcer le bandeau a repondre
+// sur JOUR. Un echec au milieu de la section les laisserait fermees : le
+// commerce paraitrait ferme toute la semaine, et les suites suivantes
+// echoueraient toutes pour une raison qui n'a rien a voir avec ce qu'elles
+// verifient. Le menage est donc dans le `finally`, jamais a la fin du bloc.
+let fermetureDuBandeau = null;
+let bouchonDuBandeau = null;
+
 console.log(`Journee de test : ${JOUR}\n`);
 
 try {
@@ -452,14 +462,129 @@ try {
     verifie('les reglages sont remis en etat', retour.status === 200, retour.status);
   }
 
-  // --- 10. Divers ---------------------------------------------------------
-  console.log('\n10. Divers');
+  // --- 10. LE BANDEAU D'ETAT, ET SON « DÈS » -------------------------------
+  //
+  // >>> LE BANDEAU ET LE TUNNEL ANNONCAIENT DEUX HEURES DIFFERENTES. <<<
+  //
+  // Releve le 20 aout : « PROCHAIN CRÉNEAU AUJOURD'HUI 17H15 » en haut de la
+  // page, et 17:15 barre dans le tunnel, dont le premier creneau reel etait
+  // 17:30. Les deux calculs etaient justes : le bandeau compte sur la
+  // prestation la plus COURTE (`prestationDeReference()`), le tunnel sur celle
+  // que le visiteur vient de choisir, qui ne tient pas dans le meme trou.
+  // C'etait la FORMULATION qui etait fausse.
+  //
+  // Cette section reconstruit exactement ce cas, et verifie les deux choses
+  // qu'il met en jeu :
+  //
+  //   1. le bandeau compte bien sur la plus courte, MEME QUAND CE N'EST PAS LA
+  //      PREMIERE DU CATALOGUE — « Contours » dure 10 min et se trouve en
+  //      position 7 ;
+  //   2. la phrase dit « DÈS », le seul mot qui la rende vraie dans les deux
+  //      cas a la fois.
+  console.log('\n10. Le bandeau d\'etat');
+  {
+    const AUJOURDHUI = new Date();
+    const iso = `${AUJOURDHUI.getFullYear()}-${String(AUJOURDHUI.getMonth() + 1).padStart(2, '0')}-${String(AUJOURDHUI.getDate()).padStart(2, '0')}`;
+    const VEILLE = addJours(JOUR, -1);
+
+    // On ferme tout ce qui precede JOUR : le bandeau doit alors repondre sur
+    // JOUR, et sur lui seul. `prochainJourOuvert()` rend toujours aujourd'hui
+    // + 2 au moins, la plage n'est donc jamais vide et ne touche jamais JOUR.
+    const ferme = await salon.appel('POST', '/api/admin/day-block',
+      { date: iso, to: VEILLE, motif: 'Sonde du bandeau' });
+    verifie('les jours qui precedent sont fermes', ferme.status === 201, ferme.donnees);
+    if (ferme.status === 201) fermetureDuBandeau = { date: iso, to: VEILLE };
+
+    // UN BOUCHON JUSTE APRES LE PREMIER CRENEAU LIBRE, et il laisse exactement
+    // un quart d'heure derriere lui.
+    //
+    //   Contours (10 min) a S : [S, S+10) — libre.
+    //   Coupe homme (25 min) a S : [S, S+25) — mord sur [S+15, S+30), pris.
+    //
+    // ⚠️ S EST CALCULE, PAS ECRIT EN DUR. Les sections precedentes de cette
+    //    suite reservent sur la meme journee : une heure figee etait deja prise
+    //    au moment ou l'on arrive ici, et le test echouait sous `npm test` tout
+    //    en passant seul. L'heure doit en outre tomber sur la grille (pas de
+    //    15 min), sinon la route refuse — a juste titre — « Cette heure ne
+    //    correspond a aucun creneau propose ».
+    const vueCourte = await visiteur.appel('GET', `/api/slots?date=${JOUR}&serviceId=contours`);
+    const grille = vueCourte.donnees?.slots ?? [];
+    const S = grille.find((c, i) => c.free && grille[i + 1]?.free
+      && grille[i + 1].start === c.start + 15)?.start;
+    verifie('un creneau libre suivi d\'un autre existe', Number.isInteger(S), S);
+
+    const bouchon = await salon.appel('POST', '/api/admin/bookings', {
+      date: JOUR, start: S + 15, serviceId: 'coupe-tondeuse', name: 'Bouchon (test)',
+    });
+    verifie('le bouchon d\'un quart d\'heure est pose', bouchon.status === 201, bouchon.donnees);
+
+    const etat = await visiteur.appel('GET', '/api/status');
+    verifie('le bandeau repond', etat.status === 200, etat.status);
+
+    verifie('>>> LA PHRASE DIT « DÈS » <<<',
+      /PROCHAIN CRÉNEAU .+ DÈS \d+H\d\d/.test(etat.donnees?.prochain ?? ''),
+      etat.donnees?.prochain);
+
+    // L'heure attendue, ecrite comme le bandeau l'ecrit : sans zero initial.
+    const attendue = `${Math.floor(S / 60)}H${String(S % 60).padStart(2, '0')}`;
+    verifie(`elle annonce bien ${attendue}`,
+      etat.donnees?.prochain?.endsWith(`DÈS ${attendue}`), [etat.donnees?.prochain, attendue]);
+
+    // >>> ET C'EST LA QUE LE MOT SE JUSTIFIE. <<< A la meme heure, le tunnel
+    //     refuse ce creneau pour une prestation ordinaire : le bandeau ne
+    //     promet donc pas « telle heure », il promet « rien avant telle heure ».
+    const tunnel = await visiteur.appel('GET', `/api/slots?date=${JOUR}&serviceId=coupe-homme`);
+    const aS = (tunnel.donnees?.slots ?? []).find((c) => c.start === S);
+    verifie('a la meme heure, une coupe homme ne tient pas dans ce trou',
+      aS?.free === false, aS);
+
+    const premierLibreLong = (tunnel.donnees?.slots ?? []).find((c) => c.free)?.start;
+    verifie('son premier creneau reel est plus tard',
+      premierLibreLong > S, [S, premierLibreLong]);
+
+    // >>> LA PLUS COURTE, PAS LA PREMIERE DU CATALOGUE. <<< C'est le cas de
+    //     figure demande, et la base l'offre telle quelle : « Contours » dure
+    //     10 min et occupe la position 7, alors que la premiere du catalogue en
+    //     dure 25. On ne se contente donc pas de comparer deux identifiants —
+    //     on verifie que la PREMIERE ne tient pas dans le trou qu'on vient de
+    //     laisser. Un bandeau qui la prendrait n'aurait pas pu annoncer cette
+    //     heure-la.
+    const catalogue = await visiteur.appel('GET', '/api/config');
+    const actives = (catalogue.donnees?.services ?? []).filter((s) => s.active !== false);
+    const plusCourte = [...actives].sort((a, b) => a.duration - b.duration)[0];
+    verifie('la plus courte du catalogue n\'est pas la premiere',
+      plusCourte && actives[0] && plusCourte.id !== actives[0].id,
+      [plusCourte?.id, actives[0]?.id]);
+
+    const premiere = await visiteur.appel('GET',
+      `/api/slots?date=${JOUR}&serviceId=${actives[0]?.id}`);
+    const premiereAS = (premiere.donnees?.slots ?? []).find((c) => c.start === S);
+    verifie('>>> ET LA PREMIERE DU CATALOGUE N\'Y TIENT PAS <<<',
+      premiereAS?.free === false, [actives[0]?.id, actives[0]?.duration, premiereAS]);
+
+    if (bouchon.donnees?.id) bouchonDuBandeau = bouchon.donnees.id;
+
+    const rouvert = await salon.appel('DELETE',
+      `/api/admin/day-block?date=${iso}&to=${VEILLE}`);
+    verifie('les jours fermes sont rouverts', rouvert.status === 200, rouvert.status);
+    if (rouvert.status === 200) fermetureDuBandeau = null;
+  }
+
+  // --- 11. Divers ---------------------------------------------------------
+  console.log('\n11. Divers');
   {
     const r = await visiteur.appel('GET', '/api/nimporte-quoi');
     verifie('une adresse /api inconnue renvoie du JSON, pas la page du site',
       r.status === 404 && r.donnees?.error, r);
   }
 } finally {
+  if (bouchonDuBandeau) {
+    await salon.appel('DELETE', `/api/admin/bookings/${bouchonDuBandeau}`);
+  }
+  if (fermetureDuBandeau) {
+    await salon.appel('DELETE',
+      `/api/admin/day-block?date=${fermetureDuBandeau.date}&to=${fermetureDuBandeau.to}`);
+  }
   await supprimerCompteDeTest();
 }
 

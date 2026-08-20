@@ -111,7 +111,17 @@
 */
 @media (max-width: 559px) {
   .bandeau-prochain,
-  .bandeau-sep:last-of-type { display: none; }
+  /* ⚠️ `:has(+ …)` ET NON `:last-of-type`, QUI NE DÉSIGNAIT RIEN.
+     `:last-of-type` porte sur le TYPE d'élément, pas sur la classe : le dernier
+     `<span>` de la ligne est `.bandeau-prochain`, jamais un `.bandeau-sep`. La
+     règle ne s'appliquait donc à aucun élément, et le point restait affiché
+     après « FERME À 19H00 » — une ligne qui se terminait par un séparateur
+     suivi de rien. Constaté à 390 px, pas déduit.
+
+     La bonne cible est le séparateur qui PRÉCÈDE le morceau qu'on retire ;
+     c'est exactement ce que `:has()` sait dire, et la feuille l'emploie déjà
+     (`.champ:has(select)`, styles/05-controles.css). */
+  .bandeau-sep:has(+ .bandeau-prochain) { display: none; }
 
   .bandeau-action { padding: 0 var(--e2); }
 }

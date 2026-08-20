@@ -131,12 +131,46 @@ function optionsCookie(expiresAt) {
   };
 }
 
-export function setSessionCookie(res, jeton, expiresAt) {
+/**
+ * Pose le cookie de session, EN REMPLACANT celui que la reponse portait deja.
+ *
+ * >>> UNE REPONSE PARTAIT AVEC DEUX `Set-Cookie` POUR LE MEME NOM, ET L'UN DES
+ *     DEUX DESIGNAIT UNE SESSION DETRUITE. <<< Constate sur le changement de
+ *     mot de passe : `requireAdmin` repousse d'abord l'expiration de la session
+ *     en cours et repose son cookie, puis la route ferme TOUTES les sessions et
+ *     en ouvre une neuve, qu'elle pose a son tour. La reponse portait donc
+ *     l'ancien jeton (mort) suivi du nouveau.
+ *
+ *     Un navigateur s'en sort — la norme dit d'appliquer les en-tetes dans
+ *     l'ordre, le dernier l'emporte. Mais tout ce qui lit `set-cookie` au
+ *     singulier n'en voit qu'un seul, souvent le PREMIER : le client
+ *     deconnecte, sans rien qui l'explique, juste apres avoir change son mot de
+ *     passe. C'est le genre de panne qui ne se reproduit pas au navigateur.
+ *
+ * `res.cookie()` AJOUTE toujours ; on retire donc a la main ce qui portait deja
+ * ce nom avant d'ecrire. Une reponse ne parle plus que d'une session : celle
+ * qui vaut.
+ */
+function poserCookieSession(res, jeton, expiresAt) {
+  const deja = res.getHeader('Set-Cookie');
+
+  if (deja) {
+    const autres = (Array.isArray(deja) ? deja : [deja])
+      .filter((ligne) => !String(ligne).startsWith(`${COOKIE_NAME}=`));
+
+    if (autres.length) res.setHeader('Set-Cookie', autres);
+    else res.removeHeader('Set-Cookie');
+  }
+
   res.cookie(COOKIE_NAME, jeton, optionsCookie(expiresAt));
 }
 
+export function setSessionCookie(res, jeton, expiresAt) {
+  poserCookieSession(res, jeton, expiresAt);
+}
+
 export function refreshSessionCookie(res, jeton, expiresAt) {
-  res.cookie(COOKIE_NAME, jeton, optionsCookie(expiresAt));
+  poserCookieSession(res, jeton, expiresAt);
 }
 
 export function clearSessionCookie(res) {

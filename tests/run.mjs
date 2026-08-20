@@ -38,6 +38,10 @@ const ICI = path.dirname(fileURLToPath(import.meta.url));
 // /api/rendez-vous, qui porte sur l'adresse IP. Elle la leve avant de rendre la
 // main (voir le commentaire en tete du fichier), mais la placer avant une autre
 // suite ferait dependre celle-ci d'un deblocage.
+// `sessions.mjs` non plus ne parle au serveur du terminal d'a cote : elle lance sa
+// propre instance, sur son propre port et sa propre base, et LA TUE EN PLEIN
+// MILIEU pour verifier qu'une session lui survit. La tuer suppose qu'elle soit
+// a elle.
 // `demonstration.mjs` ne parle PAS au serveur du terminal d'a cote : elle lance
 // sa propre instance, avec DEMO_MODE et sa propre base. Elle est donc insensible
 // a l'ordre — on la met tot, parce qu'un echec de la remise a zero est ce qu'on
@@ -60,7 +64,7 @@ const ICI = path.dirname(fileURLToPath(import.meta.url));
 // efface ses rendez-vous. Elles sont tot dans la liste parce qu'elles sont
 // courtes, et parce qu'un 404 casse est ce qu'on veut apprendre avant d'avoir
 // lu deux minutes de sortie.
-const SUITES = ['portees.mjs', 'demonstration.mjs', 'erreurs.mjs', 'debit.mjs', 'api.mjs', 'settings.mjs', 'legal.mjs', 'auth.mjs', 'categories.mjs', 'staff.mjs', 'deplacement.mjs', 'comptes.mjs', 'blocages.mjs', 'chiffres.mjs', 'export.mjs', 'espace.mjs', 'seo.mjs', 'francais.mjs', 'tunnel.mjs', 'annulation.mjs', 'ics.mjs'];
+const SUITES = ['portees.mjs', 'demonstration.mjs', 'sessions.mjs', 'erreurs.mjs', 'debit.mjs', 'api.mjs', 'settings.mjs', 'legal.mjs', 'auth.mjs', 'categories.mjs', 'staff.mjs', 'deplacement.mjs', 'comptes.mjs', 'blocages.mjs', 'chiffres.mjs', 'export.mjs', 'espace.mjs', 'seo.mjs', 'francais.mjs', 'tunnel.mjs', 'annulation.mjs', 'ics.mjs'];
 
 /**
  * Lance une suite dans son propre processus, sortie affichee telle quelle.

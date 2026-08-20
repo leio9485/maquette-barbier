@@ -232,6 +232,51 @@ saisit**, il faut un disque, donc un plan payant :
       sizeGB: 1
 ```
 
+⚠️ **LA SESSION DU COMMERÇANT DISPARAÎT POUR LA MÊME RAISON, ET PAS POUR CELLE
+QU'ON CROIT.** Un audit a vu l'instance se réveiller et répondre `401`, et en a
+conclu que les sessions étaient « tenues en mémoire vive ». Elles ne l'ont
+jamais été : chaque session est **une ligne de la table `Session`**
+(`src/lib/sessions.js`), et c'est ce qui permet déjà de couper un accès à
+distance et de fermer les autres sessions au changement de mot de passe. Ce qui
+disparaît au réveil, c'est **la base entière** — tarifs, rendez-vous, comptes et
+sessions ensemble.
+
+Le remède n'est donc pas de changer de mécanique de session : c'est le disque
+ci-dessus. `tests/sessions.mjs` tient la mécanique — elle lance une instance,
+ouvre une session, **tue le serveur**, le relance, et vérifie que le même cookie
+ouvre encore l'espace.
+
+⚠️ **« Première connexion » affichée alors qu'il y en a eu plusieurs, même
+cause.** L'écran montre l'avant-dernière session ; sur une base qui repart de
+zéro, il n'y en a jamais qu'une. Sur une base qui dure, la deuxième connexion
+voit bien la première — vérifié par la même suite.
+
+### Où le site est hébergé, et ce que chaque option coûte
+
+**À décider avec les mentions légales** (`HEBERGEUR_*`, voir « Mise en ligne ») :
+la page doit décrire l'hébergeur réellement retenu, et c'est la seule contrainte
+qui rende ce choix urgent.
+
+L'état constaté aujourd'hui : **20 à 25 secondes** avant la première page sur une
+instance endormie, écran de marque de l'hébergeur et lignes de journal en anglais
+pendant l'attente ; **112 ms** une fois chaude. Un prospect qui ouvre le lien
+voit d'abord une console de développeur.
+
+| Option | Réveil | Base qui dure | Coût |
+|---|---|---|---|
+| Ping externe toutes les 10 min | réglé | **non** | gratuit |
+| Plan payant Render + disque | réglé | oui | ~7 $/mois |
+| Koyeb Francfort (la cible de ce fichier) | réglé | oui | à chiffrer |
+
+⚠️ **Le ping ne règle que la moitié du problème** : l'instance reste éveillée,
+mais un redéploiement repart d'une base neuve. C'est l'option à prendre pour
+montrer le site à froid, pas pour qu'un prospect retrouve son tarif le
+lendemain.
+
+**En attendant la décision, la parade est celle qui existe déjà** : ouvrir le
+site cinq minutes avant un rendez-vous, et le bouton « Remettre à zéro
+maintenant » pour repartir d'une vitrine propre.
+
 ### L'espace commerçant
 
 **L'agenda est une liste, plus une grille.** Il dessinait une case cliquable
@@ -838,7 +883,7 @@ Changer l'un sans l'autre remet les titres de section sous la barre.
 npm test
 ```
 
-**1 074 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
+**1 097 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
 `.env`.
 
 ⚠️ **`npm run dev` ne convient pas pour lancer la suite.** `node --watch`
@@ -847,7 +892,7 @@ base et `data/equipe-mise-de-cote.json`. La connexion est coupée en plein
 milieu et `npm test` échoue sur un `ECONNRESET` qui n'a rien à voir avec le
 code. Lancer `npm start`.
 
-Vingt et une suites, dont treize ajoutées après la première livraison :
+Vingt-deux suites, dont quatorze ajoutées après la première livraison :
 
 | Suite | Ce qu'elle protège |
 |---|---|
@@ -867,6 +912,7 @@ Vingt et une suites, dont treize ajoutées après la première livraison :
 | `legal.mjs` | l'hébergeur n'est affirmé que s'il est configuré, et le SIRET |
 | `export.mjs` | l'injection de formule dans le CSV, et le format qu'Excel attend |
 | `ics.mjs` | le fichier d'agenda : identifiant stable, version croissante, heure en UTC |
+| `sessions.mjs` | une session survit au redemarrage du serveur, et le cookie a ses trois marques |
 
 ⚠️ **`demonstration.mjs` est la seule suite à lancer son propre serveur.** Ce
 qu'elle vérifie n'existe qu'avec `DEMO_MODE=true`, variable qui ne doit jamais

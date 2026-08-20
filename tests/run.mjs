@@ -60,7 +60,7 @@ const ICI = path.dirname(fileURLToPath(import.meta.url));
 // efface ses rendez-vous. Elles sont tot dans la liste parce qu'elles sont
 // courtes, et parce qu'un 404 casse est ce qu'on veut apprendre avant d'avoir
 // lu deux minutes de sortie.
-const SUITES = ['portees.mjs', 'demonstration.mjs', 'erreurs.mjs', 'debit.mjs', 'api.mjs', 'settings.mjs', 'legal.mjs', 'auth.mjs', 'categories.mjs', 'staff.mjs', 'deplacement.mjs', 'comptes.mjs', 'blocages.mjs', 'chiffres.mjs', 'export.mjs', 'espace.mjs', 'seo.mjs', 'francais.mjs', 'tunnel.mjs', 'annulation.mjs'];
+const SUITES = ['portees.mjs', 'demonstration.mjs', 'erreurs.mjs', 'debit.mjs', 'api.mjs', 'settings.mjs', 'legal.mjs', 'auth.mjs', 'categories.mjs', 'staff.mjs', 'deplacement.mjs', 'comptes.mjs', 'blocages.mjs', 'chiffres.mjs', 'export.mjs', 'espace.mjs', 'seo.mjs', 'francais.mjs', 'tunnel.mjs', 'annulation.mjs', 'ics.mjs'];
 
 /**
  * Lance une suite dans son propre processus, sortie affichee telle quelle.

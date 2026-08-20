@@ -19,6 +19,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#16191B">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%2316191B'/%3E%3Crect x='10' y='14' width='6' height='36' fill='%2324405C'/%3E%3Crect x='26' y='14' width='28' height='6' fill='%23EFEEEA'/%3E%3Crect x='26' y='29' width='28' height='6' fill='%23EFEEEA'/%3E%3Crect x='26' y='44' width='20' height='6' fill='%23EFEEEA'/%3E%3C/svg%3E">
+<!--# L'ICONE DE L'ECRAN D'ACCUEIL. iOS ne lit ni le SVG ci-dessus ni le
+     manifeste pour ce role : il ne regarde que `apple-touch-icon`, en PNG.
+     Sans elle, « Ajouter à l'écran d'accueil » donnait un carré vide — sur un
+     outil de prise de rendez-vous, c'est-à-dire sur le raccourci que le client
+     garde sous les yeux. Dessinée par le serveur (src/lib/icones.js). #-->
+<link rel="apple-touch-icon" href="/icone-180.png">
 
 <!--# UNE PAGE D'ERREUR NE S'INDEXE PAS. L'en-tete `X-Robots-Tag` pose par le
      serveur le dit aussi (src/server.js) : un moteur qui retient une adresse

@@ -26,6 +26,7 @@ import { startDemo } from './lib/demo.js';
 import { rendreLlmsTxt } from './lib/llms.js';
 import { renderIndex, renderAnnuler, renderEspace, renderIntrouvable } from './lib/page.js';
 import { lireVariante, emplacementConnu } from './lib/photos.js';
+import { icone, ico, manifeste, TAILLES } from './lib/icones.js';
 import { lirePlan, planifierPlan } from './lib/plan.js';
 import { startRetention } from './lib/retention.js';
 import { compression } from './middleware/compression.js';
@@ -39,6 +40,13 @@ import { tableauDeBordRouter } from './routes/tableaudebord.js';
 import { settingsRouter } from './routes/settings.js';
 
 const app = express();
+
+// >>> ON N'ANNONCE PAS AVEC QUOI LE SITE EST FAIT. <<< Express pose de
+// lui-meme un en-tete `X-Powered-By: Express` sur CHAQUE reponse. Ce n'est pas
+// une faille — connaitre le cadre ne donne aucun acces — mais c'est un
+// renseignement gratuit offert a qui cherche des cibles par version de
+// bibliotheque, et il ne rend service a personne d'autre.
+app.disable('x-powered-by');
 
 // En production, le site est place derriere un serveur relais (l'hebergeur).
 // Sans cette ligne, toutes les requetes sembleraient venir de ce relais : la
@@ -436,6 +444,70 @@ app.get('/sitemap.xml', async (req, res, next) => {
   } catch (erreur) {
     next(erreur);
   }
+});
+
+/**
+ * LES ICONES DE L'ECRAN D'ACCUEIL, ET LE MANIFESTE — lot D, point D4.
+ *
+ * >>> « AJOUTER A L'ECRAN D'ACCUEIL » DONNAIT UNE ICONE VIDE SUR IPHONE. <<<
+ * Le site n'avait qu'un favicon SVG en `data:`, qu'iOS ignore, et
+ * /manifest.webmanifest comme /favicon.ico repondaient 404. Pour un outil de
+ * prise de rendez-vous consulte au telephone, c'est le raccourci que le client
+ * garde sous les yeux qui n'avait pas de visage.
+ *
+ * Dessinees par le serveur (src/lib/icones.js) : quatre rectangles, aucune
+ * dependance ajoutee, et rien a regenerer a la main le jour ou une couleur de
+ * la charte bouge.
+ *
+ * Un an de cache : a taille donnee, ce dessin ne changera pas — et s'il change,
+ * c'est que la charte a change, ce qui ne se fait pas sans redeployer.
+ */
+app.get('/icone-:taille.png', (req, res, next) => {
+  const taille = Number(req.params.taille);
+  if (!TAILLES.has(taille)) return next();
+
+  res.type('image/png');
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  res.send(icone(taille));
+});
+
+/**
+ * Le vieux `/favicon.ico`, demande SANS que la page le declare — par les
+ * navigateurs anciens et par les agregateurs de liens. Il repondait 404 a
+ * chaque visite, et une 404 qui revient a chaque visite est un bruit qu'on
+ * finit par ne plus lire dans un journal.
+ */
+app.get('/favicon.ico', (req, res) => {
+  res.type('image/x-icon');
+  res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  res.send(ico());
+});
+
+/**
+ * Le manifeste : ce que le systeme lit quand on pose le site sur l'ecran
+ * d'accueil.
+ *
+ * ⚠️ LE NOM VIENT DES REGLAGES. C'est lui qui s'affiche sous l'icone : chez un
+ *    client, ce doit etre le nom de SA boutique, et il doit suivre s'il en
+ *    change. La base illisible retombe sur un nom generique plutot que sur une
+ *    erreur — un manifeste absent retire l'icone, la couleur et le mode
+ *    « application » d'un seul coup.
+ */
+app.get('/manifest.webmanifest', async (req, res) => {
+  let nom = '';
+  try {
+    const reglages = await prisma.settings.findUnique({
+      where: { id: 1 },
+      select: { businessName: true },
+    });
+    nom = reglages?.businessName ?? '';
+  } catch (erreur) {
+    console.error('Manifeste engendre sans le nom du commerce :', erreur.message);
+  }
+
+  res.type('application/manifest+json');
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.send(JSON.stringify(manifeste(nom), null, 2));
 });
 
 // Ce que les moteurs de recherche ont le droit de faire.

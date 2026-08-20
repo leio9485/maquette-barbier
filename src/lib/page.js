@@ -26,7 +26,7 @@ import { etatDuMoment } from './etat.js';
 import { paragrapheHebergement } from './hebergement.js';
 import { loadConfig } from './settings.js';
 import { minifierPage } from './minify.js';
-import { listerPhotos, listerLegendes, listerDescriptions, sectionHero } from './photos.js';
+import { listerPhotos, listerLegendes, listerDescriptions, sectionHero, preloadHero } from './photos.js';
 import { sectionPrestations } from './catalogue.js';
 import { sectionTemoignages } from './temoignages.js';
 import { sectionGalerie } from './galerie.js';
@@ -426,40 +426,19 @@ function enTete(config, photos, vueLegal) {
   // La photo d'accueil, annoncee des l'en-tete.
   //
   // C'est le plus gros element du premier ecran, donc celui que le navigateur
-  // met le plus longtemps a afficher (le "LCP" des outils de mesure). Le
-  // probleme : elle n'est pas dans le HTML. C'est `paintPhotos()` qui la pose,
-  // en fond de `.hero-visual`, une fois le JavaScript execute et les reglages
-  // recus — le navigateur ne pouvait donc PAS la deviner en lisant la page, et
-  // ne commencait a la telecharger que tres tard.
+  // met le plus longtemps a afficher (le « LCP » des outils de mesure). Le
+  // preload le lui annonce des la premiere ligne du fichier, pendant qu'il lit
+  // encore le reste.
   //
-  // Ce `preload` la lui annonce des la premiere ligne du fichier : il la demande
-  // pendant qu'il lit encore le reste. Quand `paintPhotos()` la reclame enfin,
-  // elle est deja la.
-  //
-  // L'adresse doit etre RIGOUREUSEMENT la meme que celle appliquee ensuite,
-  // `?v=` compris : au moindre ecart, l'image serait telechargee deux fois.
-  // C'est la meme valeur, prise a la meme source (listerPhotos()), donc elle
-  // suit d'elle-meme un changement de photo.
-  //
-  // Adresse relative : contrairement a og:image, un preload est lu par le
-  // navigateur qui a la page sous les yeux. Pas besoin de PUBLIC_URL.
-  //
-  // `imagesrcset` / `imagesizes`, QUAND DES VARIANTES EXISTENT (lot C, C2) :
-  // sans eux, ce preload aurait toujours demande le JPEG plein format
-  // (1200 px), meme si `<picture>` choisit ensuite une variante plus petite —
-  // et l'aurait donc telecharge DEUX FOIS sur un telephone. Volontairement
-  // limite au JPEG : un preload ne sait pas brancher sur le support ou non du
-  // WebP par le navigateur (contrairement a `<source type>`), et se tromper
-  // dans ce sens-la echoue sans consequence (l'image demandee existe toujours),
-  // quand se tromper dans l'autre sens telechargerait un format que le
-  // navigateur ne sait pas afficher.
-  if (photos?.hero?.url) {
-    const srcset = photos.hero.srcsetJpg ? ` imagesrcset="${attr(photos.hero.srcsetJpg)}"` : '';
-    const sizes = photos.hero.srcsetJpg && photos.hero.sizes ? ` imagesizes="${attr(photos.hero.sizes)}"` : '';
-    lignes.push(
-      `<link rel="preload" as="image" href="${attr(photos.hero.url)}"${srcset}${sizes} fetchpriority="high">`
-    );
-  }
+  // >>> LA REGLE EST ECRITE A COTE DU `<picture>`, PAS ICI (src/lib/photos.js,
+  // `preloadHero()`). <<< Les deux doivent demander RIGOUREUSEMENT la meme
+  // image, `?v=` compris, sinon elle part deux fois — et c'est exactement ce
+  // qui se passait : ce bloc ecrivait un preload JPEG pendant que le
+  // `<picture>` affichait le WebP. Soixante kilo-octets pour rien a chaque
+  // premiere visite. Deux endroits qui doivent dire la meme chose finissent
+  // toujours par diverger : il n'y en a plus qu'un.
+  const preload = preloadHero(photos);
+  if (preload) lignes.push(preload);
 
   if (PUBLIC_URL) {
     const adresse = PUBLIC_URL + (cheminLegal ?? '');

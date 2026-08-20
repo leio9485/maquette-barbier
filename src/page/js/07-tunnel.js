@@ -721,6 +721,9 @@ function confirmer(reponse) {
     prestation: RESERVATION.prestation?.name ?? '',
     avec: qui,
     reference: reponse.reference ?? '',
+    // Le rendez-vous vient d'etre cree : c'est la version zero de l'evenement.
+    // Voir `fabriquerIcs()` (js/07-mon-agenda.js) pour ce que ce numero fait.
+    version: 0,
   };
 
   montrer($('#annulerReservation'), true);
@@ -994,6 +997,10 @@ function confirmerDeplacement(rdv, preuve) {
     prestation: rdv.serviceName || RESERVATION.prestation?.name || '',
     avec: rdv.staffName ?? '',
     reference: rdv.reference,
+    // >>> PLUS GRAND QU'A LA RESERVATION, ET C'EST TOUT L'ENJEU. <<< Meme
+    // identifiant d'evenement, numero de version superieur : l'agenda du client
+    // DEPLACE l'evenement au lieu d'en poser un second a cote de l'ancien.
+    version: rdv.version ?? 0,
   };
 
   // La note porte un lien vers /annuler : on la remplace par du texte, donc on

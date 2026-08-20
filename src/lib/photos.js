@@ -686,6 +686,62 @@ function esc(valeur) {
  * (js/04-contenu-statique.js, la fonction `poserSrcset()`) : la page le
  * repeint a l'identique une fois le JavaScript execute.
  */
+/**
+ * Le `<link rel="preload">` du visuel d'accueil — lot D, point D1.
+ *
+ * >>> IL DEMANDAIT LE JPEG QUE LE NAVIGATEUR N'AFFICHERA JAMAIS. <<< Mesure :
+ * `hero.jpg` (60 ko) preleve d'avance, `hero.webp` (40 ko) affiche par le
+ * `<picture>` — soixante kilo-octets telecharges pour rien a chaque premiere
+ * visite, et la vraie image du plus grand element de la page (le « LCP ») pas
+ * priorisee du tout.
+ *
+ * Le motif ecrit a l'epoque etait qu'un preload ne sait pas brancher sur le
+ * support du WebP. C'est faux : `type` fait exactement cela — le navigateur
+ * ignore le preload s'il ne connait pas le format annonce. Il n'y a donc plus
+ * a choisir le format « le moins risque », il y a a annoncer les deux dans le
+ * bon ordre.
+ *
+ * >>> ET IL EST ECRIT ICI, A COTE DE `sectionHero()`. <<< C'est la seule
+ * facon qu'ils ne divergent plus : le preload doit demander RIGOUREUSEMENT ce
+ * que le `<picture>` choisira, `?v=` compris, sinon l'image part deux fois.
+ * Ils lisent la meme photo, les memes `srcset` et la meme `sizes`.
+ *
+ * Renvoie une chaine vide s'il n'y a rien a annoncer.
+ */
+export function preloadHero(photos) {
+  const photo = photos?.hero;
+  if (!photo?.url) return '';
+
+  // Le WebP quand il existe : c'est ce que le `<source type="image/webp">` du
+  // `<picture>` prendra chez tout navigateur qui le comprend. `type` fait le
+  // reste — celui qui ne le comprend pas ignore la ligne et telecharge le JPEG
+  // au moment ou il rencontre le `<picture>`, comme avant ce preload.
+  if (photo.srcsetWebp) {
+    return '<link rel="preload" as="image" type="image/webp"'
+      + ` href="${esc(premiereDuSrcset(photo.srcsetWebp))}"`
+      + ` imagesrcset="${esc(photo.srcsetWebp)}"`
+      + ` imagesizes="${esc(photo.sizes)}" fetchpriority="high">`;
+  }
+
+  // Pas de variante WebP (une photo deposee par un navigateur qui n'en produit
+  // pas) : on retombe sur le JPEG, exactement comme le `<picture>`.
+  const srcset = photo.srcsetJpg ? ` imagesrcset="${esc(photo.srcsetJpg)}"` : '';
+  const sizes = photo.srcsetJpg && photo.sizes ? ` imagesizes="${esc(photo.sizes)}"` : '';
+
+  return `<link rel="preload" as="image" href="${esc(photo.url)}"${srcset}${sizes} fetchpriority="high">`;
+}
+
+/**
+ * La premiere adresse d'un `srcset`, pour l'attribut `href` du preload.
+ *
+ * `href` reste obligatoire meme avec `imagesrcset` : c'est le repli des
+ * navigateurs qui ne connaissent pas `imagesrcset`. La plus petite variante
+ * fait l'affaire — ceux-la sont anciens, donc petits.
+ */
+function premiereDuSrcset(srcset) {
+  return String(srcset).split(',')[0].trim().split(/\s+/)[0];
+}
+
 export function sectionHero(photos, descriptions) {
   const photo = photos?.hero;
   if (!photo?.url) return null;

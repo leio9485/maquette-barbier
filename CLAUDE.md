@@ -493,6 +493,8 @@ src/
     statistiques.js  ← les chiffres du tableau de bord
     notifications.js ← la porte de sortie unique (SMS écrit, éteint)
     hebergement.js   ← le paragraphe « Hébergement » des mentions légales
+    icones.js        ← l'icône de l'écran d'accueil et le manifeste,
+                       dessinés par le serveur, sans dépendance
     csv.js           ← le format des deux exports, et la seule protection
                        contre les formules injectées par un nom de client
     catalogue.js     la liste tarifaire, écrite dans la page servie
@@ -581,6 +583,42 @@ autre.
 CRLF, séparateur point-virgule, guillemets doublés, en-têtes en français. C'est
 ce qui décide si le fichier s'ouvre correctement dans un Excel français, et rien
 de tout cela ne se voit avant l'ouverture.
+
+**L'icône de l'écran d'accueil, dessinée par le serveur** (`src/lib/icones.js`).
+« Ajouter à l'écran d'accueil » sur iPhone donnait un carré vide : le site
+n'avait qu'un favicon SVG en `data:`, qu'iOS ignore pour ce rôle, et
+`/manifest.webmanifest` comme `/favicon.ico` répondaient 404. Sur un outil de
+prise de rendez-vous consulté au téléphone, c'est le raccourci que le client
+garde sous les yeux qui n'avait pas de visage.
+
+⚠️ **Dessinée, pas livrée, et sans aucune dépendance ajoutée.** C'est le
+monogramme — quatre rectangles, les mêmes que le favicon SVG des squelettes :
+encre, bleu de travail, craie, aucune lettre, aucun ciseau. Trente lignes de
+PNG écrites à la main (`zlib` est dans Node) contre cinq fichiers binaires à
+regénérer à la main le jour où une couleur de la charte bouge.
+
+⚠️ **Le nom du manifeste vient des réglages.** C'est lui qui s'affiche sous
+l'icône : chez un client, ce doit être le nom de SA boutique, et il doit suivre
+s'il en change.
+
+**Le fichier `.ics` porte un numéro de version, et son identifiant survit à un
+déplacement.** L'identifiant était déjà bâti sur la référence — qui ne change
+pas quand le rendez-vous se déplace — mais un agenda ne remplace un événement
+déjà posé que si le nouveau fichier porte **aussi** un `SEQUENCE` plus grand.
+Sans lui, le client qui déplace son rendez-vous et reprend « Ajouter à mon
+agenda » se retrouve avec deux événements, l'ancien horaire compris : exactement
+ce que le déplacement existe pour éviter.
+
+⚠️ **Le numéro vient du serveur, pas du navigateur** : les secondes écoulées
+depuis la création du rendez-vous (`version`, `src/routes/rendezvous.js`). Zéro
+à la prise, plus grand à chaque écriture, jamais décroissant, et **le même sur
+tous les appareils du client** — un compteur gardé dans un navigateur ne le
+serait pas.
+
+⚠️ **Le rappel se déclenche `-P1D` et non `-PT12H`.** Douze heures avant, c'était
+bien la veille au soir pour un rendez-vous du matin, mais **six heures du matin
+le jour même** pour un rendez-vous de 18h30 — trop tard pour prévenir, donc trop
+tard pour que le créneau reparte à quelqu'un d'autre.
 
 **Les plafonds de réservation.** Rien n'empêchait de remplir l'agenda d'un
 client avec une boucle de dix lignes — aucun acompte, aucun compte à créer,
@@ -744,6 +782,31 @@ exact où finissait le noir de l'équipe. Les deux sections sont testées
 maintenant (`04-grille-et-rail.css`) — en ajouter une troisième variante de fond
 demande de reprendre les trois sélecteurs ensemble.
 
+**Le `preload` du visuel d'accueil demandait le fichier que le navigateur
+n'affiche jamais.** Il annonçait `hero.jpg` (60 Ko) pendant que le `<picture>`
+affichait `hero.webp` (40 Ko) : soixante kilo-octets téléchargés pour rien à
+chaque première visite, et la vraie image du plus grand élément de la page (le
+LCP) pas priorisée du tout. Le motif écrit à l'époque — « un preload ne sait pas
+brancher sur le support du WebP » — était faux : `type` fait exactement cela, le
+navigateur ignore la ligne s'il ne connaît pas le format.
+
+⚠️ **La règle est écrite à côté du `<picture>`, dans `src/lib/photos.js`, et
+plus dans `page.js`.** Les deux doivent demander rigoureusement la même image,
+`?v=` compris, sinon elle part deux fois. Deux endroits qui doivent dire la même
+chose finissent toujours par diverger : il n'y en a plus qu'un.
+
+⚠️ **LA RÉSOLUTION DU HÉROS N'A PAS ÉTÉ AUGMENTÉE, ET CE N'EST PAS UN OUBLI.**
+Le fichier livré fait **1200 × 675 — vérifié dans son en-tête**, et c'est déjà
+la plus grande variante du `srcset`. Sur un écran à 125 %, il manque donc environ
+un quart des pixels, et **aucune ligne de code ne peut les inventer** : agrandir
+une image de 1200 px pour la déclarer en 1600 produirait une photo plus lourde
+et plus floue, et déclarer `1600w` pour un fichier de 1200 px ferait choisir au
+navigateur une image trop petite en croyant l'inverse. Il faut une **photo
+source d'au moins 1600 px de large** ; le jour où elle existe, trois valeurs
+changent ensemble : `EMPLACEMENTS.hero` (`src/lib/photos.js`),
+`largeursReduites()` juste en dessous, et l'appel à `produireVariantes()` dans
+`js/08-reglages.js`. Les trois, ou aucune.
+
 **Ne jamais recadrer une photo plus serré que sa source.** La photo d'accueil
 livrée fait 1200 × 675, soit 16:9. Elle avait été affichée en bande 3:1 : il
 n'en restait que 59 % de la hauteur, la tête du client était coupée, et le tout
@@ -775,7 +838,7 @@ Changer l'un sans l'autre remet les titres de section sous la barre.
 npm test
 ```
 
-**1 018 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
+**1 074 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
 `.env`.
 
 ⚠️ **`npm run dev` ne convient pas pour lancer la suite.** `node --watch`
@@ -784,7 +847,7 @@ base et `data/equipe-mise-de-cote.json`. La connexion est coupée en plein
 milieu et `npm test` échoue sur un `ECONNRESET` qui n'a rien à voir avec le
 code. Lancer `npm start`.
 
-Vingt suites, dont douze ajoutées après la première livraison :
+Vingt et une suites, dont treize ajoutées après la première livraison :
 
 | Suite | Ce qu'elle protège |
 |---|---|
@@ -803,6 +866,7 @@ Vingt suites, dont douze ajoutées après la première livraison :
 | `erreurs.mjs` | une adresse inconnue : la page pour un visiteur, du JSON pour un programme |
 | `legal.mjs` | l'hébergeur n'est affirmé que s'il est configuré, et le SIRET |
 | `export.mjs` | l'injection de formule dans le CSV, et le format qu'Excel attend |
+| `ics.mjs` | le fichier d'agenda : identifiant stable, version croissante, heure en UTC |
 
 ⚠️ **`demonstration.mjs` est la seule suite à lancer son propre serveur.** Ce
 qu'elle vérifie n'existe qu'avec `DEMO_MODE=true`, variable qui ne doit jamais

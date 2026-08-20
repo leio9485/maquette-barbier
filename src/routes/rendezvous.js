@@ -205,6 +205,20 @@ async function authentifier(corps) {
 function pourLeClient(rendezVous, prestation, personne) {
   return {
     reference: rendezVous.reference,
+    // >>> LE NUMERO DE VERSION DE L'EVENEMENT, POUR LE FICHIER .ics. <<<
+    //
+    // Un agenda ne remplace un evenement deja pose que si le nouveau fichier
+    // porte le MEME identifiant et un `SEQUENCE` PLUS GRAND. Sans lui, le
+    // client qui deplace son rendez-vous et reprend « Ajouter à mon agenda »
+    // se retrouve avec deux evenements, l'ancien horaire compris — c'est-a-dire
+    // exactement ce que le deplacement existe pour eviter.
+    //
+    // Le compte des SECONDES ECOULEES DEPUIS LA CREATION, plutot qu'un compteur
+    // a tenir : il vaut zero a la prise du rendez-vous, il grandit a chaque
+    // modification, il ne recule jamais, et il est le meme sur tous les
+    // appareils du client — un compteur garde dans un navigateur ne le serait
+    // pas.
+    version: version(rendezVous),
     date: rendezVous.date,
     start: rendezVous.startMin,
     duration: rendezVous.durationMin,
@@ -219,6 +233,19 @@ function pourLeClient(rendezVous, prestation, personne) {
     cancelledAt: rendezVous.annuleLe ? rendezVous.annuleLe.toISOString() : null,
     past: rendezVous.date < todayIso(),
   };
+}
+
+/**
+ * Le numero de version d'un rendez-vous : zero a la creation, croissant a
+ * chaque ecriture. Voir `pourLeClient()` pour ce qu'il sert a faire.
+ *
+ * Borne a zero : une base restauree peut porter un `updatedAt` anterieur au
+ * `createdAt`, et un `SEQUENCE` negatif rend le fichier invalide.
+ */
+function version(rendezVous) {
+  const cree = rendezVous.createdAt?.getTime?.() ?? 0;
+  const modifie = rendezVous.updatedAt?.getTime?.() ?? cree;
+  return Math.max(0, Math.round((modifie - cree) / 1000));
 }
 
 /** Le nom de la prestation et celui de la personne, pour le recapitulatif. */

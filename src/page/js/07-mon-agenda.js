@@ -164,7 +164,7 @@ function plierIcs(ligne) {
  * Renvoie `null` s'il manque de quoi ecrire un evenement juste : mieux vaut
  * pas de bouton qu'un fichier qui pose la mauvaise heure dans un agenda.
  */
-function fabriquerIcs({ date, start, duree, prestation, avec, reference }) {
+function fabriquerIcs({ date, start, duree, prestation, avec, reference, version }) {
   if (!date || !Number.isFinite(start) || !Number.isFinite(duree)) return null;
 
   const salon = CONFIG?.salon ?? {};
@@ -184,9 +184,22 @@ function fabriquerIcs({ date, start, duree, prestation, avec, reference }) {
   ].filter(Boolean).join('\n');
 
   // L'IDENTIFIANT DE L'EVENEMENT. La reference du rendez-vous en fait un bon :
-  // elle est unique, et un client qui reprend le fichier deux fois voit son
-  // agenda METTRE A JOUR l'evenement au lieu d'en creer un second.
+  // elle est unique, elle NE CHANGE PAS quand le rendez-vous est deplace (c'est
+  // tout le sujet du deplacement), et un client qui reprend le fichier voit
+  // donc son agenda METTRE A JOUR l'evenement au lieu d'en creer un second.
+  //
+  // ⚠️ L'IDENTIFIANT NE SUFFIT PAS : IL FAUT `SEQUENCE` AVEC LUI. Un agenda ne
+  //    remplace un evenement deja pose que si le nouveau fichier porte le meme
+  //    UID ET un numero de version PLUS GRAND. Sans lui, le client qui deplace
+  //    son rendez-vous se retrouve avec deux evenements — l'ancien horaire
+  //    compris — c'est-a-dire exactement ce que le deplacement evite.
+  //
+  //    Le numero vient du serveur (`version`, src/routes/rendezvous.js) : les
+  //    secondes ecoulees depuis la creation du rendez-vous. Zero a la prise,
+  //    plus grand a chaque modification, identique sur tous les appareils du
+  //    client. Un compteur garde dans le navigateur ne le serait pas.
   const uid = `${reference || debut}@${location.hostname}`;
+  const sequence = Number.isFinite(version) ? Math.max(0, Math.round(version)) : 0;
 
   const lignes = [
     'BEGIN:VCALENDAR',
@@ -196,18 +209,28 @@ function fabriquerIcs({ date, start, duree, prestation, avec, reference }) {
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',
     `UID:${echapperIcs(uid)}`,
+    `SEQUENCE:${sequence}`,
     `DTSTAMP:${horodatageIcs(Date.now())}`,
+    // `LAST-MODIFIED` a cote de `SEQUENCE` : certains agendas s'en servent pour
+    // departager deux versions, et il ne coute qu'une ligne.
+    `LAST-MODIFIED:${horodatageIcs(Date.now())}`,
     `DTSTART:${horodatageIcs(debut)}`,
     `DTEND:${horodatageIcs(fin)}`,
     `SUMMARY:${echapperIcs(titre)}`,
     adresse ? `LOCATION:${echapperIcs(adresse)}` : '',
     description ? `DESCRIPTION:${echapperIcs(description)}` : '',
-    // Un rappel la veille au soir plutot qu'un quart d'heure avant : ce qui
-    // sauve un rendez-vous chez le barbier, c'est de pouvoir encore le
-    // decaler, pas d'apprendre qu'on est en retard.
+    // UN RAPPEL LA VEILLE, pas un quart d'heure avant : ce qui sauve un
+    // rendez-vous chez le barbier, c'est de pouvoir encore le decaler — pas
+    // d'apprendre qu'on est en retard.
+    //
+    // ⚠️ `-P1D` ET NON `-PT12H`. Douze heures avant, c'etait bien la veille au
+    //    soir pour un rendez-vous du matin, mais SIX HEURES DU MATIN LE JOUR
+    //    MEME pour un rendez-vous de 18h30 — trop tard pour prevenir, donc trop
+    //    tard pour que le creneau reparte a quelqu'un d'autre. Un jour plein
+    //    tombe a la meme heure la veille, quel que soit le rendez-vous.
     'BEGIN:VALARM',
     'ACTION:DISPLAY',
-    'TRIGGER:-PT12H',
+    'TRIGGER:-P1D',
     `DESCRIPTION:${echapperIcs(titre)}`,
     'END:VALARM',
     'END:VEVENT',

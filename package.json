@@ -34,7 +34,8 @@
     "test:francais": "node tests/francais.mjs",
     "test:erreurs": "node tests/erreurs.mjs",
     "test:legal": "node tests/legal.mjs",
-    "test:export": "node tests/export.mjs"
+    "test:export": "node tests/export.mjs",
+    "test:ics": "node tests/ics.mjs"
   },
   "engines": {
     "node": ">=20"

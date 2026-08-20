@@ -276,9 +276,18 @@ console.log('\n7. Le cache');
     annuler.headers.get('cache-control') === 'no-cache', annuler.headers.get('cache-control'));
   await annuler.text();
 
+  // ⚠️ ON CHERCHE LA REGLE, PAS UNE ADRESSE PRECISE. Ce test nommait
+  //    `/photos/hero.jpg` dans le `preload` : il a casse le jour ou celui-ci
+  //    est passe au WebP (lot D, D1) alors que rien de ce qu'il protege
+  //    n'avait bouge. Ce qui compte est que TOUTE adresse de photo ecrite dans
+  //    la page porte son numero de version — c'est lui qui autorise le cache
+  //    d'un an.
+  const adressesPhotos = [...vitrine.matchAll(/\/photos\/[A-Za-z0-9._-]+(\?v=\d+)?/g)];
+  const sansVersion = adressesPhotos.filter((m) => !m[1]).map((m) => m[0]);
+
+  verifie('la page ecrit bien des adresses de photos', adressesPhotos.length > 0, 0);
   verifie('chaque adresse de photo dans la page porte deja un numero de version',
-    /<link rel="preload" as="image" href="\/photos\/hero\.jpg\?v=\d+"/.test(vitrine),
-    'aucune correspondance');
+    sansVersion.length === 0, sansVersion.slice(0, 5));
 
   const photoSansVersion = await fetch(BASE + '/photos/hero.jpg');
   verifie('sans version : pas de cache long, la revalidation est forcee',
@@ -390,6 +399,83 @@ for (const [nom, html] of [['la vitrine', vitrine], ['l\'espace', espaceHtml], [
   const definitions = (annulerHtml.match(/function afficherMessage\(/g) ?? []).length;
   verifie('`afficherMessage` n\'est definie qu\'une fois dans /annuler',
     definitions === 1, definitions);
+}
+
+// --- 10. L'ICONE DE L'ECRAN D'ACCUEIL, ET LE MANIFESTE (lot D, point D4) ---
+//
+// « Ajouter a l'ecran d'accueil » sur iPhone donnait une icone vide : le site
+// n'avait qu'un favicon SVG en `data:`, qu'iOS ignore pour ce role, et
+// /manifest.webmanifest comme /favicon.ico repondaient 404. Sur un outil de
+// prise de rendez-vous consulte au telephone, c'est le raccourci que le client
+// garde sous les yeux qui n'avait pas de visage.
+console.log("\n10. L'icone et le manifeste");
+{
+  for (const [nom, html] of [['la vitrine', vitrine], ["l'espace", espaceHtml], ['/annuler', annulerHtml]]) {
+    verifie(`${nom} declare une icone pour l'ecran d'accueil`,
+      html.includes('rel="apple-touch-icon" href="/icone-180.png"'), 'apple-touch-icon absent');
+  }
+
+  verifie('la vitrine declare le manifeste',
+    vitrine.includes('rel="manifest" href="/manifest.webmanifest"'), 'manifeste non declare');
+}
+{
+  for (const [adresse, type] of [
+    ['/icone-180.png', 'image/png'],
+    ['/icone-192.png', 'image/png'],
+    ['/icone-512.png', 'image/png'],
+    ['/favicon.ico', 'image/x-icon'],
+  ]) {
+    const reponse = await fetch(BASE + adresse);
+    const octets = Buffer.from(await reponse.arrayBuffer());
+
+    verifie(`${adresse} est servi`, reponse.status === 200, reponse.status);
+    verifie(`${adresse} porte le bon type`,
+      (reponse.headers.get('content-type') ?? '').includes(type),
+      reponse.headers.get('content-type'));
+    verifie(`${adresse} n'est pas vide`, octets.length > 100, octets.length);
+  }
+
+  // Le PNG est reellement un PNG, a la taille demandee : sa signature et son
+  // en-tete IHDR le disent, et c'est verifiable sans aucune bibliotheque.
+  const png = Buffer.from(await fetch(BASE + '/icone-512.png').then((r) => r.arrayBuffer()));
+  verifie("l'icone est un vrai PNG",
+    png.subarray(0, 8).toString('hex') === '89504e470d0a1a0a', png.subarray(0, 8).toString('hex'));
+  verifie('et elle fait bien 512 pixels de cote',
+    png.readUInt32BE(16) === 512 && png.readUInt32BE(20) === 512,
+    [png.readUInt32BE(16), png.readUInt32BE(20)]);
+}
+{
+  // ⚠️ LISTE FERMEE DES TAILLES : une taille recue du reseau ne doit pas
+  //    pouvoir demander au serveur de dessiner 30 000 pixels de cote.
+  const r = await fetch(BASE + '/icone-30000.png', { headers: { Accept: 'application/json' } });
+  verifie('une taille non prevue est refusee', r.status === 404, r.status);
+}
+{
+  const reponse = await fetch(BASE + '/manifest.webmanifest');
+  const manifeste = await reponse.json();
+  const config = await fetch(BASE + '/api/config').then((r) => r.json());
+
+  verifie('le manifeste est servi et lisible', reponse.status === 200, reponse.status);
+  verifie(">>> SON NOM VIENT DES REGLAGES, PAS D'UNE CHAINE EN DUR <<<",
+    manifeste.name === config.salon.name, [manifeste.name, config.salon.name]);
+  verifie('il ouvre le site en mode application',
+    manifeste.display === 'standalone', manifeste.display);
+  verifie("il part de la page d'accueil", manifeste.start_url === '/', manifeste.start_url);
+  verifie('il porte la couleur de la charte',
+    manifeste.theme_color === '#16191B', manifeste.theme_color);
+  verifie('il declare les deux tailles attendues',
+    manifeste.icons.some((i) => i.sizes === '192x192')
+    && manifeste.icons.some((i) => i.sizes === '512x512'), manifeste.icons);
+}
+
+// --- 11. LE SERVEUR NE DIT PAS AVEC QUOI IL EST FAIT (lot D, point D3) -----
+console.log("\n11. Ce que le serveur annonce de lui-meme");
+{
+  for (const adresse of ['/', '/annuler', '/espace-salon', '/api/health', '/robots.txt']) {
+    const r = await fetch(BASE + adresse);
+    verifie(`${adresse} ne porte pas x-powered-by`,
+      r.headers.get('x-powered-by') === null, r.headers.get('x-powered-by'));
+  }
 }
 
 process.exitCode = bilan() === 0 ? 0 : 1;

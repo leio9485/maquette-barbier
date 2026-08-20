@@ -500,6 +500,45 @@ function travailleLe(personne, iso) {
  * information perdue pour qui ne la distingue pas — et le commercant qui
  * imprime sa journee en noir et blanc est dans ce cas.
  */
+/**
+ * Le telephone d'une ligne d'agenda : masque, revele, ou absent.
+ *
+ * >>> UN ECRAN D'AGENDA EST SOUVENT VISIBLE DEPUIS LA SALLE. <<< Trente numeros
+ * complets s'affichaient en clair : en arriere-boutique c'est ce qu'on veut,
+ * sur le comptoir c'est la donnee personnelle de trente clients exposee a tous
+ * ceux qui attendent. Le reglage vit dans Reglages > Compte, il vaut « masque »
+ * par defaut, et il est propre a l'appareil — voir js/espace/etat.js.
+ *
+ * ⚠️ MASQUER, C'EST ECRIRE AUTRE CHOSE, PAS ECRIRE MOINS. Retirer la ligne
+ *    ferait sauter la colonne de droite d'un rendez-vous a l'autre selon qu'un
+ *    numero est note ou non, et le commercant ne saurait plus si le numero
+ *    manque ou s'il est cache. Les quatre derniers chiffres restent : ce sont
+ *    eux qui servent a reconnaitre un client au telephone, et c'est deja le
+ *    second facteur de /annuler.
+ *
+ * ⚠️ C'EST UN BOUTON DANS UN BOUTON, ET IL FAUT LES DEUX. La ligne entiere ouvre
+ *    la fiche ; le numero masque, lui, se revele sur place. Un `<button>`
+ *    imbrique est un balisage invalide — d'ou le `<span role="button">` avec son
+ *    `tabindex` : il prend le focus, s'annonce comme un bouton, et le clic est
+ *    arrete avant d'atteindre la ligne (voir le branchement en bas de fichier).
+ */
+function telephoneDeLaLigne(rdv) {
+  if (!rdv.phone) return '';
+
+  const revele = !masquerLesTelephones() || ESPACE.telephonesReveles.has(rdv.id);
+  if (revele) return `<span class="agenda-tel">${esc(rdv.phone)}</span>`;
+
+  // Les quatre derniers chiffres, et un point median pour ce qui manque.
+  const chiffres = rdv.phone.replace(/\D/g, '');
+  const fin = chiffres.slice(-4);
+
+  return '<span class="agenda-tel" data-telephone-masque'
+    + ` role="button" tabindex="0" data-devoiler="${esc(rdv.id)}"`
+    + ` aria-label="Numéro masqué, finit par ${esc(fin.split('').join(' '))}. Afficher.">`
+    + `<span aria-hidden="true">•• •• •• ${esc(fin.slice(0, 2))} ${esc(fin.slice(2))}</span>`
+    + '</span>';
+}
+
 function ligneRdv(rdv, iso) {
   const fin = fmtHeure(rdv.start + rdv.duration);
 
@@ -558,7 +597,7 @@ function ligneRdv(rdv, iso) {
       + '</span>'
       + '<span class="agenda-cote donnee">'
         + (personne ? `<span class="agenda-qui">${esc(personne.name)}</span>` : '')
-        + (rdv.phone ? `<span class="agenda-tel">${esc(rdv.phone)}</span>` : '')
+        + telephoneDeLaLigne(rdv)
       + '</span>'
     + '</button>'
     + pointage(rdv, iso, annule)
@@ -1114,6 +1153,44 @@ async function choisirProchaineDispo(bouton) {
 
   poserJourRdv(jour);
   await chargerHeuresRdv(heure);
+}
+
+/**
+ * Revele le numero d'une ligne, pour la duree de la visite.
+ *
+ * >>> ON NE REPEINT QUE CE QU'IL FAUT. <<< `peindreAgenda()` remplace tout le
+ * contenu : l'appeler ici ferait perdre le defilement au milieu d'une journee
+ * de trente lignes, et retirerait le focus du clavier de la ou il etait — pour
+ * afficher dix chiffres. On remplace donc le seul element concerne.
+ *
+ * ⚠️ LE FOCUS SUIT LE REMPLACEMENT. L'element qui portait le focus vient d'etre
+ *    retire du document ; sans cette reprise, le clavier retomberait sur le
+ *    document entier et la tabulation suivante repartirait du haut de la page.
+ *    C'est le meme soin que le tunnel prend a chaque changement d'etape.
+ *
+ * Le choix est retenu dans `ESPACE` et non dans le stockage : c'est un geste,
+ * pas un reglage. Il se perd au rechargement, et c'est ce qu'on veut — sinon
+ * un ecran de comptoir finirait par tout afficher, une ligne a la fois.
+ */
+function devoilerLeTelephone(id) {
+  if (!id) return;
+  ESPACE.telephonesReveles.add(id);
+
+  const rdv = [...AGENDA.values()].flat().find((r) => r.id === id);
+  if (!rdv) return;
+
+  const avaitLeFocus = document.activeElement?.dataset?.devoiler === id;
+
+  for (const masque of $$(`[data-devoiler="${CSS.escape(id)}"]`)) {
+    const remplacant = document.createElement('span');
+    remplacant.className = 'agenda-tel';
+    remplacant.textContent = rdv.phone;
+    masque.replaceWith(remplacant);
+    if (avaitLeFocus) {
+      remplacant.setAttribute('tabindex', '-1');
+      remplacant.focus({ preventScroll: true });
+    }
+  }
 }
 
 /** Le bouton d'envoi, eteint quand il n'y a rien a envoyer. */
@@ -1920,11 +1997,35 @@ function brancherAgenda() {
     const point = evenement.target.closest('[data-pointage]');
     if (point) return pointer(point.dataset.pointage, point.dataset.valeur);
 
+    // ⚠️ LE NUMERO MASQUE AUSSI PASSE AVANT, ET POUR LA MEME RAISON. Il est
+    //    DANS le bouton de la ligne : laisser filer le clic ouvrirait la fiche
+    //    par-dessus le numero qu'on vient de reveler. Il porte `data-devoiler`
+    //    et non `data-rdv`, sinon la ligne juste en dessous le prendrait pour
+    //    elle.
+    const masque = evenement.target.closest('[data-devoiler]');
+    if (masque) return devoilerLeTelephone(masque.dataset.devoiler);
+
     const rdv = evenement.target.closest('[data-rdv]');
     if (rdv) return ouvrirFicheRdv(rdv.dataset.rdv);
 
     const bloc = evenement.target.closest('[data-bloc]');
     if (bloc) ouvrirFicheBloc(bloc.dataset.bloc);
+  });
+
+  // >>> LE CLAVIER, PARCE QU'UN `role="button"` NE L'A PAS TOUT SEUL. <<< Un
+  //     vrai `<button>` repond a Entree et a Espace ; un `<span>` qui s'annonce
+  //     comme un bouton doit les brancher lui-meme, sans quoi le numero ne se
+  //     revele qu'a la souris. Le `<span>` est impose par le balisage : un
+  //     bouton dans un bouton est invalide.
+  $('#agenda')?.addEventListener('keydown', (evenement) => {
+    if (evenement.key !== 'Enter' && evenement.key !== ' ') return;
+
+    const masque = evenement.target.closest('[data-devoiler]');
+    if (!masque) return;
+
+    // Espace ferait defiler la page ; Entree activerait le bouton de la ligne.
+    evenement.preventDefault();
+    devoilerLeTelephone(masque.dataset.devoiler);
   });
 
   $('#ficheSupprimer')?.addEventListener('click', agirDepuisFiche);

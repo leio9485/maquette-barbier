@@ -507,12 +507,26 @@
      Le filet de couleur, lui, reste sur chaque ligne : c'est ce qui la
      rattache à sa colonne quand l'œil redescend. */
 
-  /* Le téléphone : retiré dans une COLONNE, et seulement là. Le motif est une
-     affaire de largeur — dans une colonne trois fois plus étroite le numéro
-     passe à la ligne — et il ne vaut donc pas pour les groupes empilés du petit
-     écran, qui prennent toute la largeur. C'est un détail qu'on va chercher
-     dans la fiche, en lien `tel:`, et pas en survolant sa semaine. */
-  .agenda[data-colonnes="personnes"] .agenda-colonne .agenda-tel { display: none; }
+  /* Le téléphone : retiré dans une colonne DE LA SEMAINE, et seulement là.
+     Deux restrictions, et chacune vient du motif d'origine.
+
+     `[data-colonnes]` : c'est une affaire de LARGEUR — dans une colonne trois
+     fois plus étroite le numéro passe à la ligne, et chaque rendez-vous occupe
+     trois lignes au lieu de deux. Le motif ne vaut donc pas pour les groupes
+     empilés du petit écran, qui prennent toute la largeur.
+
+     ⚠️ `[data-vue="semaine"]` : la règle portait sur toutes les colonnes, et
+        elle emportait la vue jour depuis que celle-ci se range elle aussi par
+        personne. Or le motif écrit ici parle de « survoler SA SEMAINE » — sur
+        une semaine entière, les numéros coûtent un tiers de hauteur pour une
+        information qu'on ne compose pas en balayant sept journées. Dans la vue
+        jour, c'est l'inverse : c'est l'écran d'où l'on appelle un client pour
+        le décaler, et le numéro y est exactement ce qu'on cherche. Il y est
+        masqué par défaut et se révèle au clic (voir plus bas), ce qui répond
+        au risque sans retirer l'information. */
+  .agenda[data-colonnes="personnes"][data-vue="semaine"] .agenda-colonne .agenda-tel {
+    display: none;
+  }
 }
 
 /* --- LE POINTAGE « VENU » / « PAS VENU » -----------------------------------
@@ -754,3 +768,33 @@
   padding-left: calc(var(--e2) - 3px);
   color: var(--vert-signal);
 }
+
+/* --- UN NUMÉRO MASQUÉ ------------------------------------------------------
+
+   « •• •• •• 14 07 » à la place de « 06 39 98 14 07 », et un clic l'affiche.
+
+   Les quatre derniers chiffres restent, et ce n'est pas un compromis mou : ce
+   sont eux qui servent à reconnaître un client au téléphone, et c'est déjà le
+   second facteur de /annuler. Masquer la ligne entière — ou la retirer — ferait
+   sauter la colonne de droite d'un rendez-vous à l'autre selon qu'un numéro est
+   noté ou non, et le commerçant ne saurait plus si le numéro manque ou s'il est
+   caché.
+
+   ⚠️ IL DOIT AVOIR L'AIR CLIQUABLE SANS AVOIR L'AIR D'UN BOUTON. Un cadre de
+      plus sur une ligne d'agenda qui en porte déjà un (le pointage) ferait deux
+      cibles concurrentes ; un souligné pointillé dit « il y a quelque chose
+      dessous » et ne pèse rien. C'est le seul pointillé du site, et il désigne
+      exactement une chose.
+*/
+.agenda-tel[data-telephone-masque] {
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 0.25em;
+  /* La cible tactile fait toute la hauteur de la ligne du dessous : sans elle,
+     on vise dix pixels de texte au bout d'une ligne de 56 px de haut. */
+  display: inline-block;
+  padding: var(--e1) 0;
+  margin: calc(var(--e1) * -1) 0;
+}
+
+.agenda-tel[data-telephone-masque]:hover { color: var(--encre); }

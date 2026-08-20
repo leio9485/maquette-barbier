@@ -15,7 +15,11 @@
 // suite qui compte les octets et cherche les chaines mot pour mot.
 // ---------------------------------------------------------------------------
 
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+
 import { creerClient, creerVerificateur, BASE } from './helpers.mjs';
+import { ROOT_DIR } from '../src/config.js';
 
 const { verifie, bilan } = creerVerificateur();
 const visiteur = creerClient();
@@ -205,6 +209,103 @@ console.log('\n7. La note Google');
   // JavaScript, qui voyage dans ce meme document.
   verifie('une note sans lien vers la fiche est signalee',
     espace.html.includes('aucun moyen de la vérifier'), 'alerte absente');
+}
+
+// --- LES NUMEROS DE TELEPHONE DANS L'AGENDA ---------------------------------
+//
+// >>> UN ECRAN D'AGENDA EST SOUVENT VISIBLE DEPUIS LA SALLE. <<< Trente numeros
+// complets s'affichaient en clair sur chaque ligne. Ils sont desormais masques
+// par defaut, et se revelent au clic.
+//
+// ⚠️ CE COMPORTEMENT VIT DANS LE NAVIGATEUR, et une suite qui ne parlerait
+//    qu'au serveur ne le verrait jamais : le numero part dans la reponse comme
+//    avant, et c'est l'ecran qui choisit de l'ecrire ou non. On evalue donc LE
+//    VRAI MORCEAU de la page, comme tests/ics.mjs et tests/annulation.mjs le
+//    font deja. Le code du site n'est pas modifie d'un caractere.
+console.log('\nLes numeros de telephone dans l\'agenda');
+{
+  // LES DEUX MORCEAUX, RECOLLES COMME LA PAGE LES RECOLLE. `masquerLesTelephones()`
+  // vit dans js/espace/etat.js avec l'etat de l'espace, `telephoneDeLaLigne()`
+  // dans js/09-agenda.js : les separer ici ferait tester une moitie.
+  const morceaux = await Promise.all(
+    ['js/espace/etat.js', 'js/09-agenda.js'].map((f) =>
+      readFile(path.join(ROOT_DIR, 'src', 'page', f), 'utf8')));
+  const source = morceaux.join('\n');
+
+  // ⚠️ `window` EST INDISPENSABLE, ET C'EST LA SEULE CHOSE QUE CE CODE REGARDE
+  //    AVANT D'ETRE APPELE : `const ECRAN_LARGE = window.matchMedia(…)`
+  //    s'evalue a la lecture du morceau (c'est lui qui decide des colonnes par
+  //    personne). Un faux qui ne repond rien suffit — ni `telephoneDeLaLigne()`
+  //    ni `masquerLesTelephones()` ne s'en servent.
+  const fenetre = { matchMedia: () => ({ matches: false, addEventListener() {} }) };
+
+  const echapper = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const creerTiroir = (valeur) => ({ getItem: () => valeur, setItem: () => {} });
+
+  const usine = new Function('localStorage', 'esc', 'window',
+    `${source}\nreturn { telephoneDeLaLigne, masquerLesTelephones, ESPACE };`);
+
+  const RDV = { id: 'rdv-1', phone: '06 39 98 14 07' };
+
+  // 1. PAR DEFAUT, RIEN N'EST ECRIT DANS LE TIROIR — et c'est masque. C'est le
+  //    sens que doit avoir un defaut sur une donnee personnelle : celui qui n'a
+  //    rien decide est protege, celui qui veut ses numeros fait un geste.
+  const parDefaut = usine(creerTiroir(null), echapper, fenetre);
+  const masque = parDefaut.telephoneDeLaLigne(RDV);
+
+  verifie('>>> MASQUE PAR DEFAUT, SANS RIEN AVOIR A REGLER <<<',
+    parDefaut.masquerLesTelephones() === true, parDefaut.masquerLesTelephones());
+  verifie('le numero complet n\'est pas ecrit', !masque.includes('06 39 98 14 07'), masque);
+  verifie('les quatre derniers chiffres restent', masque.includes('14 07'), masque);
+  verifie('et il s\'annonce comme un bouton',
+    masque.includes('role="button"') && masque.includes('aria-label='), masque);
+
+  // ⚠️ LES QUATRE DERNIERS CHIFFRES NE SONT PAS UN COMPROMIS MOU : ce sont eux
+  //    qui servent a reconnaitre un client au telephone, et c'est deja le
+  //    second facteur de /annuler.
+  verifie('l\'etiquette les dit a voix haute', /finit par 1 4 0 7/.test(masque), masque);
+
+  // 2. UN TIROIR QUI DIT « visibles » : le numero entier.
+  const visible = usine(creerTiroir('visibles'), echapper, fenetre);
+  verifie('le reglage decoche rend le numero entier',
+    visible.telephoneDeLaLigne(RDV).includes('06 39 98 14 07'),
+    visible.telephoneDeLaLigne(RDV));
+
+  // 3. UN NUMERO REVELE A LA MAIN, masquage toujours actif.
+  const revele = usine(creerTiroir(null), echapper, fenetre);
+  revele.ESPACE.telephonesReveles.add('rdv-1');
+  verifie('un numero revele au clic s\'affiche entier',
+    revele.telephoneDeLaLigne(RDV).includes('06 39 98 14 07'),
+    revele.telephoneDeLaLigne(RDV));
+  verifie('et celui d\'a cote reste masque',
+    !revele.telephoneDeLaLigne({ id: 'rdv-2', phone: '06 39 98 55 44' })
+      .includes('06 39 98 55 44'), '');
+
+  // 4. LE TIROIR PEUT REFUSER (navigation privee) : on masque quand meme.
+  const refuse = usine({
+    getItem() { throw new Error('stockage refuse'); },
+    setItem() { throw new Error('stockage refuse'); },
+  }, echapper, fenetre);
+  verifie('>>> UN STOCKAGE REFUSE MASQUE, IL NE DECOUVRE PAS <<<',
+    refuse.masquerLesTelephones() === true, refuse.masquerLesTelephones());
+
+  // 5. SANS NUMERO, RIEN — ni masque, ni cadre vide.
+  verifie('un rendez-vous sans numero n\'ecrit rien',
+    parDefaut.telephoneDeLaLigne({ id: 'rdv-3', phone: '' }) === '', '');
+}
+
+// >>> ET LE NUMERO RESTE ENTIER LA OU IL SERT. <<< Le masquage est une affaire
+//     d'ecran, pas de donnee : ce que le serveur envoie n'a pas change, la
+//     fiche du rendez-vous l'ecrit en entier, et les exports aussi
+//     (tests/export.mjs). L'ecran de l'espace porte donc encore les deux
+//     libelles qui le prouvent.
+{
+  const espace = await page('/espace-salon');
+  verifie('la fiche d\'un rendez-vous garde son intitule « Téléphone »',
+    espace.html.includes("'Téléphone'"), 'intitule absent');
+  verifie('et l\'intitule dit que le numero reste entier ailleurs',
+    espace.html.includes('dans la fiche du rendez-vous et dans les exports'),
+    'mention absente');
 }
 
 process.exitCode = bilan() === 0 ? 0 : 1;

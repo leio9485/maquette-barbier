@@ -136,6 +136,13 @@ function peindreCompte() {
       : 'Première connexion'],
     ['Autres appareils connectés', autres > 0 ? String(autres) : 'aucun'],
   ]);
+
+  // La case suit ce que l'appareil a retenu. Elle est peinte ici et non au
+  // demarrage : c'est le seul moment ou la section est a l'ecran, et c'est
+  // aussi celui ou une seconde connexion sur la meme machine doit la retrouver
+  // dans son etat.
+  const interrupteur = $('#masquerTelephones');
+  if (interrupteur) interrupteur.checked = masquerLesTelephones();
 }
 
 /**
@@ -326,6 +333,16 @@ function brancherCompte() {
   $('#demoRemiseAZero')?.addEventListener('click', remettreDemoAZero);
   $('#formulaireMotDePasse')?.addEventListener('submit', envoyerMotDePasse);
   $('#formulaireCompte')?.addEventListener('submit', envoyerNouveauCompte);
+
+  // >>> LE MASQUAGE PREND EFFET AU CLIC, SANS « ENREGISTRER ». <<< Il n'est pas
+  //     dans le brouillon des reglages et ne part pas au serveur : c'est un
+  //     reglage d'appareil (js/espace/etat.js). On le bascule precisement au
+  //     moment ou quelqu'un entre dans la salle — attendre un enregistrement
+  //     serait attendre de trop.
+  $('#masquerTelephones')?.addEventListener('change', (evenement) => {
+    poserMasquageTelephones(evenement.target.checked);
+    peindreAgenda();
+  });
 
   // Delegue : la liste est repeinte a chaque relecture, et des ecouteurs poses
   // sur les boutons disparaitraient avec eux.

@@ -414,6 +414,37 @@
 
               <dl class="fiche" id="ficheCompte"></dl>
 
+              <!--# LES NUMÉROS DE TÉLÉPHONE DANS L'AGENDA
+
+                   >>> UN ÉCRAN D'AGENDA EST SOUVENT VISIBLE DEPUIS LA SALLE.
+                   <<< Trente numéros complets s'affichaient en clair : en
+                   arrière-boutique c'est ce qu'on veut, sur le comptoir c'est
+                   la donnée personnelle de trente clients exposée à tous ceux
+                   qui attendent.
+
+                   ⚠️ RÉGLAGE D'APPAREIL, ET L'INTITULÉ LE DIT. Le risque est
+                      physique — un écran tourné vers la salle — et il ne
+                      concerne donc pas les deux machines de la même façon : la
+                      tablette du comptoir doit masquer, le portable de
+                      l'arrière-boutique n'a aucune raison de le faire. Le motif
+                      complet est dans js/espace/etat.js.
+
+                   ⚠️ IL N'EST PAS DANS LE BROUILLON DES RÉGLAGES, et c'est pour
+                      cela qu'il est ici plutôt que dans « Coordonnées » : il ne
+                      part pas au serveur et n'attend pas « Enregistrer ». Il
+                      prend effet au clic, comme un interrupteur — parce qu'on
+                      le bascule précisément quand quelqu'un arrive dans la
+                      salle. #-->
+              <div class="champ champ-case" id="champMasquerTelephones">
+                <input type="checkbox" id="masquerTelephones" checked>
+                <label for="masquerTelephones">Masquer les numéros de téléphone dans l'agenda</label>
+                <p class="aide petit secondaire">
+                  Sur cet appareil seulement, et tout de suite. Un clic sur un
+                  numéro masqué l'affiche le temps de la visite. Il reste entier
+                  dans la fiche du rendez-vous et dans les exports.
+                </p>
+              </div>
+
               <h3>Changer le mot de passe</h3>
               <p class="secondaire petit">
                 Toutes les autres sessions seront fermées : c'est le geste à faire

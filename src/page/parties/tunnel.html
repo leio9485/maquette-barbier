@@ -197,6 +197,31 @@
               <button type="button" class="lien-nu tunnel-changer" data-retour="1">Changer de prestation</button>
             </dd>
           </div>
+          <!--# « AVEC » — LE BARBIER, ET IL MANQUAIT ICI AUSSI.
+
+               Même raisonnement que la prestation juste au-dessus, ajoutée au
+               lot 8F pour la même raison. En laissant « Peu importe » à l'étape
+               02 — c'est le choix présélectionné, donc le plus fréquent — on ne
+               découvrait qu'à l'écran de confirmation, tout validé, que le
+               rendez-vous était avec Yanis. Dans un métier où le client choisit
+               son barbier, c'est l'information qu'on cachait le plus longtemps.
+
+               ⚠️ ON AFFICHE LE NOM RÉELLEMENT PRESSENTI, JAMAIS « Peu
+                  importe ». Répéter « peu importe » n'apprendrait rien : c'est
+                  ce que le visiteur vient de répondre. Le nom vient du serveur
+                  (champ `pick` de chaque créneau, calculé par `pickStaff()`) et
+                  n'est pas recalculé ici — la règle d'attribution est une règle
+                  métier, écrite à deux endroits elle finirait par diverger.
+
+               La ligne disparaît quand le commerce travaille seul : il n'y a
+               alors personne à nommer. #-->
+          <div id="rappelQuiLigne" hidden>
+            <dt>Avec</dt>
+            <dd>
+              <span id="rappelQui">—</span>
+              <button type="button" class="lien-nu tunnel-changer" data-retour="2">Changer de personne</button>
+            </dd>
+          </div>
           <div>
             <dt>Rendez-vous</dt>
             <dd>

@@ -364,6 +364,10 @@ function grouperCreneaux(creneaux) {
 function htmlCreneau(c) {
   const etiquette = c.free ? c.label : `${c.label} — déjà pris`;
   return `<button type="button" class="creneau" data-creneau="${c.start}"`
+    // QUI PRENDRAIT CE CRENEAU, calcule par le serveur (`pick`). Porte par le
+    // bouton parce que la reponse n'est plus disponible au moment du clic : la
+    // liste est peinte, puis oubliee. Vide quand le commerce travaille seul.
+    + (c.pick ? ` data-avec="${esc(c.pick)}"` : '')
     + ` aria-pressed="false" aria-label="${esc(etiquette)}"`
     + (c.free ? '' : ' disabled')
     + `>${esc(c.label)}</button>`;
@@ -424,7 +428,13 @@ async function chargerCreneaux(date) {
 function choisirCreneau(bouton) {
   const start = Number(bouton.dataset.creneau);
 
-  RESERVATION.creneau = { start, label: bouton.textContent.trim() };
+  RESERVATION.creneau = {
+    start,
+    label: bouton.textContent.trim(),
+    // Le pressenti voyage avec le creneau : c'est de lui qu'il depend, et de
+    // rien d'autre. Changer d'heure peut changer de personne.
+    avec: bouton.dataset.avec || '',
+  };
 
   for (const autre of $$('.creneau')) {
     autre.setAttribute('aria-pressed', String(autre === bouton));
@@ -435,9 +445,45 @@ function choisirCreneau(bouton) {
   // une heure, et plus rien ne permettait d'en changer.
   poserTexte($('#rappelCreneau'),
     `${dateCourte(RESERVATION.date)} à ${RESERVATION.creneau.label}`);
+  poserRappelQui();
 
   peindreFiche($('#tunnelFiche'));
   allerEtape(3);
+}
+
+/**
+ * Le nom de qui prendra le rendez-vous, tel qu'on peut le savoir ici.
+ *
+ * TROIS SOURCES, DANS CET ORDRE, et l'ordre est le sujet :
+ *
+ *   1. `confirmee.staffId` — le rendez-vous est pris, c'est le nom definitif ;
+ *   2. `RESERVATION.staffId` — le visiteur a nomme quelqu'un a l'etape 2 ;
+ *   3. `creneau.avec` — il a laisse « peu importe », et le serveur dit qui
+ *      prendrait ce creneau.
+ *
+ * Rend une chaine vide quand il n'y a personne a nommer : commerce sans equipe,
+ * ou creneau pas encore choisi.
+ */
+function nomDeQui() {
+  const id = RESERVATION.confirmee?.staffId
+    || RESERVATION.staffId
+    || RESERVATION.creneau?.avec
+    || '';
+  if (!id) return '';
+  return CONFIG?.staff.find((s) => s.id === id)?.name ?? '';
+}
+
+/**
+ * La ligne « Avec » du rappel de l'etape 3.
+ *
+ * >>> ELLE NE DIT JAMAIS « PEU IMPORTE ». <<< Ce serait repeter au visiteur ce
+ * qu'il vient de repondre. Ou bien on sait qui, et on le nomme ; ou bien il n'y
+ * a personne a nommer — commerce a agenda unique — et la ligne n'existe pas.
+ */
+function poserRappelQui() {
+  const nom = nomDeQui();
+  poserTexte($('#rappelQui'), nom);
+  montrer($('#rappelQuiLigne'), Boolean(nom));
 }
 
 // --- LA FICHE DE TRAVAIL ----------------------------------------------------
@@ -455,13 +501,14 @@ function peindreFiche(cible, { reference = '' } = {}) {
 
   const p = RESERVATION.prestation;
 
-  // Qui, seulement si c'est une information : « peu importe » avant la
-  // reservation ne dit rien, le prenom attribue apres en dit une.
-  const qui = RESERVATION.confirmee?.staffId
-    ? CONFIG?.staff.find((s) => s.id === RESERVATION.confirmee.staffId)?.name
-    : (RESERVATION.staffId
-      ? CONFIG?.staff.find((s) => s.id === RESERVATION.staffId)?.name
-      : '');
+  // Qui, seulement si c'est une information — et c'en est une plus souvent
+  // qu'avant. La fiche ne connaissait que deux cas : le rendez-vous pris
+  // (`confirmee`), ou la personne nommee a l'etape 2. « Peu importe » ne
+  // donnait donc AUCUNE ligne « Avec », ni ici ni dans le rappel du dessus.
+  // `nomDeQui()` ajoute le troisieme cas : le pressenti que le serveur attache
+  // au creneau. Une seule source pour les deux endroits, sinon la fiche et le
+  // rappel finiraient par ne plus dire la meme chose a trois lignes d'ecart.
+  const qui = nomDeQui();
 
   const lignes = [
     ['Prestation', p.name],
@@ -1090,6 +1137,11 @@ function recommencer() {
   montrer($('#tunnelCreneaux'), false);
   afficherMessage($('#messageReservation'), '');
   afficherMessage($('#creneauxMessage'), '');
+
+  // La ligne « Avec » du rappel : elle nommait quelqu'un, et il n'y a plus rien
+  // de choisi. `poserRappelQui()` la referme d'elle-meme, puisque `nomDeQui()`
+  // n'a plus aucune de ses trois sources.
+  poserRappelQui();
 
   allerEtape(1);
 }

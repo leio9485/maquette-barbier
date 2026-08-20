@@ -284,6 +284,50 @@ try {
       new Set(parPersonne).size === parPersonne.length, parPersonne);
   }
 
+  // --- 5 bis. QUI PRENDRAIT CE CRENEAU (`pick`) ----------------------------
+  //
+  // >>> L'INFORMATION QUE LE SITE DEMANDAIT SANS POUVOIR LA DONNER. <<< En
+  // laissant « peu importe » — le choix preselectionne, donc le plus frequent —
+  // le client ne decouvrait qu'il a rendez-vous avec Remi qu'a l'ecran de
+  // confirmation, tout valide. Le tunnel affiche desormais le nom des l'etape
+  // 03, et il le tient de ce champ.
+  //
+  // ⚠️ CE QUI COMPTE ICI N'EST PAS QUE LE CHAMP EXISTE, MAIS QU'IL DISE VRAI.
+  //    Le pressenti (`pickStaff` dans la liste) et l'attribution reelle
+  //    (`attribuer` dans la transaction) sont deux appels distincts : s'ils
+  //    divergeaient, l'ecran annoncerait quelqu'un d'autre que celui qui prend
+  //    le rendez-vous — un defaut pire que l'absence d'information, parce qu'on
+  //    y croit.
+  console.log('\n5 bis. Qui prendrait ce creneau');
+  {
+    const vue = await creneau(570);
+    const libre = vue.slots.find((c) => c.free && c.staff.length === 2);
+    verifie('un creneau entierement libre subsiste', Boolean(libre), libre);
+
+    verifie('chaque creneau libre annonce qui le prendrait',
+      vue.slots.filter((c) => c.free).every((c) => typeof c.pick === 'string' && c.pick),
+      vue.slots.filter((c) => c.free).slice(0, 3));
+    verifie('et ce quelqu\'un est bien parmi les personnes libres',
+      vue.slots.filter((c) => c.free).every((c) => c.staff.includes(c.pick)),
+      vue.slots.filter((c) => c.free).slice(0, 3));
+    verifie('un creneau pris n\'annonce personne',
+      vue.slots.filter((c) => !c.free).every((c) => c.pick === null),
+      vue.slots.filter((c) => !c.free).slice(0, 3));
+
+    const annonce = libre.pick;
+    const pris = await reserver({ start: libre.start });
+    verifie('une reservation « peu importe » aboutit', pris.status === 201, pris.donnees);
+    verifie('>>> ET ELLE TOMBE SUR CELUI QUI ETAIT ANNONCE <<<',
+      pris.donnees?.staffId === annonce, [annonce, pris.donnees?.staffId]);
+
+    // Le pressenti suit la charge : celui qu'on vient d'occuper n'est plus le
+    // prochain propose sur les creneaux qui se chevauchent.
+    const apres = await creneau(libre.start);
+    verifie('le creneau reste libre : il reste quelqu\'un', apres.slot?.free === true, apres.slot);
+    verifie('mais ce n\'est plus le meme qui est annonce',
+      apres.slot?.pick !== annonce && apres.slot?.pick, [annonce, apres.slot?.pick]);
+  }
+
   // --- 6. Qui assure quoi -------------------------------------------------
   console.log('\n6. Prestations assurees');
   {

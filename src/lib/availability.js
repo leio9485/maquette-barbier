@@ -321,6 +321,28 @@ export function computeSlots({ date, durationMin, day, settings, reservations, s
       label: toHHMM(t),
       free: libres.length > 0,
       staff: libres.map((personne) => personne.id),
+      // >>> QUI PRENDRAIT CE CRENEAU SI L'ON DISAIT « PEU IMPORTE ». <<<
+      //
+      // Le site le demandait sans pouvoir le savoir : en laissant « peu
+      // importe », le client ne decouvrait qu'il avait rendez-vous avec Yanis
+      // qu'a l'ecran de confirmation, une fois tout valide. Dans un metier ou
+      // l'on choisit son barbier, c'est l'information qu'on cache le plus
+      // longtemps.
+      //
+      // ⚠️ CALCULE PAR `pickStaff()`, ET SURTOUT PAS RECOPIE DANS LE
+      //    NAVIGATEUR. La regle — la personne la moins chargee du jour,
+      //    departagee par l'ordre d'affichage — est une regle metier : ecrite
+      //    a deux endroits, elle finirait par diverger, et l'ecran annoncerait
+      //    quelqu'un d'autre que celui qui prend le rendez-vous.
+      //
+      // ⚠️ C'EST UN PRESSENTI, PAS UNE RESERVATION. Le choix definitif se fait
+      //    DANS la transaction d'enregistrement (`attribuer()`), et il le doit :
+      //    choisir avant de verrouiller laisserait deux clients repartir avec le
+      //    meme barbier. Si quelqu'un prend la place entre-temps, c'est un autre
+      //    nom qui sortira — et c'est la bonne issue, bien meilleure qu'un refus.
+      //    Le site n'envoie donc PAS cette valeur a la reservation : « peu
+      //    importe » reste « peu importe ».
+      pick: pickStaff(libres, reservations)?.id ?? null,
     };
   });
 }

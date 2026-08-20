@@ -708,3 +708,49 @@
   grid-column: 1 / -1;
   margin: 0;
 }
+
+/* --- LES REPÈRES DE LECTURE D'UNE JOURNÉE ----------------------------------
+
+   Deux lignes, et rien d'autre : la pause déclarée, et l'heure courante.
+
+   >>> CE QU'ELLES RÉPARENT. <<< La liste passait de 11:45 à 14:00 sans rien
+   indiquer : on lisait un trou de deux heures et on croyait à un creux de
+   réservations, c'est-à-dire à du travail perdu. C'est l'inverse — le commerce
+   était fermé, il n'avait rien à vendre. Et rien ne marquait « où on en est »
+   sur l'écran qu'on laisse ouvert toute la journée.
+
+   ⚠️ CE NE SONT PAS DES LIGNES DE PLUS À LIRE. Elles n'ont ni cible tactile, ni
+      action, ni filet de personne à gauche : c'est du texte posé entre deux
+      rendez-vous, à la même abscisse que les heures, en plus petit. Une
+      journée de trente-trois lignes ne peut pas s'offrir deux repères qui
+      pèsent autant qu'un rendez-vous.
+*/
+.agenda-repere {
+  /* Elle remplace le filet de la ligne par le sien : deux traits collés — le
+     bas du rendez-vous précédent et le haut du repère — feraient une double
+     barre à cet endroit et nulle part ailleurs. */
+  border-bottom: 1px solid var(--filet);
+  padding: var(--e1) 0 var(--e1) var(--e2);
+
+  font-family: var(--f-donnee);
+  font-size: var(--t-etiq);
+  letter-spacing: var(--ls-etiq);
+  text-transform: uppercase;
+  color: var(--acier);
+}
+
+/* « MAINTENANT » PREND LE VERT, et c'est le seul de l'agenda.
+
+   La charte réserve le vert aux états positifs — confirmé, disponible, ouvert
+   — et « l'heure qu'il est » en fait partie : c'est le repère qu'on cherche,
+   pas un avertissement. C'est aussi la couleur que porte déjà « Aujourd'hui »
+   dans l'en-tête de journée, à trois lignes de là : les deux disent la même
+   chose à deux échelles, elles doivent se répondre.
+
+   Le filet passe à gauche et devient épais : le repère se trouve alors du
+   regard, à l'aplomb des filets de personne, sans rien ajouter à la hauteur. */
+.agenda-repere[data-repere="maintenant"] {
+  border-left: 3px solid var(--vert-signal);
+  padding-left: calc(var(--e2) - 3px);
+  color: var(--vert-signal);
+}

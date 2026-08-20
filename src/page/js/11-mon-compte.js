@@ -40,6 +40,11 @@ async function ouvrirEspaceConnecte() {
   // hauteur, et tout ce qui se colle dessous en depend.
   mesurerLesBarresCollees();
 
+  // L'ARRIVEE DANS L'ESPACE EST UNE OUVERTURE DU VOLET AGENDA, meme si elle ne
+  // passe pas par `ouvrirVolet()` : c'est le volet par defaut, et c'est meme le
+  // cas le plus frequent des deux. Sans cette ligne, le defilement jusqu'a
+  // « maintenant » n'aurait lieu qu'en revenant d'un autre onglet.
+  demanderLeDefilementVersMaintenant();
   await chargerAgenda();
 }
 
@@ -288,7 +293,10 @@ function ouvrirVolet(nom) {
 
   if (nom === 'chiffres') chargerChiffres();
   if (nom === 'reglages') { chargerReglages(); peindreCompte(); }
-  if (nom === 'agenda') chargerAgenda();
+  // ⚠️ LE DEFILEMENT EST DEMANDE AVANT LE CHARGEMENT, pas apres : `chargerAgenda()`
+  //    peint de facon asynchrone, et poser le drapeau ensuite arriverait apres
+  //    la peinte qui devait le consommer.
+  if (nom === 'agenda') { demanderLeDefilementVersMaintenant(); chargerAgenda(); }
 
   // Le sommaire des reglages n'a de hauteur que son volet ouvert, et la barre
   // du haut peut changer de hauteur d'un volet a l'autre.

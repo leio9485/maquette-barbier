@@ -61,6 +61,48 @@ function joursAffiches() {
 
 // --- Le chargement ----------------------------------------------------------
 
+/**
+ * Faut-il descendre jusqu'a « maintenant » a la prochaine peinte ?
+ *
+ * >>> UNE SEULE FOIS, A L'OUVERTURE DU VOLET. <<< L'agenda se repeint a chaque
+ * pointage, a chaque fin de creneau, a chaque retour de la liste des absences —
+ * defiler a chacune de ces occasions arracherait la page des mains du
+ * commercant en train de lire une autre heure. Le drapeau est donc pose par
+ * `ouvrirVolet('agenda')` et consomme par la premiere peinte qui suit.
+ */
+let DEFILER_VERS_MAINTENANT = false;
+
+/** Appele a l'ouverture du volet Agenda. */
+function demanderLeDefilementVersMaintenant() {
+  DEFILER_VERS_MAINTENANT = true;
+}
+
+/**
+ * Descend jusqu'au repere « maintenant », s'il y en a un a l'ecran.
+ *
+ * >>> ON ARRIVE SUR LE MATIN D'UNE JOURNEE QU'ON A DEJA FAITE. <<< A 16 h, le
+ * volet s'ouvrait sur 09:00 et il fallait faire defiler vingt lignes pour
+ * arriver a ce qui reste — tous les jours, plusieurs fois par jour.
+ *
+ * ⚠️ `block: 'center'` ET NON `'start'` : le repere se calerait sinon sous
+ *    l'en-tete de journee colle en haut, et on atterrirait sur le rendez-vous
+ *    qui SUIT sans voir celui qui vient de finir. Au centre, on voit les deux.
+ *
+ * ⚠️ AUCUN FOCUS N'EST DEPLACE. Le motif est celui de `repeindreLePointage()`
+ *    juste plus bas : `peindreAgenda()` remplace tout le contenu, et rendre le
+ *    focus a un element repeint le retirerait de la ou le commercant l'avait
+ *    mis. On deplace le regard, pas le clavier.
+ */
+function defilerVersMaintenant() {
+  if (!DEFILER_VERS_MAINTENANT) return;
+
+  const repere = $('.agenda-repere[data-repere="maintenant"]');
+  if (!repere) return;
+
+  DEFILER_VERS_MAINTENANT = false;
+  repere.scrollIntoView({ block: 'center', behavior: 'auto' });
+}
+
 async function chargerAgenda() {
   const jours = joursAffiches();
   const du = jours[0];
@@ -201,6 +243,7 @@ function peindreAgenda() {
   cible.innerHTML = joursAffiches().map(peindreJour).join('');
 
   mesurerTeteDeJournee();
+  defilerVersMaintenant();
   programmerLeProchainPointage();
 }
 
@@ -224,6 +267,112 @@ function compteDe(liste) {
   const vrais = liste.filter((r) => r.type !== 'block').length;
   if (!vrais) return '';
   return vrais > 1 ? `${vrais} rendez-vous` : '1 rendez-vous';
+}
+
+// --- LES REPERES DE LECTURE D'UNE JOURNEE -----------------------------------
+//
+// Deux manques, mineurs separement, agacants ensemble sur trente-trois lignes.
+//
+//   - LA LISTE PASSAIT DE 11:45 A 14:00 SANS RIEN INDIQUER. La pause du midi
+//     n'etait marquee nulle part : on lisait un trou de deux heures et on
+//     croyait a un creux de reservations, c'est-a-dire a du travail perdu. Or
+//     c'est l'inverse — le commerce est ferme, il n'avait rien a vendre, et
+//     c'est deja la lecture que le taux de remplissage applique
+//     (src/lib/statistiques.js).
+//   - RIEN NE MARQUAIT L'HEURE COURANTE. Sur l'ecran qu'on laisse ouvert toute
+//     la journee, retrouver « ou on en est » demandait de lire les heures une
+//     par une.
+
+/**
+ * La pause declaree et l'heure courante, sous forme de lignes a inserer.
+ *
+ * ⚠️ EN VUE JOUR SEULEMENT. La semaine est une vue d'ensemble : sept lignes
+ *    « Fermé 12:00 – 14:00 » y ajouteraient une hauteur d'ecran pour redire
+ *    sept fois la meme chose, et le trou qu'elles expliquent ne se lit de toute
+ *    facon pas dans une journee resserree.
+ */
+function reperesDuJour(iso) {
+  if (ESPACE.vue !== 'jour') return [];
+
+  const reperes = [];
+  const plages = plagesDuJour(CONFIG?.hours?.[jourDeLaSemaine(iso)]);
+
+  // UNE PAUSE EST UN TROU ENTRE DEUX PLAGES, et c'est la seule definition juste :
+  // elle vient des horaires, jamais d'une heure ecrite en dur. Un commerce en
+  // journee continue n'en a aucune, et n'aura donc aucune ligne.
+  for (let i = 1; i < plages.length; i++) {
+    const debut = plages[i - 1][1];
+    const fin = plages[i][0];
+    if (fin > debut) {
+      reperes.push({
+        genre: 'pause', start: debut, fin,
+        texte: `Fermé ${fmtHeure(debut)} – ${fmtHeure(fin)}`,
+      });
+    }
+  }
+
+  // >>> « MAINTENANT » N'EXISTE QUE SUR LA JOURNEE DU JOUR. <<< Le poser sur
+  //     demain n'aurait aucun sens, et sur hier il mentirait.
+  //
+  // ⚠️ ET SEULEMENT DANS LES HEURES D'OUVERTURE. A 23 h, la ligne se poserait
+  //    sous le dernier rendez-vous et dirait seulement « la journee est finie »
+  //    — ce que la journee finie disait deja.
+  if (iso === aujourdhui() && plages.length) {
+    const t = Math.floor(minutesEcoulees());
+    if (t >= plages[0][0] && t <= plages[plages.length - 1][1]) {
+      reperes.push({ genre: 'maintenant', start: t, texte: 'Maintenant' });
+    }
+  }
+
+  return reperes;
+}
+
+/**
+ * Une liste de rendez-vous, avec ses reperes inseres au bon endroit.
+ *
+ * ⚠️ ON N'ARRETE PAS DE TRIER LA LISTE, ON GLISSE DEDANS. `rdvTriesDe()` range
+ *    deja les blocages avant les rendez-vous a heure egale ; refaire un tri ici
+ *    avec les reperes melanges perdrait cette regle sans que rien ne le signale.
+ *
+ * ⚠️ UNE PAUSE NE S'AFFICHE QUE SI ELLE EXPLIQUE UN TROU. C'est tout son objet :
+ *    sans rien apres elle, il n'y a pas de trou a expliquer, et la ligne
+ *    deviendrait un « Fermé 12:00 – 14:00 » posé en bas d'une matinee — une
+ *    information vraie, au seul endroit ou personne ne se la posait.
+ */
+function listeAvecReperes(liste, reperes, iso) {
+  const utiles = reperes.filter((m) => m.genre !== 'pause'
+    || (liste.some((r) => r.start < m.start) && liste.some((r) => r.start >= m.fin)));
+
+  const restants = [...utiles].sort((a, b) => a.start - b.start);
+  const morceaux = [];
+
+  for (const rdv of liste) {
+    while (restants.length && restants[0].start <= rdv.start) {
+      morceaux.push(htmlRepere(restants.shift()));
+    }
+    morceaux.push(ligneRdv(rdv, iso));
+  }
+  for (const m of restants) morceaux.push(htmlRepere(m));
+
+  return `<ul class="agenda-liste">${morceaux.join('')}</ul>`;
+}
+
+/**
+ * Un repere : un filet, un mot, rien d'autre.
+ *
+ * `data-repere` porte le genre : la feuille distingue la pause (en retrait, en
+ * gris) de « maintenant » (le seul trait vert de l'ecran). Aucune forme
+ * dessinee, aucun ornement — c'est le vocabulaire du reste du site.
+ *
+ * ⚠️ PAS D'`id` SUR « MAINTENANT ». Il y a un repere PAR GROUPE — trois
+ *    colonnes, trois lignes « Maintenant » a la meme hauteur — et trois
+ *    elements portant le meme identifiant sont un document invalide. Le
+ *    defilement vise donc `[data-repere="maintenant"]`, dont il prend le
+ *    premier.
+ */
+function htmlRepere(m) {
+  return `<li class="agenda-repere" data-repere="${esc(m.genre)}">`
+    + `<span>${esc(m.texte)}</span></li>`;
 }
 
 /**
@@ -260,10 +409,12 @@ function peindreJour(iso) {
     return `<section class="agenda-jour">${tete}</section>`;
   }
 
-  if (grouperParPersonne()) return jourParPersonne(iso, tete, liste);
+  const reperes = reperesDuJour(iso);
+
+  if (grouperParPersonne()) return jourParPersonne(iso, tete, liste, reperes);
 
   return `<section class="agenda-jour">${tete}`
-    + `<ul class="agenda-liste">${liste.map((r) => ligneRdv(r, iso)).join('')}</ul>`
+    + listeAvecReperes(liste, reperes, iso)
     + '</section>';
 }
 
@@ -292,9 +443,12 @@ function peindreJour(iso) {
  *    passer pour l'affaire d'une seule personne, et laisserait croire les
  *    autres disponibles.
  */
-function jourParPersonne(iso, tete, liste) {
+function jourParPersonne(iso, tete, liste, reperes = []) {
   const colonnes = equipeActive();
 
+  // Le bandeau du haut ne porte PAS les reperes : ils appartiennent aux listes
+  // ou le trou se voit, c'est-a-dire aux groupes. Les poser aussi ici les
+  // ferait apparaitre une fois de trop, au-dessus de tout le monde.
   const communs = liste.filter((r) => !r.staffId);
   const bandeau = communs.length
     ? `<ul class="agenda-liste">${communs.map((r) => ligneRdv(r, iso)).join('')}</ul>`
@@ -308,7 +462,7 @@ function jourParPersonne(iso, tete, liste) {
     //     jour-la, ce qui est exactement la faute que cette vue existe pour
     //     eviter.
     const corps = siens.length
-      ? `<ul class="agenda-liste">${siens.map((r) => ligneRdv(r, iso)).join('')}</ul>`
+      ? listeAvecReperes(siens, reperes, iso)
       : `<p class="agenda-colonne-vide">${travailleLe(personne, iso) ? 'Libre' : 'Ne travaille pas'}</p>`;
 
     return '<div class="agenda-colonne">'

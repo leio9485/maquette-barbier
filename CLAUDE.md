@@ -194,10 +194,48 @@ qui ? » d'abord ferait choisir quelqu'un pour découvrir ensuite qu'il ne
 travaille pas le jour voulu. Changer de personne redessine le calendrier **et**
 recharge les créneaux : le résultat du choix est visible tout de suite.
 
+⚠️ **Un créneau libre porte le cadre, un créneau pris s'efface.** C'était
+l'inverse : le pris était **barré** et encadré d'un filet, et le barré est une
+forme qui accroche l'œil. Mesuré un vendredi avec une seule personne — 22
+horaires affichés, 3 libres, donc dix-neuf accroches contre trois : on lisait
+« c'est complet » avant de lire « il reste 09:45 », sur une journée qui avait de
+la place. Un tunnel qui donne l'impression d'être plein perd le client à l'écran
+d'avant.
+
+Le choix d'**afficher** les créneaux pris n'est pas en cause et ne bouge pas
+(voir juste au-dessus). C'est le poids visuel qui s'inverse : bordure encre sur
+le libre, plus de barré ni de cadre sur le pris, opacité `--eteint` — **mesurée
+à 5,14:1**, comme les couleurs. On éteint de l'encre et non de l'acier : l'acier
+est déjà le gris secondaire à 5,95:1, l'affaiblir le ferait tomber à 2,85:1.
+
+⚠️ **Le barré est parti, pas ce qu'il disait.** `text-decoration` n'est annoncé
+par aucun lecteur d'écran : le sens passait déjà par `disabled` et par
+l'`aria-label` « 17:00 — déjà pris ». Les deux sont toujours là.
+
 ⚠️ **Le calendrier montre le mois entier, jours fermés compris.** Une liste
 déroulante des seuls jours ouverts a été essayée : plus courte, mais on ne
 voyait plus le rythme du commerce, et « il est fermé le lundi » est une
 information qu'on retient.
+
+⚠️ **Le récapitulatif de l'étape 03 nomme le barbier, et jamais « peu
+importe ».** En laissant « Peu importe » — le choix présélectionné, donc le plus
+fréquent — on ne découvrait qu'à l'écran de confirmation, tout validé, que le
+rendez-vous était avec Yanis. Dans un métier où le client choisit son barbier,
+c'était l'information cachée le plus longtemps. Répéter « peu importe »
+n'apprendrait rien : c'est ce que le visiteur vient de répondre.
+
+Chaque créneau porte donc `pick` : **qui le prendrait** si l'on ne nommait
+personne. Le champ est calculé par `pickStaff()` — la fonction qui décide
+vraiment — et surtout **pas recopié dans le navigateur** : la règle
+d'attribution est une règle métier, écrite à deux endroits elle finirait par
+diverger, et l'écran annoncerait quelqu'un d'autre que celui qui prend le
+rendez-vous.
+
+⚠️ **C'est un pressenti, et le site ne l'envoie pas à la réservation.** Le choix
+définitif se fait DANS la transaction d'enregistrement, et il le doit : choisir
+avant de verrouiller laisserait deux clients repartir avec le même barbier. Si
+quelqu'un prend la place entre-temps, un autre nom sort — bien meilleur qu'un
+refus.
 
 ⚠️ **Il n'y a plus de « Réserver avec X » dans la section Équipe.** « Avec
 qui ? » se pose une seule fois, dans le tunnel, après le jour. Poser la même
@@ -339,6 +377,67 @@ du jour, dans l'ordre, dans la même forme que la liste tarifaire de la vitrine.
 « Noter un rendez-vous » est passé du clic dans une case vide à un bouton en
 tête, qui ouvre le même formulaire.
 
+**La vue jour se range par barbier elle aussi, et c'est elle qui en avait le
+plus besoin.** La semaine avait ses colonnes ; la journée rendait une liste
+plate de trente-trois lignes où les trois barbiers sont mélangés dans l'ordre
+chronologique — c'est-à-dire que la vue qu'on ouvre vingt fois par jour était la
+seule sans colonnes. À 14:15 il y a deux rendez-vous simultanés : en liste
+plate, savoir qui est libre demandait de lire le prénom à droite de chaque ligne
+et de reconstruire trois plannings de tête.
+
+Le code existait ; ce qui a changé est la **séparation de deux décisions** qui
+n'en faisaient qu'une. `data-groupe` dit que les lignes sont rangées par
+personne — c'est le JavaScript qui le fait, aucune règle de style ne réordonne
+un contenu. `data-colonnes` dit seulement de poser ces groupes **côte à côte**
+plutôt qu'en pile, et cela, la feuille sait le faire seule.
+
+⚠️ **La journée se groupe à toutes les largeurs, la semaine non.** Sur un
+téléphone, trois colonnes côte à côte ne tiennent pas, mais trois **groupes
+empilés**, si — et sept journées de trois groupes empilés ne se lisent plus du
+tout. Sans équipe enregistrée, rien ne change ; avec une seule personne, c'est
+une colonne unique, c'est-à-dire la liste.
+
+**Deux repères de lecture dans la journée : la pause, et « maintenant ».** La
+liste passait de 11:45 à 14:00 sans rien indiquer — on lisait un trou de deux
+heures et on croyait à un creux de réservations, c'est-à-dire à du travail
+perdu. C'est l'inverse : le commerce était fermé, il n'avait rien à vendre.
+Et rien ne marquait l'heure courante sur l'écran qu'on laisse ouvert toute la
+journée.
+
+⚠️ **La pause vient des horaires, jamais d'une heure écrite en dur** : c'est le
+trou entre deux plages. Elle ne s'affiche **que si elle explique un trou** — un
+rendez-vous avant *et* un après ; sans rien après, il n'y a pas de trou, et la
+ligne deviendrait un « Fermé 12:00 – 14:00 » posé en bas d'une matinée.
+
+⚠️ **Les repères se glissent dans la liste, ils ne la retrient pas.**
+`rdvTriesDe()` range déjà les blocages avant les rendez-vous à heure égale ; un
+tri mélangé les aurait perdus sans que rien ne le signale.
+
+⚠️ **Le défilement jusqu'à « maintenant » se fait UNE SEULE FOIS**, à l'ouverture
+du volet. L'agenda se repeint à chaque pointage et à chaque fin de créneau :
+défiler à chacune arracherait la page des mains du commerçant en train de lire
+une autre heure. Aucun focus n'est déplacé — on déplace le regard, pas le
+clavier.
+
+**Les numéros de téléphone sont masqués par défaut dans l'agenda.** Un écran
+d'agenda est souvent visible depuis la salle : trente numéros complets, c'est la
+donnée personnelle de trente clients exposée à tous ceux qui attendent. Ils
+s'affichent « •• •• •• 14 07 » et se révèlent au clic, le temps de la visite.
+Les quatre derniers chiffres restent — ce sont eux qui servent à reconnaître un
+client au téléphone, et c'est déjà le second facteur de `/annuler`.
+
+⚠️ **C'est un réglage d'APPAREIL, pas du commerce**, et l'intitulé le dit —
+« sur cet appareil seulement ». Le risque est physique, un écran tourné vers la
+salle, et il ne concerne donc pas les deux machines de la même façon : la
+tablette du comptoir doit masquer, le portable de l'arrière-boutique n'a aucune
+raison de le faire. Il évite en outre une colonne de plus dans la base d'un
+client qui tourne, pour un booléen qui ne décide de rien côté serveur.
+
+⚠️ **Ce n'est pas une mesure de sécurité, et il ne faut pas le vendre comme
+telle.** Le numéro est dans la réponse du serveur, dans la fiche à un clic, et
+dans les exports. Ce que cela empêche est un regard par-dessus l'épaule — ce qui
+est exactement le risque qu'on a.
+
 **La vue semaine se lit en colonnes, une par personne, à partir de 900 px.**
 Elle était sept listes chronologiques : pour arbitrer « qui est libre jeudi
 après-midi ? », il fallait lire la journée entière et tenir de tête qui
@@ -466,11 +565,54 @@ exclu** : sans cette exclusion, un rendez-vous se voit comme son propre obstacle
 et ne peut plus changer de seule prestation. `GET /api/admin/slots` prend
 `exclude=<id>` pour la même raison, côté liste.
 
-⚠️ **Le client n'est prévenu de rien, et l'écran le dit.** Tant que les canaux de
-`notifications.js` sont éteints, le déplacement affiche « Pensez à prévenir
-Damien Carpentier — 06 39 98 14 07 ». Le point d'appel de `notifierEnFond()` est
-marqué dans la route ; l'allumer est un arbitrage commercial, pas une tâche de
-développement.
+⚠️ **Le client est prévenu par courriel, s'il en a laissé un — et l'écran le
+rappelle quand même.** Le point d'appel de `PATCH /api/admin/bookings/:id`
+n'est plus vide : il appelle `prevenirLeClient('deplacement', …)`, mais
+seulement si le **créneau** a bougé (rendre un rendez-vous à quelqu'un d'autre
+sans le décaler ne change rien pour le client). Le champ courriel étant
+facultatif, beaucoup de rendez-vous n'en portent pas : « Pensez à prévenir
+Damien Carpentier — 06 39 98 14 07 » reste donc à l'écran.
+
+### La fenêtre « Déplacer », et ce qu'elle demandait avant
+
+**Mesuré en session : 28 entrées dont 27 « — pris ».** Le menu « Heure » ne
+laissait sélectionnable que l'heure actuelle du rendez-vous — c'est-à-dire qu'on
+ne pouvait rien faire. En passant au lendemain : 36 entrées, une seule libre. Le
+commerçant devait changer de date jour après jour et relire trente lignes mortes
+à chaque fois, **au téléphone, avec un client en ligne** — le seul moment où
+l'on déplace un rendez-vous. Trois manques, traités ensemble.
+
+- **La grille de créneaux remplace le menu déroulant**, au balisage près celle
+  du tunnel client : `.creneaux-grille` et `.creneau` ont déménagé de
+  `13-tunnel.css` vers `05-controles.css`, la feuille des blocs que **les deux
+  documents** emploient. Trente créneaux se parcourent d'un coup d'œil.
+- **Les trois prochaines disponibilités sont en tête**, calculées sur trente
+  jours par `GET /api/admin/prochaines-dispos` et non sur la seule journée
+  affichée. Le tunnel client sait ouvrir le premier jour libre depuis toujours :
+  le commerçant avait moins que ses propres clients. Un clic pose la date **et**
+  l'heure.
+- **La barre d'action colle en bas de la fenêtre.** À 640 px, le bouton de
+  validation était sous le pli du défilement interne.
+
+⚠️ **`prochaines-dispos` écarte ce qui est déjà passé aujourd'hui**, contrairement
+à `GET /api/admin/slots` qui rend la journée entière — celle-là sert à noter à
+15 h le client passé à 9 h ce matin, celle-ci répond « quand puis-je vous
+caser ? ».
+
+⚠️ **« Forcer ce créneau » pose un rendez-vous sur une heure occupée**, après une
+confirmation qui **nomme** le rendez-vous doublé. Le patron est chez lui : s'il
+décide de caser quelqu'un en doublant, le logiciel doit le permettre. Ce qu'il
+ne doit pas pouvoir faire, c'est doubler sans s'en apercevoir.
+
+⚠️ **`force` ne lève QUE le contrôle d'occupation**, et il n'existe que derrière
+`requireAdmin` : la date passée, la période bloquée et le rendez-vous annulé
+restent refusés — ceux-là ne disent pas « c'est pris », ils disent « ce n'est pas
+ce geste-là ». Envoyé à `/api/bookings`, c'est un champ inconnu de plus, **et
+c'est vérifié par un test plutôt que promis par un commentaire**. Il ne se
+déclenche que sur le booléen, jamais sur la chaîne `"true"`, et il refuse
+« peu importe » quand il y a une équipe : un rendez-vous sans personne occupe
+*tout le monde*, on fermerait le créneau pour l'équipe entière au lieu de le
+doubler pour une seule.
 
 ⚠️ **L'ossature de l'espace n'avait aucun style.** Ni la barre, ni les onglets,
 ni le conteneur du contenu : le balisage portait des classes que personne
@@ -588,7 +730,10 @@ src/
     annulation.js    ← le filtre « ce qui occupe encore l'agenda »
     reference.js     ← la référence courte d'un rendez-vous
     statistiques.js  ← les chiffres du tableau de bord
-    notifications.js ← la porte de sortie unique (SMS écrit, éteint)
+    notifications.js ← la porte de sortie unique (courriel et SMS, éteints)
+    courriels.js     ← les trois messages écrits au client, et rien d'autre
+    ics.js           ← le fichier d'agenda côté serveur — il ÉVALUE celui du
+                       navigateur, il ne le recopie pas
     hebergement.js   ← le paragraphe « Hébergement » des mentions légales
     icones.js        ← l'icône de l'écran d'accueil et le manifeste,
                        dessinés par le serveur, sans dépendance
@@ -646,11 +791,46 @@ et pas seulement celui où le navigateur avait déjà le jeton.
 L'appelant vient de l'écrire ; le lui rendre n'apprend rien à personne. C'est
 tout ce que la réponse ajoute.
 
+⚠️ **« Ajouter à mon agenda » disparaît avec le rendez-vous annulé.** Il restait
+affiché, et cliquable, sous « Le rendez-vous est annulé » : le client repartait
+avec un fichier `.ics` pour un rendez-vous qui n'existe plus, et un **événement
+fantôme** dans son agenda — à l'heure exacte où il ne doit pas se présenter.
+C'est pire que pas de bouton du tout : l'agenda, lui, n'a aucun moyen
+d'apprendre l'annulation. La matière du fichier est effacée avec le bouton, et
+les **deux** boutons se remontrent ensemble quand une nouvelle réservation
+aboutit — sinon le correctif aurait simplement déplacé le défaut d'un cran.
+
 **`/annuler` pré-remplit la référence** depuis ce que le navigateur garde
 (`letabli.rdv`). ⚠️ **Les quatre chiffres restent à saisir, toujours** : c'est
 eux qui protègent sur un appareil partagé. Le formulaire manuel reste accessible
 sans condition — le rappel est un raccourci, jamais un passage obligé, et il
 part masqué dans le HTML servi.
+
+**Les heures creuses se lisaient à l'envers.** La barre encodait le **vide**, le
+nombre encodait le **volume** : une barre longue accompagnait « 6 rdv » et une
+barre courte « 19 rdv ». Un patron qui survole lit « grande barre = beaucoup »,
+c'est-à-dire l'exact contraire de ce que le tableau dit. Et « 19 rdv » sur huit
+semaines ne décidait rien : dix-neuf sur combien de places ?
+
+Chaque heure porte donc son **taux de remplissage**, la barre le montre, et le
+classement trie dessus — barre courte = heure creuse, dans le même sens que le
+chiffre écrit à côté. Le nombre brut reste en information secondaire : 0 % sur
+deux places offertes et 0 % sur quarante ne demandent pas la même décision.
+
+⚠️ **Le remplissage se compte en minutes, pas en rendez-vous** — c'est la même
+règle que le taux de remplissage général, et pour la même raison. Le
+dénominateur est le temps réellement ouvert sur cette heure-là, personne par
+personne, congés déduits.
+
+⚠️ **L'échelle de la barre est ABSOLUE (0 à 100 %), pas relative aux cinq lignes
+affichées.** L'écran ne montre que les cinq heures les plus vides : une échelle
+relative donnerait à la moins vide des cinq une barre **pleine**, et l'écran
+redirait « c'est chargé » là où il annonce le contraire.
+
+⚠️ **Une heure sans capacité sur toute la période est écartée** — sa division
+donnerait 0 %, et elle trusterait le classement. Et **la fenêtre s'arrête
+hier** : la journée en cours est incomplète, ses heures à venir offriraient de
+la capacité que personne n'a encore eu l'occasion de remplir.
 
 **Le volet « Chiffres »** (`src/lib/statistiques.js`). Le taux de remplissage se
 compte **en minutes, pas en créneaux** — sinon il monterait quand le barbier
@@ -761,6 +941,44 @@ dépendance ajoutée — le paquet `twilio` tire cinquante modules pour ce qui t
 en une requête HTTP. Le plafond mensuel est **dur** et ne se dépasse jamais en
 silence.
 
+**Le courriel aussi, et c'est lui qui fait le socle.** Sans lui, un client
+réserve, note (ou pas) une référence de six caractères, et repart sans aucune
+trace écrite : la promesse « moins d'oublis » n'est alors tenue que par l'option
+SMS, c'est-à-dire vendue à part. Trois messages — confirmation, déplacement,
+annulation — partent dès que `COURRIEL_ACTIF`, la clé et l'expéditeur sont
+posés, et seulement si le client a laissé une adresse (le champ est facultatif).
+
+⚠️ **Une API HTTP, pas du SMTP**, et pour la même raison que Twilio n'a pas
+apporté son paquet : SMTP demanderait une bibliothèque entière — négociation,
+STARTTLS, encodage MIME — là où un envoi tient en une requête `fetch`. Le format
+attendu accepte les **pièces jointes dans le même JSON**, ce qui permet de
+joindre le `.ics` sans composer un message MIME à la main.
+
+⚠️ **Le `.ics` n'est pas recopié côté serveur : il est ÉVALUÉ.** Le générateur
+vit dans le navigateur depuis le début (`js/07-mon-agenda.js`), et
+`src/lib/ics.js` en évalue le vrai morceau — exactement ce que `tests/ics.mjs`
+fait depuis le lot D. C'est indispensable : l'événement posé par le bouton
+« Ajouter à mon agenda » et celui posé par la pièce jointe doivent porter le
+**même identifiant et le même `SEQUENCE`**, sans quoi le client se retrouve avec
+deux rendez-vous au lieu d'un. Deux copies d'une règle aussi fine divergent au
+premier correctif.
+
+⚠️ **Le courriel d'annulation ne porte pas de pièce jointe.** Joindre un
+événement à un message qui annonce sa disparition est la meilleure façon de le
+voir *réapparaître* dans l'agenda du client. Le retirer demanderait un fichier
+de méthode `CANCEL`, qui n'est pas le même fichier.
+
+⚠️ **Le contenu des messages n'est pas dans `notifications.js`**, et le fichier
+l'exige : une phrase composée dans la porte de sortie serait invisible depuis ce
+qui la déclenche. Elle vit dans `src/lib/courriels.js`, comme les phrases du
+bandeau vivent dans `etat.js`.
+
+⚠️ **Le plafond mensuel du courriel n'est pas là pour la facture.** Un courriel
+ne se paie pas à l'unité ; ce qu'il borne, c'est ce qu'une boucle de
+réservations peut faire partir depuis l'adresse du commerce avant que quiconque
+s'en aperçoive — et qui abîmerait sa réputation d'expéditeur pour longtemps.
+Large, donc : 3 000 par défaut.
+
 **L'espace commerçant est un document à part.** Il partait dans la même page que
 la vitrine, chez chaque visiteur : 35 % du poids. ⚠️ Le piège qui va avec s'est
 produit **trois fois** — du code de l'espace appelant une fonction de la vitrine
@@ -842,6 +1060,22 @@ l'attribut : `"false"` est une valeur légitime qui dit l'inverse.
 ⚠️ **L'échappement du rendu n'est pas remplacé par un filtrage à l'entrée : on
 garde les deux.** Un nom qui contient du balisage s'enregistre — c'est un nom,
 pas une attaque — et ressort `&lt;img` dans la page.
+
+**Le contour de focus ne s'applique plus aux cibles programmatiques.** Le
+sélecteur incluait `[tabindex]`, donc aussi les `tabindex="-1"` posés sur les
+titres et les messages pour y déposer le focus après une action — Chrome leur
+applique `:focus-visible`. On obtenait un rectangle noir de 2 px autour du
+`<h2>` « QUAND PASSEZ-VOUS ? » après un clic sur « Déplacer ce rendez-vous », et
+autour d'un paragraphe sur `/annuler`. Un contour épais autour d'un titre qu'on
+ne peut pas cliquer ne se lit pas comme un repère de navigation, mais comme un
+défaut de rendu.
+
+⚠️ **`:focus-visible` n'a PAS été remplacé par `:focus`** — la pseudo-classe
+était juste, ce n'est pas là qu'était le problème. Seul le sélecteur se
+restreint, à `[tabindex]:not([tabindex="-1"])`, mot pour mot celui que
+`js/05-navigation.js` emploie déjà. **C'est le rendu qui change, pas le
+comportement** : le focus est toujours déposé au même endroit, et les lecteurs
+d'écran annoncent la même chose.
 
 **Pas d'`aria-label` sur les lignes tarifaires.** Il y en avait un ; il violait
 WCAG 2.5.3 (« Label in Name ») en omettant la description visible. Conséquence
@@ -945,13 +1179,51 @@ Sa hauteur est le jeton `--h-entete` (0 en dessous de 1000 px) parce que le
 décalage des ancres, `scroll-padding-top`, en est la somme avec `--h-bandeau`.
 Changer l'un sans l'autre remet les titres de section sous la barre.
 
+## Sauvegarder une instance client
+
+```bash
+npm run db:backup
+```
+
+>>> **C'ÉTAIT LE SEUL POINT DU DÉPÔT CAPABLE DE DÉTRUIRE LES DONNÉES D'UN CLIENT
+PAYANT.** <<< Toute l'instance tient dans `data/` — la base SQLite *et* les
+photos déposées — et rien ne le copiait nulle part.
+
+⚠️ **La copie se fait par `VACUUM INTO`, pas par un `cp`.** Un `cp` sur une base
+ouverte copie un fichier qu'on est peut-être en train d'écrire : le résultat
+fait la bonne taille, porte le bon nom, et ne se révèle corrompu que le jour où
+l'on essaie de s'en servir. Une base en mode WAL garde en outre une partie de
+ses écritures dans un fichier voisin, que copier le seul `.db` perdrait.
+`VACUUM INTO` demande à SQLite d'écrire lui-même une base neuve et complète —
+et **le serveur continue de répondre pendant ce temps**.
+
+⚠️ **Le script ouvre la base en LECTURE SEULE, dans son propre processus.** Il
+ne peut ni ralentir le site, ni le faire tomber, ni laisser la base dans un
+autre état que celui où il l'a trouvée.
+
+⚠️ **La rotation se fie à la date ÉCRITE DANS LE NOM, jamais au `mtime`.** Un
+dossier de sauvegardes finit toujours par être copié, synchronisé ou restauré
+quelque part, et ces opérations remettent les dates de fichier à l'heure du
+jour : une rotation qui s'y fierait croirait avoir douze archives d'aujourd'hui
+et effacerait tout l'historique d'un coup. Sept quotidiennes, quatre
+hebdomadaires (semaines ISO).
+
+⚠️ **`BACKUP_DIR` désigne un AILLEURS, et le repli n'en est pas un.** Sans elle,
+les archives atterrissent dans `backups/`, à côté de `data/` — ce qui protège de
+la fausse manœuvre et de rien d'autre : ni du disque qui lâche, ni du conteneur
+qui repart vide. Le script le rappelle à chaque exécution tant que la variable
+est absente.
+
+La commande, la fréquence et la procédure de restauration complète sont dans
+`src/page/LISEZ-MOI.md`.
+
 ## Vérifier
 
 ```bash
 npm test
 ```
 
-**1 110 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
+**1 209 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
 `.env`.
 
 ⚠️ **`npm run dev` ne convient pas pour lancer la suite.** `node --watch`
@@ -960,7 +1232,7 @@ base et `data/equipe-mise-de-cote.json`. La connexion est coupée en plein
 milieu et `npm test` échoue sur un `ECONNRESET` qui n'a rien à voir avec le
 code. Lancer `npm start`.
 
-Vingt-deux suites, dont quatorze ajoutées après la première livraison :
+Vingt-trois suites, dont quinze ajoutées après la première livraison :
 
 | Suite | Ce qu'elle protège |
 |---|---|
@@ -981,12 +1253,21 @@ Vingt-deux suites, dont quatorze ajoutées après la première livraison :
 | `export.mjs` | l'injection de formule dans le CSV, et le format qu'Excel attend |
 | `ics.mjs` | le fichier d'agenda : identifiant stable, version croissante, heure en UTC |
 | `sessions.mjs` | une session survit au redemarrage du serveur, et le cookie a ses trois marques |
+| `courriels.mjs` | les trois courriels, le `.ics` joint, et le fournisseur en panne |
 
-⚠️ **`demonstration.mjs` est la seule suite à lancer son propre serveur.** Ce
-qu'elle vérifie n'existe qu'avec `DEMO_MODE=true`, variable qui ne doit jamais
-figurer dans le `.env` d'une machine de développement. Elle démarre donc une
-instance sur son propre port et **sa propre base**, et efface les deux en
-partant — la variable d'environnement l'emporte sur le `.env`, vérifié.
+⚠️ **Deux suites lancent leur propre serveur, et pour la même raison.**
+`demonstration.mjs` vérifie ce qui n'existe qu'avec `DEMO_MODE=true` ;
+`courriels.mjs`, ce qui n'existe qu'avec `COURRIEL_ACTIF=true` et une clé.
+Aucune de ces variables ne doit figurer dans le `.env` d'une machine de
+développement — la seconde ferait écrire à quelqu'un à chaque réservation de
+test. Les deux démarrent donc une instance sur leur propre port et **leur propre
+base**, et effacent les deux en partant : la variable d'environnement l'emporte
+sur le `.env`, vérifié.
+
+⚠️ **`courriels.mjs` lance en plus un faux fournisseur**, qui note ce qu'il
+reçoit et **tombe en panne sur commande**. C'est ce qui permet de vérifier la
+seule chose qui compte vraiment : un fournisseur injoignable ne fait pas échouer
+une réservation, et l'unité réservée au compteur lui est rendue.
 
 ⚠️ **Trois suites tirent une référence au hasard à chaque exécution**
 (`annulation.mjs`, `debit.mjs`). Ce n'est pas de la coquetterie : depuis que les

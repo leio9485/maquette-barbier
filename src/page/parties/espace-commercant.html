@@ -636,10 +636,70 @@
             <label for="rdvDate">Date</label>
             <input type="date" id="rdvDate" required>
           </div>
-          <div class="champ">
-            <label for="rdvHeure">Heure</label>
-            <select id="rdvHeure" required></select>
+
+          <!--# L'HEURE : UNE GRILLE DE CRÉNEAUX, PLUS UNE LISTE DÉROULANTE.
+
+               >>> MESURÉ EN SESSION, ET C'ÉTAIT INTENABLE. <<< Ouvrir un
+               rendez-vous du 20 août, cliquer « Déplacer ce rendez-vous » : le
+               menu « Heure » contenait 28 entrées dont 27 marquées « — pris »
+               et désactivées. Seule l'heure actuelle était sélectionnable,
+               c'est-à-dire qu'on ne pouvait rien faire. En passant au 21 août :
+               36 entrées, une seule libre. Il fallait donc changer la date jour
+               après jour et relire un menu de trente lignes mortes à chaque
+               fois — au téléphone, avec un client en ligne, qui est le SEUL
+               moment où l'on déplace un rendez-vous.
+
+               La grille est celle du tunnel client, au balisage près : les
+               libres portent le cadre encre, les pris s'effacent au second plan
+               (styles/05-controles.css). Trente créneaux se parcourent d'un
+               coup d'œil au lieu de se dérouler ligne à ligne.
+
+               ⚠️ LES PROCHAINES DISPONIBILITÉS SONT EN TÊTE, et elles sont
+                  calculées sur PLUSIEURS JOURS — c'est ce que le tunnel client
+                  sait faire depuis toujours et que le commerçant n'avait pas.
+                  Sur une journée pleine, elles sont la seule chose utile de
+                  l'écran, et un clic suffit. #-->
+          <fieldset class="champ champ-creneaux" id="champRdvHeure">
+            <legend>Heure</legend>
+
+            <div class="rdv-dispos" id="rdvDispos" hidden>
+              <p class="etiquette rdv-dispos-titre" id="rdvDisposTitre">Prochaines disponibilités</p>
+              <div class="creneaux-grille donnee" id="rdvDisposGrille"></div>
+            </div>
+
+            <div id="rdvHeures"></div>
+
+            <!--# La valeur retenue. Un champ caché et non une variable seule :
+                 c'est ce qui fait que le formulaire se remet à zéro avec
+                 `reset()`, comme les autres champs. #-->
+            <input type="hidden" id="rdvHeure">
+          </fieldset>
+
+          <!--# FORCER : LE DOUBLEMENT VOLONTAIRE.
+
+               Le patron est chez lui. S'il décide de caser quelqu'un en
+               doublant à 15h — un habitué qui passe, un dépannage — le logiciel
+               doit le permettre : il connaît son métier mieux que nous. Ce
+               qu'il ne doit pas pouvoir faire, c'est doubler sans s'en
+               apercevoir ; d'où la confirmation, qui nomme le rendez-vous
+               doublé.
+
+               ⚠️ LA CASE N'EXISTE QUE DANS CET ÉCRAN, ET LE SERVEUR NE LA CROIT
+                  PAS SUR PAROLE. `force` n'est lu que par les routes
+                  `/api/admin/…`, derrière `requireAdmin` ; envoyé à l'adresse
+                  publique `/api/bookings`, c'est un champ inconnu de plus,
+                  ignoré comme les autres. Un test le vérifie — la portée est
+                  exactement ce qui se perd en recopiant une ligne d'une route à
+                  l'autre. #-->
+          <div class="champ champ-case" id="champRdvForcer">
+            <input type="checkbox" id="rdvForcer">
+            <label for="rdvForcer">Forcer ce créneau</label>
+            <p class="aide petit secondaire">
+              Pour doubler une heure déjà prise. Vous devrez confirmer, et le
+              rendez-vous déjà posé vous sera nommé.
+            </p>
           </div>
+
           <div class="champ" id="champRdvNom">
             <label for="rdvNom">Nom</label>
             <input type="text" id="rdvNom" required maxlength="80">
@@ -650,7 +710,22 @@
           </div>
 
           <p class="message" id="messageRdv" hidden></p>
-          <button type="submit" class="action action-pleine" id="rdvValider">Noter ce rendez-vous</button>
+
+          <!--# LA BARRE D'ACTION COLLE EN BAS DE LA FENÊTRE.
+
+               À 640 px de haut, le bouton de validation passait sous le pli du
+               défilement interne de la fenêtre : on remplissait le formulaire,
+               et il ne se passait rien tant qu'on n'avait pas compris qu'il
+               fallait faire défiler DANS la boîte. La grille de créneaux, plus
+               haute qu'un menu déroulant, aurait aggravé les choses.
+
+               Collée plutôt que la fenêtre raccourcie : la liste des créneaux
+               n'a pas de hauteur maximale connue — trente-trois un samedi, huit
+               un lundi — et une fenêtre calée sur le pire cas serait vide les
+               autres jours. #-->
+          <div class="surimpression-actions">
+            <button type="submit" class="action action-pleine" id="rdvValider">Noter ce rendez-vous</button>
+          </div>
         </form>
       </div>
     </div>

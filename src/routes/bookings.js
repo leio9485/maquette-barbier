@@ -30,7 +30,7 @@ import { OCCUPENT } from '../lib/annulation.js';
 import { referenceLibre } from '../lib/reference.js';
 import { validerNom, normaliserTelephone, validerCourriel } from '../lib/coordonnees.js';
 import { limiteApplicable, passageDisponible, noterPassage } from '../lib/rateLimit.js';
-import { isValidIso, weekdayOf, todayIso, addDaysIso } from '../lib/time.js';
+import { isValidIso, weekdayOf, todayIso, addDaysIso, nowMinutes } from '../lib/time.js';
 import {
   loadSettings,
   loadOpeningHours,
@@ -38,6 +38,7 @@ import {
   loadService,
   eligibleStaff,
   computeSlots,
+  hasDayBlock,
   freeStaffAt,
   pickStaff,
   isBookableStart,
@@ -250,6 +251,32 @@ function attribuer({ eligibles, reservations, startMin, durationMin, day, presta
   const libres = freeStaffAt({ staff: eligibles, reservations, startMin, durationMin, day });
   const choisie = pickStaff(libres, reservations);
   return choisie ? avecPrix(choisie.id) : null;
+}
+
+/**
+ * `force: true` a-t-il ete demande ?
+ *
+ * >>> LE FORCAGE EST UN GESTE DE COMMERCANT, ET IL N'EXISTE QUE LA. <<<
+ *
+ * Le patron est chez lui : s'il decide de caser quelqu'un en doublant a 15h,
+ * le logiciel doit le permettre — c'est son agenda et il connait son metier.
+ * Un client, lui, ne doit jamais pouvoir se fabriquer une place : ce serait
+ * l'oracle de disponibilite le plus simple du monde, et le moyen de remplir un
+ * agenda de doublons depuis une boucle de dix lignes.
+ *
+ * ⚠️ CETTE FONCTION N'EST APPELEE QUE DEPUIS LES ROUTES `/admin/…`, toutes
+ *    derriere `requireAdmin`. Les adresses publiques — `POST /api/bookings`,
+ *    `PATCH /api/rendez-vous/…` — ne la lisent nulle part : un `force: true`
+ *    envoye la-bas est un champ inconnu de plus, ignore comme les autres. C'est
+ *    verifie par un test plutot que promis par un commentaire, parce que la
+ *    portee est exactement ce qui se perd en recopiant une ligne d'une route a
+ *    l'autre.
+ *
+ * Strictement `=== true` : ni `"true"`, ni `1`, ni `"on"`. Un formulaire mal
+ * serialise ne doit pas doubler un rendez-vous par accident.
+ */
+function forcage(req) {
+  return req.body?.force === true;
 }
 
 // --- Routes publiques ------------------------------------------------------
@@ -682,6 +709,134 @@ bookingsRouter.get('/admin/slots', requireAdmin, async (req, res, next) => {
   }
 });
 
+/** Jusqu'ou chercher une disponibilite avant de renoncer. */
+const HORIZON_DISPOS_JOURS = 30;
+
+/** Combien de disponibilites proposer d'emblee, et le plafond demandable. */
+const DISPOS_PAR_DEFAUT = 3;
+const DISPOS_MAX = 10;
+
+/**
+ * GET /api/admin/prochaines-dispos?serviceId=&staffId=&date=&exclude=&limite=3
+ *
+ * LES PREMIERES DISPONIBILITES REELLES, SUR PLUSIEURS JOURS.
+ *
+ * >>> C'EST LA ROUTE QUI MANQUAIT AU DEPLACEMENT. <<<
+ *
+ * Mesure en session : ouvrir un rendez-vous du 20 aout, cliquer « Deplacer ce
+ * rendez-vous ». La liste des heures contenait vingt-huit entrees dont
+ * vingt-sept « — pris » et desactivees ; seule l'heure actuelle etait
+ * selectionnable, c'est-a-dire qu'on ne pouvait rien faire. En passant au 21 :
+ * trente-six entrees, une seule libre. Le commercant devait changer de date
+ * jour apres jour et relire trente lignes mortes a chaque fois — au telephone,
+ * avec un client en ligne, qui est le SEUL moment ou l'on deplace un
+ * rendez-vous.
+ *
+ * Le tunnel client, lui, sait depuis toujours ouvrir le premier jour libre. Le
+ * commercant, non : `GET /api/admin/slots` ne repond que sur UNE journee, celle
+ * qu'on lui nomme. C'est cette adresse-la qui balaie les jours suivants.
+ *
+ * `exclude=<id>` a exactement le meme role qu'ici au-dessus : un rendez-vous
+ * qu'on deplace ne doit pas se voir lui-meme comme obstacle, sans quoi son
+ * heure actuelle ne figurerait jamais parmi les propositions.
+ *
+ * ⚠️ UNE SEULE REQUETE EN BASE POUR TOUT L'HORIZON, comme dans etat.js. Boucler
+ *    trente jours en interrogeant la base a chaque tour ferait trente
+ *    allers-retours pour repondre « demain 09:00 » — et cette adresse est
+ *    appelee a chaque ouverture de la fenetre.
+ */
+bookingsRouter.get('/admin/prochaines-dispos', requireAdmin, async (req, res, next) => {
+  try {
+    const depart = isValidIso(req.query.date) ? req.query.date : todayIso();
+
+    // ⚠️ ON NE REMONTE JAMAIS AVANT AUJOURD'HUI. Le formulaire s'ouvre sur la
+    //    date actuelle du rendez-vous, qui peut etre passee — proposer alors
+    //    « mardi dernier 09:00 » serait proposer ce que le PATCH refuse.
+    const from = depart < todayIso() ? todayIso() : depart;
+
+    const prestation = await loadService(req.query.serviceId);
+    if (!prestation) return refus(res, 404, 'Prestation inconnue.');
+
+    const equipe = await resoudreEquipe(prestation, identifiantOptionnel(req.query.staffId), {
+      tolererEnPause: true,
+    });
+    if (equipe.erreur) return refus(res, equipe.erreur.code, equipe.erreur.message);
+
+    const demandee = Number(req.query.limite);
+    const limite = Number.isInteger(demandee) && demandee > 0
+      ? Math.min(demandee, DISPOS_MAX)
+      : DISPOS_PAR_DEFAUT;
+
+    const ignore = identifiantOptionnel(req.query.exclude);
+    const jusqua = addDaysIso(from, HORIZON_DISPOS_JOURS);
+
+    const [settings, horaires, reservations] = await Promise.all([
+      loadSettings(),
+      loadOpeningHours(),
+      prisma.booking.findMany({
+        where: {
+          date: { gte: from, lte: jusqua },
+          ...(ignore ? { id: { not: ignore } } : {}),
+          ...OCCUPENT,
+        },
+      }),
+    ]);
+
+    const parJour = new Map();
+    for (const r of reservations) {
+      if (!parJour.has(r.date)) parJour.set(r.date, []);
+      parJour.get(r.date).push(r);
+    }
+
+    const trouvees = [];
+    for (let n = 0; n <= HORIZON_DISPOS_JOURS && trouvees.length < limite; n++) {
+      const date = addDaysIso(from, n);
+      const jour = horaires[weekdayOf(date)];
+      if (!jour || jour.closed) continue;
+
+      const duJour = parJour.get(date) ?? [];
+      if (hasDayBlock(duJour)) continue;
+
+      const creneaux = computeSlots({
+        date,
+        durationMin: prestation.durationMin,
+        day: jour,
+        settings,
+        reservations: duJour,
+        staff: equipe.eligibles,
+        // Comme partout cote commercant : le delai minimum ne s'applique pas.
+        // Un client au telephone peut arriver dans le quart d'heure.
+        ignorerDelai: true,
+      });
+
+      for (const creneau of creneaux) {
+        if (!creneau.free) continue;
+
+        // ⚠️ AUJOURD'HUI, CE QUI EST PASSE N'EST PAS UNE PROPOSITION. Le calcul
+        //    ci-dessus rend la journee ENTIERE — c'est voulu ailleurs, et il ne
+        //    faut pas y toucher : `GET /api/admin/slots` s'en sert pour laisser
+        //    noter a 15h le client passe a 9h ce matin. Mais cette adresse-ci
+        //    repond « quand puis-je vous caser ? », et « aujourd'hui 09:00 » a
+        //    15h40 n'est pas une reponse a cette question — c'est meme la seule
+        //    facon de rendre les trois propositions inutilisables, puisque ce
+        //    sont les trois premieres de la grille qui sortiraient toujours.
+        if (date === todayIso() && creneau.start < nowMinutes()) continue;
+
+        trouvees.push({ date, start: creneau.start, label: creneau.label });
+        if (trouvees.length >= limite) break;
+      }
+    }
+
+    res.json({
+      serviceId: prestation.id,
+      duration: prestation.durationMin,
+      slots: trouvees,
+    });
+  } catch (erreur) {
+    next(erreur);
+  }
+});
+
 /**
  * GET /api/admin/bookings?from=AAAA-MM-JJ&to=AAAA-MM-JJ
  *
@@ -721,10 +876,15 @@ bookingsRouter.get('/admin/bookings', requireAdmin, async (req, res, next) => {
  *    chiffres, un numero note a moitie pendant l'appel. Lui refuser sa propre
  *    saisie parce qu'elle ne rentre pas dans un format serait lui donner du
  *    travail pour rien — c'est son agenda, pas le notre.
+ *
+ * `force: true` POSE LE RENDEZ-VOUS SUR UNE HEURE DEJA OCCUPEE. Voir la note
+ * sur `forcage()` : c'est une adresse d'espace commercant, et la regle du
+ * doublement est la meme ici et au deplacement.
  */
 bookingsRouter.post('/admin/bookings', requireAdmin, async (req, res, next) => {
   try {
     const { date, start, serviceId } = req.body ?? {};
+    const forcer = forcage(req);
 
     const nom = texte(req.body?.name, 120);
     const telephone = texte(req.body?.phone, 40);
@@ -761,7 +921,7 @@ bookingsRouter.post('/admin/bookings', requireAdmin, async (req, res, next) => {
     const cree = await prisma.$transaction(async (tx) => {
       const dejaPris = await tx.booking.findMany({ where: { date, ...OCCUPENT } });
 
-      const attribution = attribuer({
+      let attribution = attribuer({
         eligibles: equipe.eligibles,
         reservations: dejaPris,
         startMin: start,
@@ -769,6 +929,25 @@ bookingsRouter.post('/admin/bookings', requireAdmin, async (req, res, next) => {
         day: horaires[weekdayOf(date)],
         prestation,
       });
+
+      // >>> LE DOUBLEMENT VOLONTAIRE. <<< `attribuer()` n'a trouve personne de
+      // libre ; avec `force`, on pose quand meme, sur la personne EXPLICITEMENT
+      // demandee et jamais sur une autre.
+      //
+      // ⚠️ « PEU IMPORTE » NE SE FORCE PAS. Le doublement dit « celui-la prend
+      //    deux clients a 15h » : il nomme forcement quelqu'un. Sans personne
+      //    designee, la ligne posee occuperait TOUT LE MONDE (voir le champ
+      //    `staffId` du schema) — on fermerait le creneau pour l'equipe entiere
+      //    au lieu de le doubler pour une seule. Sur un commerce SANS equipe,
+      //    en revanche, `eligibles` est vide et `staffId: null` est la seule
+      //    valeur juste : il n'y a qu'un agenda, et c'est bien lui qu'on double.
+      if (!attribution && forcer && equipe.eligibles.length <= 1) {
+        attribution = {
+          staffId: equipe.eligibles[0]?.id ?? null,
+          priceCents: prestation.priceCents,
+        };
+      }
+
       if (!attribution) return null;
 
       return tx.booking.create({
@@ -789,7 +968,14 @@ bookingsRouter.post('/admin/bookings', requireAdmin, async (req, res, next) => {
       });
     });
 
-    if (!cree) return refus(res, 409, 'Ce créneau est déjà occupé.');
+    // Le refus NOMME la raison quand c'est le forçage qui n'a pas pu aboutir :
+    // « déjà occupé » serait faux, puisque le commerçant vient précisément de
+    // dire qu'il le savait.
+    if (!cree) {
+      return refus(res, 409, forcer && equipe.eligibles.length > 1
+        ? "Choisissez avec qui avant de forcer : sans personne nommée, le rendez-vous occuperait toute l'équipe."
+        : 'Ce créneau est déjà occupé.');
+    }
 
     res.status(201).json(toApiBooking(cree));
   } catch (erreur) {
@@ -798,7 +984,7 @@ bookingsRouter.post('/admin/bookings', requireAdmin, async (req, res, next) => {
 });
 
 /**
- * PATCH /api/admin/bookings/:id  { staffId?, date?, start?, serviceId? }
+ * PATCH /api/admin/bookings/:id  { staffId?, date?, start?, serviceId?, force? }
  *
  * DEPLACE UN RENDEZ-VOUS, ou le confie a quelqu'un d'autre. Les deux passent
  * par ici, et c'est le meme geste vu de l'agenda : « Madame Dupont passe a 15 h
@@ -831,6 +1017,13 @@ bookingsRouter.post('/admin/bookings', requireAdmin, async (req, res, next) => {
  *    accepter qu'un aurait fait echouer l'autre SANS UN MOT — un champ inconnu
  *    est ignore en silence, et le rendez-vous serait revenu inchange avec un
  *    honnete 200.
+ *
+ * `force: true` DEPLACE SUR UN CRENEAU DEJA OCCUPE. Voir `forcage()` pour la
+ * raison et pour la portee : c'est un geste de commercant, il n'existe que
+ * derriere `requireAdmin`, et il ne leve QUE le controle d'occupation. Le refus
+ * de la date passee, celui d'une periode bloquee et celui d'un rendez-vous deja
+ * annule par le client restent entiers — ceux-la ne disent pas « c'est pris »,
+ * ils disent « ce n'est pas ce geste-la ».
  */
 bookingsRouter.patch('/admin/bookings/:id', requireAdmin, async (req, res, next) => {
   try {
@@ -839,6 +1032,7 @@ bookingsRouter.patch('/admin/bookings/:id', requireAdmin, async (req, res, next)
 
     const corps = req.body ?? {};
     const demande = (cle) => Object.prototype.hasOwnProperty.call(corps, cle);
+    const forcer = forcage(req);
 
     // --- CE QUI CHANGE, ET CE QUI RESTE -------------------------------------
 
@@ -943,6 +1137,21 @@ bookingsRouter.patch('/admin/bookings/:id', requireAdmin, async (req, res, next)
     // Une seule chose reste refusee : la DATE PASSEE. Deplacer un rendez-vous
     // vers hier ne repond a aucune demande, et fausserait le taux de remplissage
     // comme le pointage.
+    // ⚠️ ON NE FORCE PAS SUR « PEU IMPORTE » QUAND IL Y A UNE EQUIPE. Un
+    //    rendez-vous sans personne occupe TOUT LE MONDE (voir le champ `staffId`
+    //    du schema) : le doubler ainsi fermerait le creneau pour l'equipe
+    //    entiere au lieu de le doubler pour une seule personne — l'inverse de ce
+    //    qu'on vient de demander. Le refus le dit, plutot que de laisser tomber
+    //    sur « ce creneau est deja occupe », qui serait faux : le commercant
+    //    vient justement de dire qu'il le savait.
+    if (forcer && !staffId) {
+      const equipe = await prisma.staff.count({ where: { active: true } });
+      if (equipe > 0) {
+        return refus(res, 409,
+          "Choisissez avec qui avant de forcer : sans personne nommée, le rendez-vous occuperait toute l'équipe.");
+      }
+    }
+
     let avertissement = null;
     if (deplace) {
       if (date < todayIso()) return refus(res, 409, 'Cette date est déjà passée.');
@@ -979,7 +1188,12 @@ bookingsRouter.patch('/admin/bookings/:id', requireAdmin, async (req, res, next)
         // personne du tout — commerce a agenda unique — c'est toute la liste
         // qui compte.
         const contre = staffId ? reservationsDe(occupants, staffId) : occupants;
-        if (!isFree(contre, startMin, durationMin)) return null;
+
+        // `force` passe outre l'occupation, et rien d'autre : voir `forcage()`.
+        // Le refus de la date passee, celui d'une periode bloquee et celui d'un
+        // rendez-vous deja annule sont plus haut et restent entiers — ils ne
+        // disent pas « c'est pris », ils disent « ce n'est pas ce geste-la ».
+        if (!forcer && !isFree(contre, startMin, durationMin)) return null;
       } else if (staffId) {
         // ATTENTION : on ne regarde ICI que ce qui est DEJA attribue a cette
         // personne — pas les rendez-vous sans personne, contrairement au bloc
@@ -1001,7 +1215,7 @@ bookingsRouter.patch('/admin/bookings/:id', requireAdmin, async (req, res, next)
         const siens = await tx.booking.findMany({
           where: { date, staffId, id: { not: rendezVous.id }, ...OCCUPENT },
         });
-        if (!isFree(siens, startMin, durationMin)) return null;
+        if (!forcer && !isFree(siens, startMin, durationMin)) return null;
       }
 
       return tx.booking.update({

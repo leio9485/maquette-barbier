@@ -646,12 +646,17 @@ function ouvrirDeplacement(rdv) {
  *    ecarte deja.
  */
 async function chargerHeuresRdv(heureVoulue = null) {
-  const choix = $('#rdvHeure');
+  const choix = $('#rdvHeures');
   const date = $('#rdvDate')?.value;
   const serviceId = $('#rdvPrestation')?.value;
   if (!choix || !date || !serviceId) return;
 
   const exclure = MODE_RDV.genre === 'deplacement' ? MODE_RDV.rdv.id : '';
+
+  // Les propositions multi-jours partent EN MEME TEMPS que la journee affichee.
+  // Deux appels de lecture, jamais plafonnes (voir CLAUDE.md) ; les enchainer
+  // ferait attendre la grille pour rien.
+  chargerProchainesDispos(date, serviceId, exclure);
 
   try {
     const reponse = await lireCreneauxAdmin(date, serviceId, $('#rdvQui')?.value || '', exclure);
@@ -685,30 +690,100 @@ async function chargerHeuresRdv(heureVoulue = null) {
  * parce que le tunnel ne voyage pas dans ce document (voir tests/portees.mjs). */
 const MINUTES_MIDI_AGENDA = 13 * 60;
 
-/**
- * Les heures proposees, rangees par demi-journee.
+/** Un creneau de la grille, dans le vocabulaire du tunnel client.
  *
- * Une journee de 8h30 a 21h en donne trente-trois : d'affilee dans une liste
- * deroulante, c'est un mur ou l'on ne trouve pas « vers 18h » sans le chercher
- * ligne a ligne. Deux groupes nommes se parcourent. C'est la regle que le
- * tunnel client applique deja a ses creneaux ; l'ecran du commercant n'avait
- * aucune raison de faire autrement.
+ * ⚠️ MEME BALISAGE ET MEME CLASSE QUE `htmlCreneau()` (js/07-tunnel.js), a
+ *    dessein. Le commercant vend le site en montrant sa vitrine puis son
+ *    agenda : une heure libre qui ne se dessine pas pareil des deux cotes se
+ *    remarque tout de suite. Le style est commun (styles/05-controles.css).
+ *
+ * L'`aria-label` porte « — déjà pris » : c'est lui qui dit l'indisponibilite a
+ * qui n'a pas la couleur, depuis que le barre a ete retire. */
+function htmlCreneauRdv(c, choisi) {
+  const etiquette = c.free ? c.label : `${c.label} — déjà pris`;
+  return `<button type="button" class="creneau" data-heure="${c.start}"`
+    + ` aria-pressed="${c.start === choisi}" aria-label="${esc(etiquette)}"`
+    // `data-pris` MARQUE, `disabled` INTERDIT, et les deux ne se confondent pas :
+    // cocher « Forcer ce créneau » rend les heures prises cliquables sans leur
+    // retirer ce qu'elles sont. `appliquerForcageAuxCreneaux()` ne bascule que
+    // le second.
+    + (c.free ? '' : ' data-pris disabled')
+    + `>${esc(c.label)}</button>`;
+}
+
+/**
+ * La case « Forcer » ouvre les créneaux pris, ou les referme.
+ *
+ * >>> SANS ELLE, LA CASE NE SERVIRAIT A RIEN. <<< On propose de doubler une
+ * heure occupee, et la seule facon de designer une heure est de cliquer dans la
+ * grille — ou toutes les heures occupees sont justement `disabled`. Il faut
+ * donc les rouvrir en meme temps qu'on coche.
+ *
+ * ⚠️ DECOCHER RELACHE LE CHOIX QUAND IL PORTAIT SUR UNE HEURE PRISE. Le laisser
+ *    en place enverrait un creneau occupe SANS `force` : un 409 certain, pour
+ *    une case qu'on venait de decocher.
  */
-function peindreHeuresRdv(choix, creneaux, heureVoulue = null) {
-  const groupes = [
-    { nom: 'Matin', liste: creneaux.filter((c) => c.start < MINUTES_MIDI_AGENDA) },
-    { nom: 'Après-midi', liste: creneaux.filter((c) => c.start >= MINUTES_MIDI_AGENDA) },
-  ].filter((g) => g.liste.length > 0);
+function appliquerForcageAuxCreneaux() {
+  const forcer = forcageDemande();
 
-  choix.innerHTML = groupes
-    .map((g) => `<optgroup label="${esc(g.nom)}">`
-      + g.liste
-        .map((c) => `<option value="${c.start}"${c.free ? '' : ' disabled'}>`
-          + `${esc(c.label)}${c.free ? '' : ' — pris'}</option>`)
-        .join('')
-      + '</optgroup>')
-    .join('');
+  for (const bouton of $$('#rdvHeures .creneau[data-pris]')) {
+    bouton.disabled = !forcer;
+  }
 
+  const choisi = heureRetenue();
+  const prise = $(`#rdvHeures .creneau[data-pris][data-heure="${choisi}"]`);
+
+  if (!forcer && prise) {
+    const libre = $('#rdvHeures .creneau:not([data-pris])');
+    retenirHeure(libre ? Number(libre.dataset.heure) : null);
+  }
+
+  // Une journee entierement prise redevient utilisable des qu'on force : c'est
+  // le seul cas ou l'ecran doit changer d'avis sur son propre message.
+  const heures = $$('#rdvHeures .creneau');
+  if (heures.length && !$('#rdvHeures .creneau:not([data-pris])')) {
+    verrouillerEnvoiRdv(!forcer);
+    if (forcer) afficherMessage($('#messageRdv'), '');
+  }
+}
+
+/** L'heure retenue, ou `null`. */
+function heureRetenue() {
+  const brut = $('#rdvHeure')?.value;
+  return brut === '' || brut === undefined ? null : Number(brut);
+}
+
+/** Retient une heure et marque le bouton correspondant. */
+function retenirHeure(start) {
+  const champ = $('#rdvHeure');
+  if (champ) champ.value = start === null ? '' : String(start);
+
+  for (const bouton of $$('#rdvHeures .creneau, #rdvDisposGrille .creneau')) {
+    bouton.setAttribute('aria-pressed', String(Number(bouton.dataset.heure) === start));
+  }
+
+  marquerRefus($('#champRdvHeure'), false);
+}
+
+/**
+ * Les heures proposees, rangees par demi-journee, EN GRILLE.
+ *
+ * >>> C'ETAIT UNE LISTE DEROULANTE, ET ELLE NE SERVAIT A RIEN SUR UNE JOURNEE
+ *     CHARGEE. <<< Mesure : 28 entrees dont 27 « — pris » et desactivees, la
+ *     seule selectionnable etant l'heure actuelle du rendez-vous. Le commercant
+ *     deroulait trente lignes mortes pour decouvrir qu'il n'y avait rien, puis
+ *     changeait de date et recommencait — au telephone, avec un client en
+ *     ligne.
+ *
+ * Une grille montre les trente d'un coup, et le traitement du lot 4 fait
+ * ressortir les libres : sur la meme journee, on voit « il reste 18:15 et
+ * 18:30 » sans rien derouler.
+ *
+ * Deux groupes nommes plutot qu'un seul bloc : une journee de 8h30 a 21h en
+ * donne trente-trois, et c'est la meme coupure que le tunnel client applique
+ * a ses creneaux.
+ */
+function peindreHeuresRdv(grille, creneaux, heureVoulue = null) {
   const libres = creneaux.filter((c) => c.free);
 
   // >>> UNE JOURNEE SANS CRENEAU LE DIT. <<< La liste se vidait sans un mot :
@@ -716,29 +791,129 @@ function peindreHeuresRdv(choix, creneaux, heureVoulue = null) {
   //     avec un bouton actif qui repondait « Choisissez une heure » — alors
   //     qu'il n'y en avait aucune a choisir. Le message nomme les trois sorties,
   //     qui sont les trois autres champs du formulaire.
-  if (!libres.length) {
-    verrouillerEnvoiRdv(true);
-    afficherMessage($('#messageRdv'), creneaux.length
-      ? "Plus aucun créneau libre ce jour-là. Changez de jour, de personne ou de prestation."
-      : "Le commerce est fermé ce jour-là. Choisissez un autre jour.");
-    return;
-  }
-
-  verrouillerEnvoiRdv(false);
-  afficherMessage($('#messageRdv'), '');
+  //
+  // ⚠️ LA GRILLE RESTE PEINTE, MEME COMPLETE. C'est la difference avec la liste
+  //    deroulante qu'elle remplace : voir « 09:00 … 18:30 » tous eteints dit
+  //    « c'est plein », un cadre vide dit « c'est cassé ». Et c'est aussi ce
+  //    qu'il faut a l'ecran pour que « Forcer ce créneau » ait un sens : on
+  //    force une heure qu'on voit.
+  const groupes = [
+    { nom: 'Matin', liste: creneaux.filter((c) => c.start < MINUTES_MIDI_AGENDA) },
+    { nom: 'Après-midi', liste: creneaux.filter((c) => c.start >= MINUTES_MIDI_AGENDA) },
+  ].filter((g) => g.liste.length > 0);
 
   // L'heure voulue si elle est encore libre, et A DEFAUT LA PREMIERE LIBRE.
   //
-  // ⚠️ SANS CE REPLI, LE CHAMP S'OUVRE SUR UN CRENEAU PRIS. Le navigateur
-  //    selectionne la premiere option de la liste, desactivee ou non ; si la
-  //    journee commence par un rendez-vous, le formulaire s'ouvrait donc sur
-  //    « 09:00 — pris » et l'envoi partait vers un 409 certain, pour un choix
-  //    que personne n'avait fait.
+  // ⚠️ SANS CE REPLI, LE FORMULAIRE S'OUVRAIT SUR UN CRENEAU PRIS. La liste
+  //    deroulante selectionnait sa premiere option, desactivee ou non : sur une
+  //    journee qui commence par un rendez-vous, l'envoi partait vers un 409
+  //    certain, pour un choix que personne n'avait fait.
   const voulue = heureVoulue !== null && libres.some((c) => c.start === heureVoulue)
     ? heureVoulue
-    : libres[0].start;
+    : (libres[0]?.start ?? null);
 
-  choix.value = String(voulue);
+  grille.innerHTML = groupes
+    .map((g) => '<div class="creneaux-groupe">'
+      + `<h4 class="etiquette creneaux-moment">${esc(g.nom)}</h4>`
+      + `<div class="creneaux-grille donnee">${g.liste.map((c) => htmlCreneauRdv(c, voulue)).join('')}</div>`
+      + '</div>')
+    .join('');
+
+  retenirHeure(voulue);
+
+  if (!libres.length) {
+    verrouillerEnvoiRdv(true);
+    afficherMessage($('#messageRdv'), creneaux.length
+      ? "Plus aucun créneau libre ce jour-là. Changez de jour, de personne ou de prestation — ou cochez « Forcer ce créneau » pour doubler une heure prise."
+      : "Le commerce est fermé ce jour-là. Choisissez un autre jour.");
+  } else {
+    verrouillerEnvoiRdv(false);
+    afficherMessage($('#messageRdv'), '');
+  }
+
+  // La grille vient d'etre refaite : si la case est cochee, les creneaux pris
+  // doivent redevenir cliquables tout de suite. L'oublier ferait qu'un
+  // changement de jour, case cochee, rendait une grille verrouillee.
+  appliquerForcageAuxCreneaux();
+}
+
+// --- LES PROCHAINES DISPONIBILITES ------------------------------------------
+//
+// >>> C'EST LA MOITIE DU CORRECTIF, ET LA PLUS UTILE. <<<
+//
+// Une grille de creneaux repond bien a « que reste-t-il CE JOUR-LA ? ». Elle ne
+// repond pas a la question qu'on pose au telephone, qui est « quand pouvez-vous
+// me prendre ? ». Sur une journee pleine, la grille est entierement eteinte et
+// le commercant doit changer de date a l'aveugle, jour apres jour, jusqu'a
+// tomber sur quelque chose.
+//
+// Le tunnel client, lui, ouvre le premier jour libre tout seul depuis le
+// debut : le commercant avait moins que ses propres clients. Ces trois boutons
+// sont calcules sur trente jours par le serveur (GET /api/admin/prochaines-
+// dispos), portent leur date, et un clic suffit — il pose la date ET l'heure.
+
+/** Les trois prochaines disponibilites reelles, tous jours confondus. */
+async function chargerProchainesDispos(date, serviceId, exclure) {
+  const bloc = $('#rdvDispos');
+  const grille = $('#rdvDisposGrille');
+  if (!bloc || !grille) return;
+
+  try {
+    const reponse = await lireProchainesDispos(date, serviceId, $('#rdvQui')?.value || '', exclure);
+    peindreProchainesDispos(reponse.slots ?? []);
+  } catch (erreur) {
+    // ⚠️ UN ECHEC ICI NE DIT RIEN ET N'ARRETE RIEN. Ces trois boutons sont un
+    //    raccourci, pas un passage oblige : la grille du jour, elle, est
+    //    arrivee ou a deja affiche son propre message. Poser une seconde erreur
+    //    a cote de la premiere ferait croire a deux pannes. La session expiree
+    //    n'est pas traitee ici pour la meme raison — `chargerHeuresRdv()` la
+    //    voit dans le meme souffle et renvoie a la connexion.
+    montrer(bloc, false);
+  }
+}
+
+function peindreProchainesDispos(creneaux) {
+  const bloc = $('#rdvDispos');
+  const grille = $('#rdvDisposGrille');
+
+  // Rien a proposer sur trente jours : le bloc disparait plutot que d'afficher
+  // un cadre vide. Le message du jour, lui, a deja dit ce qu'il fallait.
+  montrer(bloc, creneaux.length > 0);
+  if (!creneaux.length) {
+    grille.innerHTML = '';
+    return;
+  }
+
+  const choisi = heureRetenue();
+  const jourAffiche = $('#rdvDate')?.value;
+
+  grille.innerHTML = creneaux.map((c) => {
+    // La date est ECRITE SUR LE BOUTON des qu'elle sort du jour affiche : sans
+    // elle, « 09:00 » proposerait une heure d'un jour qu'on ne voit pas, et le
+    // clic ferait changer la date sans prevenir.
+    const memeJour = c.date === jourAffiche;
+    const libelle = memeJour ? c.label : `${dateCourte(c.date)} ${c.label}`;
+    const marque = memeJour && c.start === choisi;
+
+    return `<button type="button" class="creneau" data-heure="${c.start}" data-jour="${esc(c.date)}"`
+      + ` aria-pressed="${marque}"`
+      + ` aria-label="${esc(`${dateLongue(c.date)} à ${c.label}`)}">${esc(libelle)}</button>`;
+  }).join('');
+}
+
+/** Un clic sur une proposition : elle pose LA DATE ET L'HEURE. */
+async function choisirProchaineDispo(bouton) {
+  const jour = bouton.dataset.jour;
+  const heure = Number(bouton.dataset.heure);
+
+  // Deja sur le bon jour : rien a recharger, on retient l'heure et c'est tout.
+  if (jour === $('#rdvDate')?.value) {
+    retenirHeure(heure);
+    return;
+  }
+
+  poserJourRdv(jour);
+  await chargerHeuresRdv(heure);
 }
 
 /** Le bouton d'envoi, eteint quand il n'y a rien a envoyer. */
@@ -775,7 +950,7 @@ async function envoyerRdv(evenement) {
   // dans le tunnel : un message qui n'apparait qu'a l'ecran ne dit rien a
   // quelqu'un qui ne le voit pas (lot 5).
   marquerRefus($('#rdvNom'), false);
-  marquerRefus($('#rdvHeure'), false);
+  marquerRefus($('#champRdvHeure'), false);
 
   const nom = $('#rdvNom')?.value.trim();
   if (!nom) {
@@ -785,22 +960,46 @@ async function envoyerRdv(evenement) {
     return;
   }
 
-  const heure = Number($('#rdvHeure')?.value);
+  const heure = heureRetenue();
   if (!Number.isInteger(heure)) {
     afficherMessage(message, 'Choisissez une heure.');
-    marquerRefus($('#rdvHeure'), true, 'messageRdv');
-    $('#rdvHeure')?.focus();
+    marquerRefus($('#champRdvHeure'), true, 'messageRdv');
+    $('#rdvHeures .creneau:not([disabled])')?.focus();
     return;
+  }
+
+  const cible = {
+    date: $('#rdvDate').value,
+    start: heure,
+    serviceId: $('#rdvPrestation').value,
+    staffId: $('#rdvQui')?.value || undefined,
+  };
+
+  // Le doublement se confirme AVANT d'ecrire, et la confirmation nomme ce qui
+  // est deja pose. Voir `confirmerForcage()`.
+  //
+  // ⚠️ LA FENETRE SE FERME AVANT LA QUESTION, et se rouvre si la reponse est
+  //    non : le mecanisme de js/05-navigation.js ne retient qu'un element a
+  //    rendre au clavier, deux boites empilees et le focus ne revient pas ou il
+  //    faut. Meme sequence que le deplacement, juste en dessous.
+  const forcee = forcageDemande();
+  if (forcee) {
+    fermerSurimpression('surimpressionRdv');
+    if (!await confirmerForcage(cible)) {
+      ouvrirSurimpression('surimpressionRdv');
+      return;
+    }
   }
 
   try {
     await poserRendezVous({
-      date: $('#rdvDate').value,
-      start: heure,
-      serviceId: $('#rdvPrestation').value,
-      staffId: $('#rdvQui')?.value || undefined,
+      ...cible,
       name: nom,
       phone: $('#rdvTel')?.value.trim() || '',
+      // ⚠️ LA CLE NE PART QUE SI LA CASE EST COCHEE. Envoyer `force: false` a
+      //    chaque saisie ferait du forcage un champ ordinaire du formulaire ;
+      //    il doit rester ce qu'il est — une exception qu'on demande.
+      ...(forcageDemande() ? { force: true } : {}),
       // ⚠️ PAS DE `source` ICI, ET C'EST VOULU. Le champ y figurait, et le
       //    serveur ne l'a jamais lu : la provenance est ecrite par la route
       //    elle-meme (`source: 'phone'` dans POST /api/admin/bookings). C'est
@@ -814,6 +1013,12 @@ async function envoyerRdv(evenement) {
     await chargerAgenda();
   } catch (erreur) {
     if (erreur.code === 401) return exigerConnexion();
+
+    // La fenetre a ete fermee juste avant pour poser la question du forcage :
+    // on la rouvre, avec les valeurs refusees encore dedans. Seulement dans ce
+    // cas — la rouvrir alors qu'elle est deja ouverte remettrait le focus sur
+    // son premier champ, loin du message qu'on vient d'ecrire.
+    if (forcee) ouvrirSurimpression('surimpressionRdv');
     afficherMessage(message, erreur.message);
   }
 }
@@ -837,6 +1042,16 @@ function reinitialiserFormulaireRdv() {
   montrer($('#rdvIntro'), false);
   montrer($('#champRdvNom'), true);
   montrer($('#champRdvTel'), true);
+
+  // ⚠️ LA GRILLE ET LES PROPOSITIONS SONT VIDEES A LA MAIN. `reset()` rend leur
+  //    valeur aux champs, mais ces deux-la sont du contenu peint : sans cette
+  //    ligne, rouvrir la fenetre montrait pendant un instant les creneaux de la
+  //    fois d'avant, avec leur date — donc une proposition fausse, sur laquelle
+  //    un clic rapide partait.
+  const grille = $('#rdvHeures');
+  if (grille) grille.innerHTML = '';
+  montrer($('#rdvDispos'), false);
+  marquerRefus($('#champRdvHeure'), false);
 }
 
 /**
@@ -851,13 +1066,13 @@ async function envoyerDeplacement() {
   const message = $('#messageRdv');
   const rdv = MODE_RDV.rdv;
 
-  marquerRefus($('#rdvHeure'), false);
+  marquerRefus($('#champRdvHeure'), false);
 
-  const heure = Number($('#rdvHeure')?.value);
+  const heure = heureRetenue();
   if (!Number.isInteger(heure)) {
     afficherMessage(message, 'Choisissez une heure.');
-    marquerRefus($('#rdvHeure'), true, 'messageRdv');
-    $('#rdvHeure')?.focus();
+    marquerRefus($('#champRdvHeure'), true, 'messageRdv');
+    $('#rdvHeures .creneau:not([disabled])')?.focus();
     return;
   }
 
@@ -871,15 +1086,27 @@ async function envoyerDeplacement() {
     staffId: $('#rdvQui')?.value || null,
   };
 
+  const forcee = forcageDemande();
+
   fermerSurimpression('surimpressionRdv');
 
-  if (!await confirmerDeplacement(rdv, cible)) {
+  // DEUX QUESTIONS QUAND ON FORCE, ET DANS CET ORDRE. La premiere nomme le
+  // rendez-vous qu'on va doubler ; la seconde, celle du deplacement ordinaire,
+  // nomme l'avant et l'apres. Les fondre en une seule ferait une phrase de six
+  // lignes ou l'information qui compte — « Rémi a déjà quelqu'un à 15:00 » —
+  // se perdrait au milieu du reste.
+  if (forcee && !await confirmerForcage(cible, rdv.id)) {
+    ouvrirSurimpression('surimpressionRdv');
+    return;
+  }
+
+  if (!await confirmerDeplacement(rdv, cible, forcee)) {
     ouvrirSurimpression('surimpressionRdv');
     return;
   }
 
   try {
-    await deplacerRendezVous(rdv.id, cible);
+    await deplacerRendezVous(rdv.id, forcee ? { ...cible, force: true } : cible);
 
     reinitialiserFormulaireRdv();
     await chargerAgenda();
@@ -896,7 +1123,7 @@ async function envoyerDeplacement() {
 }
 
 /** « du samedi 15 août à 09:00 au mardi 18 août à 14:30, avec Rémi ? » */
-function confirmerDeplacement(rdv, cible) {
+function confirmerDeplacement(rdv, cible, forcee = false) {
   const personne = CONFIG.staff.find((s) => s.id === cible.staffId);
   const prestation = CONFIG.services.find((s) => s.id === cible.serviceId);
 
@@ -904,22 +1131,114 @@ function confirmerDeplacement(rdv, cible) {
   const apres = `${dateLongue(cible.date)} à ${fmtHeure(cible.start)}`;
   const avec = personne ? `, avec ${personne.name}` : '';
 
+  const lignes = [
+    ['Avant', `${dateCourte(rdv.date)} ${fmtHeure(rdv.start)}`],
+    ['Après', `${dateCourte(cible.date)} ${fmtHeure(cible.start)}`],
+    ['Prestation', prestation?.name ?? ''],
+    ['Avec', personne?.name ?? 'Peu importe'],
+    ['Téléphone', rdv.phone ?? ''],
+  ];
+  if (forcee) lignes.push(['Créneau', 'Forcé — l\'heure est déjà prise']);
+
   return demanderConfirmation({
     titre: 'Déplacer ce rendez-vous',
     phrase: `Déplacer le rendez-vous de ${rdv.name} du ${avant} au ${apres}${avec} ?`,
-    lignes: [
-      ['Avant', `${dateCourte(rdv.date)} ${fmtHeure(rdv.start)}`],
-      ['Après', `${dateCourte(cible.date)} ${fmtHeure(cible.start)}`],
-      ['Prestation', prestation?.name ?? ''],
-      ['Avec', personne?.name ?? 'Peu importe'],
-      ['Téléphone', rdv.phone ?? ''],
-    ],
+    lignes,
     // Le creneau libere repart au public dans la seconde : c'est la
     // consequence qu'on ne voit pas, et la seule qui ne se defait pas.
     consequence: 'L\'ancien créneau redevient réservable aussitôt. Le client '
       + 'n\'est prévenu de rien : c\'est à vous de l\'appeler.',
     oui: 'Oui, déplacer',
     non: 'Non, ne rien changer',
+  });
+}
+
+// --- FORCER UN CRENEAU ------------------------------------------------------
+//
+// >>> LE PATRON EST CHEZ LUI. <<< S'il decide de caser quelqu'un en doublant a
+// 15h — un habitue qui passe, un depannage, une coupe de dix minutes entre deux
+// — le logiciel doit le permettre. C'est son agenda, et il connait son metier
+// mieux que nous.
+//
+// Ce qu'il ne doit pas pouvoir faire, c'est doubler SANS S'EN APERCEVOIR. D'ou
+// la confirmation, et d'ou le fait qu'elle NOMME le rendez-vous double : « Rémi
+// a déjà Damien Carpentier à 15:00 ». « Ce créneau est occupé, continuer ? » ne
+// dit pas assez — on ne sait pas qui on va faire attendre.
+
+/** La case est-elle cochee ? */
+function forcageDemande() {
+  return Boolean($('#rdvForcer')?.checked);
+}
+
+/**
+ * Ce qui occupe deja le creneau vise, en une phrase.
+ *
+ * ⚠️ ON RELIT LA JOURNEE PLUTOT QUE DE CHERCHER DANS L'AGENDA AFFICHE. Le jour
+ *    vise peut etre a trois semaines, hors de la semaine chargee a l'ecran :
+ *    chercher dans ce qu'on a sous la main rendrait « rien » et la question
+ *    nommerait un rendez-vous vide. Une lecture, jamais plafonnee.
+ *
+ * `sauf` retire le rendez-vous qu'on deplace : il ne se double pas lui-meme.
+ */
+async function occupantsDuCreneau(cible, sauf = null) {
+  const prestation = CONFIG.services.find((s) => s.id === cible.serviceId);
+  const duree = prestation?.duration ?? 0;
+  const fin = cible.start + duree;
+
+  const { bookings = [] } = await lireRendezVous(cible.date, cible.date);
+
+  return bookings.filter((r) => {
+    if (r.id === sauf) return false;
+    if (r.cancelledAt) return false;
+    // Sans personne nommee, une ligne occupe tout le monde (voir le schema) :
+    // elle compte quelle que soit la personne visee.
+    if (cible.staffId && r.staffId && r.staffId !== cible.staffId) return false;
+    return r.start < fin && r.start + r.duration > cible.start;
+  });
+}
+
+/** « Rémi a déjà Damien Carpentier à 15:00. Poser un second rendez-vous ? » */
+async function confirmerForcage(cible, sauf = null) {
+  let occupants = [];
+  try {
+    occupants = await occupantsDuCreneau(cible, sauf);
+  } catch {
+    // ⚠️ ON NE FORCE PAS EN AVEUGLE. Si la lecture echoue, on ne sait pas ce
+    //    qu'on va doubler : la question ne peut plus nommer personne, et une
+    //    confirmation qui ne nomme rien ne confirme rien. On renonce, le
+    //    commercant reessaie.
+    afficherMessage($('#messageRdv'), "Impossible de lire ce qui occupe ce créneau. Réessayez.");
+    return false;
+  }
+
+  // Rien n'occupe le creneau : la case etait cochee pour rien, et il n'y a donc
+  // rien a confirmer. On laisse passer sans poser de question — refuser ici
+  // ferait echouer une saisie parfaitement ordinaire.
+  if (!occupants.length) return true;
+
+  const nomDe = (id) => CONFIG.staff.find((s) => s.id === id)?.name ?? null;
+
+  const lignes = occupants.map((r) => [
+    nomDe(r.staffId) ?? 'Sans personne',
+    `${fmtHeure(r.start)} · ${r.name || 'Sans nom'}`,
+  ]);
+
+  const premier = occupants[0];
+  const qui = nomDe(premier.staffId);
+  const phrase = qui
+    ? `${qui} a déjà ${premier.name || 'un rendez-vous'} à ${fmtHeure(premier.start)}.`
+      + ` Poser un second rendez-vous sur ce créneau ?`
+    : `Un rendez-vous occupe déjà ${fmtHeure(premier.start)}.`
+      + ` Poser un second rendez-vous sur ce créneau ?`;
+
+  return demanderConfirmation({
+    titre: 'Forcer ce créneau',
+    phrase,
+    lignes,
+    consequence: 'Deux rendez-vous se chevaucheront. Le site ne proposera pas '
+      + 'ce créneau au public, mais rien ne préviendra les deux clients.',
+    oui: 'Oui, doubler',
+    non: 'Non, choisir un autre créneau',
   });
 }
 
@@ -1420,9 +1739,33 @@ function brancherAgenda() {
   });
 
   // Changer de prestation ou de personne change les heures possibles.
-  $('#rdvPrestation')?.addEventListener('change', () => chargerHeuresRdv());
-  $('#rdvQui')?.addEventListener('change', () => chargerHeuresRdv());
-  $('#rdvDate')?.addEventListener('change', () => chargerHeuresRdv());
+  //
+  // ⚠️ L'HEURE DEJA RETENUE EST REPASSEE. Sans elle, changer de personne
+  //    reposait le formulaire sur le premier creneau libre de la journee : on
+  //    choisissait 18:15, on precisait « avec Karim », et l'heure retombait a
+  //    09:00 sans un mot. `peindreHeuresRdv()` la garde si elle est encore
+  //    libre, et retombe sur la premiere sinon — ce qui est exactement le bon
+  //    comportement quand le changement vient de la rendre impossible.
+  $('#rdvPrestation')?.addEventListener('change', () => chargerHeuresRdv(heureRetenue()));
+  $('#rdvQui')?.addEventListener('change', () => chargerHeuresRdv(heureRetenue()));
+  $('#rdvDate')?.addEventListener('change', () => chargerHeuresRdv(heureRetenue()));
+
+  // Les créneaux : la grille du jour et les propositions n'ont pas le même
+  // effet. La grille retient une heure ; une proposition pose AUSSI la date,
+  // puisqu'elle peut désigner un autre jour.
+  $('#rdvHeures')?.addEventListener('click', (evenement) => {
+    const bouton = evenement.target.closest('.creneau');
+    if (bouton && !bouton.disabled) retenirHeure(Number(bouton.dataset.heure));
+  });
+
+  $('#rdvDisposGrille')?.addEventListener('click', (evenement) => {
+    const bouton = evenement.target.closest('.creneau');
+    if (bouton) choisirProchaineDispo(bouton);
+  });
+
+  // Cocher « Forcer » rend les créneaux pris cliquables : c'est le geste, et il
+  // serait absurde de proposer de forcer sans pouvoir désigner l'heure occupée.
+  $('#rdvForcer')?.addEventListener('change', appliquerForcageAuxCreneaux);
 
   $('#formulaireRdv')?.addEventListener('submit', envoyerRdv);
   $('#formulaireBlocage')?.addEventListener('submit', envoyerBlocage);

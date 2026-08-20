@@ -571,3 +571,110 @@
 */
 .agenda-ligne[data-annule] .agenda-nom { text-decoration: line-through; }
 .agenda-ligne[data-annule] .agenda-rdv { opacity: 0.62; }
+
+/* ===========================================================================
+   LA FENÊTRE « NOTER / DÉPLACER UN RENDEZ-VOUS »
+   =========================================================================== */
+
+/* --- L'HEURE : UN GROUPE, PLUS UN CHAMP ------------------------------------
+
+   `<fieldset>` et non `<div class="champ">` : l'heure se choisit maintenant
+   parmi des boutons, et un groupe de boutons a besoin d'un `<legend>` pour que
+   le lecteur d'écran annonce « Heure » en entrant dedans. Un `<label for>` ne
+   sait désigner qu'un seul contrôle.
+
+   Le fieldset natif porte une bordure et une marge intérieure que personne n'a
+   demandées ; on les retire, et la légende reprend exactement l'écriture des
+   intitulés de champ (05-controles.css). Rien ne doit distinguer ce groupe des
+   champs qui l'entourent.
+*/
+.champ-creneaux {
+  min-width: 0;
+  margin-bottom: var(--e3);
+  padding: 0;
+  border: 0;
+}
+
+.champ-creneaux > legend {
+  padding: 0;
+  margin-bottom: var(--e1);
+  font-size: var(--t-petit);
+  font-weight: 500;
+}
+
+/* Le refus se marque sur le GROUPE et non sur un champ : il n'y a pas de champ
+   à encadrer. Un filet à gauche, le vocabulaire que la charte emploie déjà
+   partout où quelque chose ne va pas — jamais de rouge. */
+.champ-creneaux[data-refus] {
+  padding-left: var(--e2);
+  border-left: 3px solid var(--refus);
+}
+
+/* --- LES PROCHAINES DISPONIBILITÉS -----------------------------------------
+
+   En tête de la liste des heures, séparées par un filet. C'est la réponse à
+   « quand pouvez-vous me prendre ? », qui est la question posée au téléphone —
+   la grille du jour, elle, répond à « que reste-t-il ce jour-là ? ».
+
+   Sur une journée pleine, ces trois boutons sont la seule chose utile de
+   l'écran : ils portent leur date dès qu'elle sort du jour affiché, et un clic
+   pose la date ET l'heure.
+*/
+.rdv-dispos {
+  margin-bottom: var(--e3);
+  padding-bottom: var(--e3);
+  border-bottom: 1px solid var(--filet);
+}
+
+.rdv-dispos-titre {
+  margin: 0 0 var(--e1);
+  color: var(--acier);
+}
+
+/* Une proposition porte une date, donc plus de caractères qu'une heure seule :
+   la grille du jour est calée sur 84 px, celle-ci a besoin de plus. */
+.rdv-dispos .creneaux-grille {
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+}
+
+/* --- LA CASE « FORCER CE CRÉNEAU » -----------------------------------------
+
+   Une case à cocher, son intitulé à droite, l'aide en dessous. C'est le seul
+   endroit du projet qui en emploie une hors du tableau des horaires ; les deux
+   se ressemblent volontairement (18 px, accent bleu de travail).
+
+   ⚠️ LES RÈGLES DE `.champ input` DOIVENT ÊTRE DÉFAITES ICI, une par une : la
+      feuille des contrôles pose `width: 100%`, `min-height: 48px` et une
+      bordure sur TOUT `input` d'un `.champ`, ce qui donnait une case à cocher
+      large comme le formulaire et haute comme un champ de saisie. La règle
+      générale est la bonne — ce sont les cases qui sont l'exception.
+*/
+.champ-case {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: var(--e1) var(--e2);
+}
+
+.champ-case input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  accent-color: var(--bleu-travail);
+  cursor: pointer;
+}
+
+.champ-case label {
+  margin: 0;
+  cursor: pointer;
+}
+
+/* L'aide passe sous les deux colonnes : alignée sous l'intitulé, elle laisserait
+   la largeur de la case en blanc à chaque ligne. */
+.champ-case .aide {
+  grid-column: 1 / -1;
+  margin: 0;
+}

@@ -61,7 +61,7 @@ const SANS_ACCENT = [
  * libelles de l'agenda, des fiches et des confirmations, qui n'existent nulle
  * part dans le HTML.
  *
- * TROIS FILTRES, ET ILS COMPTENT AUTANT QUE LA LISTE DE MOTS. Sans eux, la
+ * QUATRE FILTRES, ET ILS COMPTENT AUTANT QUE LA LISTE DE MOTS. Sans eux, la
  * suite signale `data-liste="categories"`, `class="creneau"` et
  * `const { bloc, periode } = ...` — trois noms de code, aucun n'est lu par
  * personne, et une suite qui crie a tort ne sert plus a rien.
@@ -72,7 +72,14 @@ const SANS_ACCENT = [
  *      qu'elle affiche — c'est ce qui garde `« Période bloquée »` sous
  *      surveillance tout en ecartant l'attribut qui l'entoure ;
  *   3. ce qui ressemble a du code est ecarte : une phrase francaise ne contient
- *      ni `=`, ni `;`, ni accolade, ni tiret bas.
+ *      ni `=`, ni `;`, ni accolade, ni tiret bas ;
+ *   4. LES SELECTEURS CSS SONT ECARTES. Le troisieme filtre les laissait
+ *      passer des qu'ils portaient un espace : `'#rdvHeures .creneau'`, ecrit
+ *      dans un `$$()`, etait releve comme un « creneau » sans accent. C'est un
+ *      nom de classe, personne ne le lit, et le renommer pour faire taire la
+ *      suite aurait casse le style. La regle est celle qui distingue un
+ *      selecteur d'une phrase sans exception : AUCUNE phrase francaise ne
+ *      commence par `#`, `.` ou `[`.
  */
 function lignesLisibles(html) {
   const brut = [];
@@ -103,7 +110,8 @@ function lignesLisibles(html) {
     .flatMap((t) => t.split('\n'))
     .map((t) => t.trim())
     .filter((t) => t.includes(' '))
-    .filter((t) => !/[=;{}_$]/.test(t));
+    .filter((t) => !/[=;{}_$]/.test(t))
+    .filter((t) => !/^[#.[]/.test(t));
 }
 
 /** Les mots sans accent d'une ligne, avec la phrase ou ils se trouvent. */

@@ -455,6 +455,118 @@
   overscroll-behavior: contain;
 }
 
+/* --- LA GRILLE DE CRÉNEAUX -------------------------------------------------
+
+   Employée par le tunnel de réservation (la vitrine) ET par la fenêtre
+   « Déplacer le rendez-vous » de l'espace commerçant. Elle vivait dans
+   13-tunnel.css, feuille que l'espace n'embarque pas : c'est le même
+   déménagement, pour la même raison, que les trois blocs ci-dessus.
+
+   >>> LES DEUX ÉCRANS DOIVENT MONTRER LA MÊME CHOSE. <<< Le commerçant vend le
+   site en montrant sa vitrine puis son agenda ; une heure libre qui ne se
+   dessine pas pareil des deux côtés se remarque tout de suite, et c'est
+   exactement le genre de détail qui fait dire « ce sont deux logiciels ».
+*/
+
+.creneaux-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: var(--e1);
+}
+
+/* Un créneau LIBRE porte le trait le plus fort de la grille : encre, pas acier.
+
+   >>> C'EST LA HIÉRARCHIE QUI A ÉTÉ INVERSÉE, PAS L'INFORMATION. <<<
+
+   Mesuré un vendredi avec une seule personne : 22 horaires affichés, 3 libres.
+   Le créneau pris était barré, encadré d'un filet, et le barré est une forme
+   qui accroche l'œil — dix-neuf accroches contre trois. On lisait « c'est
+   complet » avant de lire « il reste 09:45 », sur une journée qui avait de la
+   place. Un tunnel de réservation qui donne l'impression d'être plein perd le
+   client à l'écran d'avant. */
+.creneau {
+  min-height: var(--hauteur-controle);
+  padding: 0 var(--e1);
+  border: 1px solid var(--encre);
+  background: none;
+  color: var(--encre);
+  font-family: var(--f-donnee);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--t-texte);
+  cursor: pointer;
+  transition: background-color var(--transition), color var(--transition),
+              border-color var(--transition), opacity var(--transition);
+}
+
+/* Le survol prend le bleu de travail : le cadre étant déjà encre au repos, il
+   n'y avait plus rien à renforcer. `:not([disabled])` n'est pas décoratif — sans
+   lui, promener la souris sur la grille rallume les créneaux pris un par un. */
+.creneau:not([disabled]):hover {
+  border-color: var(--bleu-travail);
+  color: var(--bleu-travail);
+}
+
+.creneau[aria-pressed="true"] {
+  background: var(--bleu-travail);
+  border-color: var(--bleu-travail);
+  color: var(--craie);
+}
+
+/* Un créneau déjà pris : sans cadre, éteint, non cliquable — et toujours
+   affiché.
+
+   L'AFFICHER PLUTÔT QUE LE RETIRER RENSEIGNE MIEUX, et ce motif-là n'a pas
+   bougé : une liste qui saute de 14h00 à 16h30 laisse croire à une erreur ; la
+   même avec 14h45 et 15h30 visibles dit « c'est un jour chargé », ce qui est
+   l'information vraie.
+
+   Ce qui a changé, c'est le poids. Le cadre part (`transparent` et non
+   `border: none` : la case doit garder exactement la même empreinte, sinon la
+   grille se décale d'un pixel à chaque créneau pris) et l'opacité tombe à
+   `--eteint`, mesurée à 5,14:1 — au second plan, jamais illisible.
+
+   ⚠️ LE BARRÉ EST PARTI, PAS CE QU'IL DISAIT. `text-decoration: line-through`
+      n'est de toute façon annoncé par aucun lecteur d'écran : le sens passait
+      déjà par `disabled` et par l'`aria-label` « 17:00 — déjà pris », écrit
+      dans `htmlCreneau()` (js/07-tunnel.js). Les deux sont toujours là. */
+.creneau[disabled] {
+  border-color: transparent;
+  opacity: var(--eteint);
+  cursor: not-allowed;
+}
+
+/* --- LA BARRE D'ACTION D'UNE FENETRE ---------------------------------------
+
+   >>> LE BOUTON DE VALIDATION PASSAIT SOUS LE PLI. <<< Mesure a 640 px de
+   hauteur d'ecran : la boite fait 92 vh, son corps defile, et « Noter ce
+   rendez-vous » se trouvait hors champ. On remplissait le formulaire et il ne
+   se passait rien tant qu'on n'avait pas compris qu'il fallait faire defiler
+   DANS la boite — un defilement qui ne se signale par aucune barre tant que la
+   souris n'est pas dessus.
+
+   Collee, plutot que la fenetre raccourcie : le contenu de ces fenetres n'a pas
+   de hauteur maximale connue — la grille des creneaux fait trente-trois cases
+   un samedi et huit un lundi — et une boite calee sur le pire cas serait vide
+   les autres jours.
+
+   `bottom: calc(-1 * var(--e3))` annule la marge interieure basse du corps :
+   la barre se colle au bord de la boite, et non a 24 px du bord, ou elle
+   laisserait une bande de fond passer dessous.
+*/
+.surimpression-actions {
+  position: sticky;
+  bottom: calc(-1 * var(--e3));
+  z-index: 1;
+
+  margin: var(--e3) calc(-1 * var(--e3)) calc(-1 * var(--e3));
+  padding: var(--e2) var(--e3);
+
+  background: var(--craie);
+  border-top: 1px solid var(--filet);
+}
+
+.surimpression-actions .action { margin: 0; }
+
 /* --- LA PAGE NE DEFILE PLUS DERRIERE LA FENETRE ---------------------------
 
    >>> `body { overflow: hidden }` NE SUFFISAIT PAS, ET LA RAISON EST A DEUX

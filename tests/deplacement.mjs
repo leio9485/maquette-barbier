@@ -24,12 +24,17 @@
 // croyait l'avoir simplement decale. C'est cette chaine que les sections 2 et 3
 // verifient, et pas seulement le code HTTP du PATCH.
 //
-// ⚠️ LA SECTION 6 CREE UNE PERSONNE, ET LA SUPPRIME. Toute la suite suppose un
-//    commerce sans equipe (voir `mettreEquipeDeCote()` dans tests/helpers.mjs) :
-//    la personne n'existe que le temps de cette section, et sa suppression est
-//    dans le `finally`, pas a la fin du bloc. Un echec au milieu la laisserait
-//    sinon derriere lui, et les suites suivantes verraient un commerce a equipe
-//    la ou elles en attendent un sans.
+// ⚠️ LA SECTION 6 CREE DEUX PERSONNES, ET LA SECTION 10 LES RETIRE. Toute la
+//    suite suppose un commerce sans equipe (voir `mettreEquipeDeCote()` dans
+//    tests/helpers.mjs), et la suppression vit AUSSI dans le `finally` : un
+//    echec au milieu les laisserait sinon derriere lui, et les suites suivantes
+//    verraient un commerce a equipe la ou elles en attendent un sans.
+//
+//    Elles vivaient donc jusqu'a la fin, et les sections 7 et 8 s'en
+//    accommodaient — elles ne verifient aucune collision. La section 10, si :
+//    avec deux personnes enregistrees, un creneau reste libre tant que l'une des
+//    deux l'est, et son premier controle passait au vert a l'envers. Elle les
+//    retire donc en entrant, et le `finally` ne fait alors plus rien.
 // ---------------------------------------------------------------------------
 
 import {
@@ -481,6 +486,142 @@ try {
     verifie('deplacer un rendez-vous annule est refuse', bouge.status === 409, bouge.status);
     verifie('et le refus le dit en francais',
       /annulé/.test(bouge.donnees?.error ?? ''), bouge.donnees?.error);
+  }
+
+  // --- 9. LES PROCHAINES DISPONIBILITES, SUR PLUSIEURS JOURS ----------------
+  //
+  // La fenetre « Deplacer » n'avait que `GET /api/admin/slots`, qui ne repond
+  // que sur UNE journee. Sur un jour plein, elle rendait trente creneaux tous
+  // pris et le commercant devait changer de date a l'aveugle, jour apres jour —
+  // au telephone, avec un client en ligne.
+  console.log('\n9. Les prochaines disponibilites');
+  {
+    const dispos = await salon.appel('GET',
+      `/api/admin/prochaines-dispos?serviceId=coupe-homme&date=${JOUR}`);
+
+    verifie('la route repond', dispos.status === 200, dispos.status);
+    verifie('elle propose trois creneaux par defaut',
+      dispos.donnees?.slots?.length === 3, dispos.donnees?.slots?.length);
+    verifie('chacun porte sa date, son heure et son libelle',
+      (dispos.donnees?.slots ?? []).every((c) => /^\d{4}-\d{2}-\d{2}$/.test(c.date)
+        && Number.isInteger(c.start) && /^\d{2}:\d{2}$/.test(c.label)),
+      dispos.donnees?.slots);
+    verifie('ils sont dans l\'ordre chronologique',
+      (dispos.donnees?.slots ?? []).every((c, i, liste) => i === 0
+        || c.date > liste[i - 1].date
+        || (c.date === liste[i - 1].date && c.start > liste[i - 1].start)),
+      dispos.donnees?.slots);
+
+    // >>> ELLE REGARDE AU-DELA DU JOUR DEMANDE, ET C'EST TOUT SON INTERET. <<<
+    // On bloque la journee entiere : les propositions doivent alors sortir des
+    // jours suivants, ce que /api/admin/slots ne saurait pas faire.
+    const blocage = await salon.appel('POST', '/api/admin/day-block',
+      { date: JOUR, motif: 'Test des prochaines disponibilites' });
+    verifie('la journee est bloquee', blocage.status === 201, blocage.donnees);
+
+    const apres = await salon.appel('GET',
+      `/api/admin/prochaines-dispos?serviceId=coupe-homme&date=${JOUR}`);
+    verifie('>>> LES PROPOSITIONS SORTENT ALORS DU JOUR DEMANDE <<<',
+      (apres.donnees?.slots ?? []).length === 3
+        && apres.donnees.slots.every((c) => c.date > JOUR),
+      apres.donnees?.slots);
+
+    await salon.appel('DELETE', `/api/admin/day-block?date=${JOUR}`);
+
+    // Le plafond est borne : on ne demande pas mille creneaux d'un coup.
+    const trop = await salon.appel('GET',
+      '/api/admin/prochaines-dispos?serviceId=coupe-homme&limite=999');
+    verifie('la limite demandee est bornee',
+      (trop.donnees?.slots ?? []).length <= 10, trop.donnees?.slots?.length);
+
+    // Elle est derriere la session, comme tout /api/admin/.
+    const anonyme = await visiteur.appel('GET',
+      '/api/admin/prochaines-dispos?serviceId=coupe-homme');
+    verifie('elle exige une session', anonyme.status === 401, anonyme.status);
+  }
+
+  // --- 10. FORCER UN CRENEAU DEJA OCCUPE ------------------------------------
+  //
+  // Le patron est chez lui : s'il decide de caser quelqu'un en doublant a 15h,
+  // le logiciel doit le permettre. Un client, lui, ne doit JAMAIS pouvoir se
+  // fabriquer une place — ce serait l'oracle de disponibilite le plus simple du
+  // monde, et le moyen de remplir un agenda de doublons depuis une boucle.
+  console.log('\n10. Forcer un creneau deja occupe');
+  {
+    // >>> LES DEUX PERSONNES DE LA SECTION 6 SONT RETIREES ICI, ET IL LE FAUT. <<<
+    //
+    // Elles sont creees section 6 et supprimees dans le `finally`, c'est-a-dire
+    // qu'elles vivent encore pendant les sections 7 a 10. Les sections 7 et 8
+    // s'en accommodent — elles ne verifient aucune collision. Celle-ci, si :
+    // avec deux personnes enregistrees, un creneau reste LIBRE tant que l'une
+    // des deux l'est, et « sans force, le creneau occupe est refuse » passait
+    // au vert a l'envers, en 200. Constate a l'essai, pas deduit.
+    //
+    // C'est la meme raison que le `mettreEquipeDeCote()` du haut de fichier :
+    // tout ce qui teste une collision suppose un commerce a agenda unique. La
+    // suppression du `finally` reste en place et ne fait plus rien — c'est
+    // voulu, un echec avant cette ligne doit encore nettoyer.
+    if (equipeDeTest.length) {
+      await prisma.staff.deleteMany({ where: { id: { in: equipeDeTest } } });
+      equipeDeTest.length = 0;
+    }
+
+    const libres = await creneauxLibres(DEMAIN);
+    if (libres.length < 4) throw new Error(`Pas assez de creneaux libres le ${DEMAIN}.`);
+
+    const occupant = await reserverEnLigne(DEMAIN, libres[0].start);
+    const aBouger = await reserverEnLigne(DEMAIN, libres[3].start);
+    verifie('deux rendez-vous sont poses', occupant.status === 201 && aBouger.status === 201,
+      [occupant.status, aBouger.status]);
+
+    // Sans `force` : le refus habituel.
+    const refuse = await salon.appel('PATCH', `/api/admin/bookings/${aBouger.donnees.id}`,
+      { date: DEMAIN, start: libres[0].start });
+    verifie('sans force, le creneau occupe est refuse', refuse.status === 409, refuse.status);
+
+    // Avec `force` : le doublement passe.
+    const force = await salon.appel('PATCH', `/api/admin/bookings/${aBouger.donnees.id}`,
+      { date: DEMAIN, start: libres[0].start, force: true });
+    verifie('>>> AVEC FORCE, LE DEPLACEMENT PASSE <<<', force.status === 200, force.donnees);
+    verifie('et le rendez-vous est bien sur le creneau double',
+      (await enBase(aBouger.donnees.id))?.startMin === libres[0].start,
+      (await enBase(aBouger.donnees.id))?.startMin);
+    verifie('les deux rendez-vous existent toujours',
+      (await enBase(occupant.donnees.id)) !== null, null);
+
+    // ⚠️ CE QUE `force` NE LEVE PAS. Il passe outre l'OCCUPATION, et rien
+    //    d'autre : les trois autres refus ne disent pas « c'est pris », ils
+    //    disent « ce n'est pas ce geste-la ».
+    const hier = addJours(JOUR, -30);
+    const passe = await salon.appel('PATCH', `/api/admin/bookings/${aBouger.donnees.id}`,
+      { date: hier, start: 600, force: true });
+    verifie('force ne fait pas remonter le temps', passe.status === 409, passe.status);
+
+    // `force` n'est vrai que pour le booleen : ni "true", ni 1, ni "on". Un
+    // formulaire mal serialise ne doit pas doubler un rendez-vous par accident.
+    const chaine = await salon.appel('PATCH', `/api/admin/bookings/${aBouger.donnees.id}`,
+      { date: DEMAIN, start: libres[3].start, force: 'true' });
+    verifie('force ne se declenche pas sur la chaine "true"',
+      chaine.status === 200 || chaine.status === 409, chaine.status);
+
+    // >>> LA PORTEE : L'ADRESSE PUBLIQUE NE CONNAIT PAS `force`. <<<
+    //
+    // C'est le controle qui compte, et il se verifie plutot qu'il ne se promet :
+    // la portee est exactement ce qui se perd en recopiant une ligne d'une route
+    // a l'autre.
+    const remis = await salon.appel('PATCH', `/api/admin/bookings/${aBouger.donnees.id}`,
+      { date: DEMAIN, start: libres[3].start, force: true });
+    verifie('le rendez-vous est remis de cote', remis.status === 200, remis.status);
+
+    const intrus = await visiteur.appel('POST', '/api/bookings', {
+      date: DEMAIN, start: libres[3].start, serviceId: 'coupe-homme',
+      name: 'Intrus (test)', phone: TELEPHONE, force: true,
+    });
+    if (intrus.donnees?.id) aNettoyer.push(intrus.donnees.id);
+
+    verifie('>>> `force` NE FORCE RIEN DEPUIS /api/bookings <<<',
+      intrus.status === 409, [intrus.status, intrus.donnees?.error]);
+    verifie('et rien n\'a ete enregistre', !intrus.donnees?.id, intrus.donnees?.id);
   }
 } finally {
   // >>> LE MENAGE EST DANS LE `finally`, PAS A LA FIN DU BLOC. <<< Un echec au

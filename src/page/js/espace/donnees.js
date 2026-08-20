@@ -121,6 +121,26 @@ function lireCreneauxAdmin(date, serviceId, staffId, exclure) {
   return api(`/api/admin/slots?${p}`);
 }
 
+/**
+ * Les premieres disponibilites REELLES, tous jours confondus.
+ *
+ * `lireCreneauxAdmin` ci-dessus ne repond que sur UNE journee, celle qu'on lui
+ * nomme : sur un jour plein, elle rend trente creneaux tous pris et le
+ * commercant doit changer de date a l'aveugle jusqu'a tomber sur quelque
+ * chose. Le tunnel client, lui, ouvre le premier jour libre tout seul depuis le
+ * debut — c'est cette avance-la qui manquait a l'espace.
+ *
+ * `exclure` a le meme role qu'au-dessus : un rendez-vous qu'on deplace ne doit
+ * pas se voir lui-meme comme obstacle, sans quoi son heure actuelle ne figure
+ * jamais parmi les propositions.
+ */
+function lireProchainesDispos(date, serviceId, staffId, exclure) {
+  const p = new URLSearchParams({ date, serviceId });
+  if (staffId) p.set('staffId', staffId);
+  if (exclure) p.set('exclude', exclure);
+  return api(`/api/admin/prochaines-dispos?${p}`);
+}
+
 function poserRendezVous(corps) {
   return api('/api/admin/bookings', { methode: 'POST', corps });
 }

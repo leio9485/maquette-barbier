@@ -111,10 +111,42 @@ a:hover { color: var(--encre); }
 
    `--contour` bascule sur les fonds sombres (voir plus bas) : un contour encre
    sur un aplat encre serait un contour invisible.
+
+   ⚠️ `[tabindex]:not([tabindex="-1"])`, ET LA NUANCE EST TOUT LE SUJET.
+
+   Un `tabindex="-1"` ne met pas l'element dans le parcours du clavier : il le
+   rend seulement CIBLABLE PAR LE CODE, pour y deposer le focus apres une
+   action. Le site s'en sert partout ou l'ecran change sans que la page navigue
+   — le titre de l'etape du tunnel a chaque changement d'etape, le paragraphe
+   « Voici ce qui est réservé à votre nom. » sur /annuler — et il le doit : sans
+   cela, un lecteur d'ecran continuerait d'annoncer l'ecran precedent, et la
+   tabulation suivante repartirait du haut du document.
+
+   Chrome applique `:focus-visible` a ces elements-la : on obtenait donc un
+   rectangle noir de 2 px autour du `<h2>` « QUAND PASSEZ-VOUS ? » apres un clic
+   sur « Déplacer ce rendez-vous », et autour d'un paragraphe sur /annuler. Un
+   contour epais autour d'un titre qu'on ne peut pas cliquer ne se lit pas comme
+   un repere de navigation : il se lit comme un defaut de rendu.
+
+   >>> C'EST LE RENDU QUI CHANGE, PAS LE COMPORTEMENT. <<< Le focus continue
+   d'etre depose au meme endroit, et les lecteurs d'ecran annoncent la meme
+   chose. Ce qui disparait est le contour, et lui seul — il reste entier sur les
+   liens, les boutons, les champs, les `summary`, et sur tout `tabindex` positif
+   ou nul, c'est-a-dire sur tout ce qui se parcourt vraiment au clavier.
+
+   Aujourd'hui, TOUS les `tabindex` du projet valent `-1` (deux appels, dans
+   js/07-tunnel.js et js/annuler/02-ecrans.js) : cette regle ne retire donc le
+   contour a rien de ce qui se tabule. Le `:not()` reste ecrit pour le jour ou
+   un `tabindex="0"` apparaitra — il devra, lui, etre entoure.
+
+   C'est aussi mot pour mot le selecteur que js/05-navigation.js emploie deja
+   pour lister ce qui prend le focus dans une fenetre : les deux endroits
+   repondent a la meme question, et ils y repondent pareil.
 */
 :root { --contour: var(--encre); }
 
-:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+:where(a, button, input, select, textarea, summary,
+       [tabindex]:not([tabindex="-1"])):focus-visible {
   outline: 2px solid var(--contour);
   outline-offset: 2px;
 }

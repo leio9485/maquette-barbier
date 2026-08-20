@@ -205,3 +205,82 @@ vrai client n'a pas plus à figurer dans Google que celui de la démonstration.
 Ces deux-là portent leur en-tête **et** une balise `<meta name="robots">` dans
 la page. `noindex` n'est pas un contrôle d'accès — ce qui protège l'agenda est
 `requireAdmin` sur `/api/admin/…`.
+
+## Sauvegarder une instance client
+
+```bash
+npm run db:backup
+```
+
+Toute l'instance d'un client tient dans **un seul dossier**, `data/` : la base
+SQLite *et* les photos qu'il a déposées (voir le commentaire de `DATA_DIR` dans
+`src/config.js`). Une archive de ce dossier est donc une sauvegarde complète —
+il n'y a rien d'autre à emporter.
+
+Le script écrit `letabli-AAAA-MM-JJ-HHMM.tar.gz`, une ligne par action, et rend
+la main. Il tourne **hors du processus web** et ouvre la base **en lecture
+seule** : il ne peut ni ralentir le site, ni le faire tomber, ni laisser la base
+dans un autre état que celui où il l'a trouvée.
+
+### La copie est faite à chaud, et c'est le point
+
+La base est copiée par `VACUUM INTO`, pas par un `cp`. Un `cp` sur une base
+ouverte copie un fichier qu'on est peut-être en train d'écrire : le résultat
+fait la bonne taille, porte le bon nom, et ne se révèle corrompu que le jour où
+l'on essaie de s'en servir — c'est-à-dire le seul jour où il compte. Une base en
+mode WAL garde en outre une partie de ses écritures dans un fichier voisin, que
+copier le seul `.db` perdrait.
+
+`VACUUM INTO` demande à SQLite d'écrire lui-même une base neuve et complète à
+partir de ce qu'il a validé. **Le serveur continue de répondre pendant ce
+temps** : la sauvegarde se lance en pleine journée, sans fermer la boutique.
+
+### À quelle fréquence
+
+**Une fois par nuit**, par la planification de l'hébergeur ou par `cron` :
+
+```
+15 3 * * *  cd /app && BACKUP_DIR=/sauvegardes npm run db:backup
+```
+
+La rotation garde **les 7 dernières quotidiennes et les 4 dernières
+hebdomadaires** — une quotidienne par jour (la dernière du jour si le script
+passe deux fois), une hebdomadaire par semaine ISO. Un tarif effacé par
+mégarde et remarqué trois semaines plus tard se rattrape donc encore.
+
+⚠️ **La date de rotation est celle écrite dans le nom du fichier, jamais sa date
+de dernière modification.** Un dossier de sauvegardes finit toujours par être
+copié, synchronisé ou restauré quelque part, et ces opérations remettent les
+dates de fichier à l'heure du jour : une rotation qui s'y fierait croirait avoir
+douze archives d'aujourd'hui et effacerait tout l'historique d'un coup.
+
+### Où poser `BACKUP_DIR`
+
+`BACKUP_DIR` désigne le dossier des archives. Sans elle, le repli est
+`backups/`, à côté de `data/`.
+
+> ⚠️ **Une sauvegarde posée sur le même disque que la base ne protège de rien**
+> — ou plus exactement : elle protège de la fausse manœuvre, et de rien d'autre.
+> Elle ne protège ni du disque qui lâche, ni du conteneur qui repart vide, ni de
+> l'hébergeur qu'on quitte. `BACKUP_DIR` existe pour désigner un **ailleurs** :
+> un second volume, un montage réseau, un dossier synchronisé hors de la
+> machine. Le script le rappelle à chaque exécution tant que la variable est
+> absente.
+
+### Restaurer
+
+```bash
+# 1. Arrêter le site.
+# 2. Mettre de côté ce qui est en place — on ne remplace jamais sans filet.
+mv data data-avant-restauration
+# 3. Extraire : l'archive contient déjà le dossier « data/ ».
+tar -xzf /sauvegardes/letabli-2026-08-20-0315.tar.gz -C /app
+# 4. Appliquer les migrations manquantes, si l'archive date d'une version
+#    antérieure du site.
+npx prisma migrate deploy
+# 5. Redémarrer.
+```
+
+L'archive rend la base **et** les photos : le site repart complet, sans étape
+de reconstruction. Rien n'est écrasé tant que l'étape 2 n'est pas faite —
+c'est elle qui rend l'opération réversible.

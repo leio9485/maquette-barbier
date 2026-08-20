@@ -14,6 +14,7 @@
     "db:seed": "node prisma/seed.js",
     "db:studio": "prisma studio",
     "admin:create": "node scripts/create-admin.js",
+    "db:backup": "node scripts/backup.js",
     "test:api": "node tests/api.mjs",
     "test:settings": "node tests/settings.mjs",
     "test:auth": "node tests/auth.mjs",

@@ -39,6 +39,14 @@ data/
 .claude/*
 !.claude/launch.json
 
+# Les archives de sauvegarde (npm run db:backup).
+#
+# Meme raison que data/ : ce sont les donnees d'UN client, base et photos
+# comprises — le depot n'est pas l'endroit ou les poser. C'est le repli du
+# script quand BACKUP_DIR n'est pas defini ; chez un client, les archives
+# doivent de toute facon vivre ailleurs que sur ce disque.
+backups/
+
 # Divers systeme
 Thumbs.db
 desktop.ini

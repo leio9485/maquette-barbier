@@ -978,8 +978,9 @@ partant — la variable d'environnement l'emporte sur le `.env`, vérifié.
 figée accumulait ses échecs d'une exécution à l'autre et bloquait le second
 `npm test` lancé dans le quart d'heure.
 
-Lighthouse mobile, refait le 19 août 2026 (13.4.1, en local,
-`--only-categories=performance,accessibility,best-practices,seo`) :
+Lighthouse mobile, refait le 20 août 2026 après les lots A à F (13.4.1, en
+local, `--only-categories=performance,accessibility,best-practices,seo`,
+**médiane de trois passages** par page) :
 
 | | vitrine | `/annuler` | `/espace-salon` |
 |---|---:|---:|---:|
@@ -987,22 +988,54 @@ Lighthouse mobile, refait le 19 août 2026 (13.4.1, en local,
 | Accessibilité | **100** | 100 | 100 |
 | Bonnes pratiques | **100** | 100 | 96 |
 | SEO | **100** | 63 | 54 |
-| LCP | 2,1 s | 1,4 s | 1,5 s |
+| LCP | **1,8 s** | 1,4 s | 1,5 s |
 | CLS | **0** | 0 | 0 |
+| TBT | **0 ms** | 0 ms | 0 ms |
+
+**Le seul chiffre qui a bougé depuis le 19 août est le LCP de la vitrine :
+2,1 s → 1,8 s**, et c'est le correctif du `preload` (lot D, point D1), qui
+réclamait un JPEG que le `<picture>` n'affiche jamais. Le rapport le dit de
+trois façons : l'élément LCP est bien le `<img>` d'accueil, résolu en
+`hero-800.webp` — **le fichier même que le `preload` demande** ; la case « LCP
+request discovery » est verte sur ses trois points (`fetchpriority=high`,
+requête trouvable dans le document initial, pas de `loading=lazy`) ; et
+« Improve image delivery » annonce **0 octet** d'économie possible. Les quatre
+notes, elles, sont identiques : les lots A à F n'en ont dégradé aucune.
+
+Ce qui coûte encore un point à la vitrine, décomposé par Lighthouse : sur les
+1,8 s de LCP, **32 ms de premier octet, 40 ms avant de lancer la requête,
+18 ms pour télécharger l'image — et 208 ms de rendu de l'élément**. Le
+téléchargement n'est plus le sujet ; il n'y a ni rendu bloquant à retirer (la
+page est un seul fichier) ni octet à gagner sur l'image. Le reste est le profil
+mobile bridé de l'outil.
+
+⚠️ **`network-dependency-tree-insight` sort à 0 sur les trois pages : son poids
+dans la note est 0.** C'est un panneau d'information, pas un défaut — inutile
+de partir chasser une chaîne de requêtes qui ne coûte rien.
 
 Les SEO bas de `/annuler` et `/espace-salon` sont voulus : ces pages portent
-`noindex`, et Lighthouse le compte comme un défaut. Bonnes pratiques 96 sur
-l'espace : le contrôle de session journalise un 401 quand personne n'est
-connecté — la réponse correcte du serveur.
+`noindex`, et Lighthouse le compte comme un défaut (`is-crawlable`) ; l'espace
+perd en plus le point de `meta-description`, qu'une page non indexée n'a aucune
+raison d'avoir. Bonnes pratiques 96 sur l'espace : le contrôle de session
+journalise un 401 sur `/api/admin/me` quand personne n'est connecté — la
+réponse correcte du serveur, vérifiée à nouveau dans le rapport du 20 août.
 
-⚠️ **NE PAS CROIRE UNE MESURE ISOLÉE DE LA VITRINE.** Le premier passage a
-donné **88**, avec un TBT de 460 ms ; les trois suivants, 97, 99 et 99, avec
-un TBT de 160, 0 et 20 ms. LCP et CLS n'avaient pas bougé d'un pouce. Le TBT
-mesure l'exécution du JavaScript, et il suffit qu'une autre tâche occupe la
-machine — un serveur, une suite de tests, un autre Chrome — pour qu'il
-quadruple. **Mesurer trois fois et retenir la médiane**, sinon on part
-chasser une régression qui n'existe pas. C'est le même piège que la mesure
-sur instance froide décrite dans `RAPPORT.md` § 7.
+⚠️ **LA PAGE « ADRESSE INTROUVABLE » NE SE MESURE PAS, ET IL NE FAUT PAS
+ESSAYER DE LA FAIRE MESURER.** Lighthouse refuse de noter un document qui
+répond 404 (`ERRORED_DOCUMENT_REQUEST`) et rend zéro partout. Ce n'est pas un
+défaut de la page : c'est le code de réponse qu'elle DOIT porter, et un test
+l'exige. La « corriger » pour obtenir des notes reviendrait à répondre 200 sur
+une adresse qui n'existe pas.
+
+⚠️ **NE PAS CROIRE UNE MESURE ISOLÉE DE LA VITRINE.** Le 19 août, le premier
+passage a donné **88**, avec un TBT de 460 ms ; les trois suivants, 97, 99 et
+99, avec un TBT de 160, 0 et 20 ms. LCP et CLS n'avaient pas bougé d'un pouce.
+Le TBT mesure l'exécution du JavaScript, et il suffit qu'une autre tâche occupe
+la machine — un serveur, une suite de tests, un autre Chrome — pour qu'il
+quadruple. Les trois passages du 20 août, machine au repos, ont donné 17, 0 et
+0 ms : c'est à quoi ressemble une mesure propre. **Mesurer trois fois et retenir
+la médiane**, sinon on part chasser une régression qui n'existe pas. C'est le
+même piège que la mesure sur instance froide décrite dans `RAPPORT.md` § 7.
 
 ### La hauteur de la vitrine, et pourquoi elle ne descendra pas beaucoup plus
 

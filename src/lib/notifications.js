@@ -2,11 +2,14 @@
 // LES NOTIFICATIONS — une seule porte de sortie.
 //
 // Tout ce que le site envoie a un client passe par `notifier()`. Deux canaux
-// existent derriere cette porte, et AUCUN DES DEUX N'EST ACTIF :
+// existent derriere cette porte, et AUCUN DES DEUX N'EST ACTIF PAR DEFAUT :
 //
-//   email  point d'insertion, non implemente. Le contenu du message est
-//          journalise avec la mention [EMAIL NON IMPLEMENTE] et la fonction
-//          rend la main sans rien envoyer.
+//   email  ECRIT ET TESTE. Le code appelle vraiment l'API du fournisseur, avec
+//          le fichier .ics en piece jointe ; il ne s'allume que si
+//          COURRIEL_ACTIF vaut "true" et que la cle et l'expediteur sont poses.
+//          C'est le canal du SOCLE : sans lui, un client repart d'une
+//          reservation sans aucune trace ecrite, et la promesse « moins
+//          d'oublis » n'est tenue que par l'option payante.
 //
 //   sms    ECRIT ET TESTE, mais eteint. Le code appelle vraiment l'API de
 //          Twilio ; il ne s'allume que si SMS_ACTIF vaut "true" et que les
@@ -34,6 +37,11 @@
 // ---------------------------------------------------------------------------
 
 import {
+  COURRIEL_ACTIF,
+  COURRIEL_API,
+  COURRIEL_CLE,
+  COURRIEL_EXPEDITEUR,
+  COURRIEL_PLAFOND_MOIS,
   DEMO_MODE,
   SMS_ACTIF,
   SMS_COMPTE,
@@ -64,9 +72,20 @@ export function moisCourant(maintenant = new Date()) {
   return `${valeur('year')}-${valeur('month')}`;
 }
 
-/** Le plafond d'un canal. L'email n'en a pas : il ne se paie pas a l'unite. */
+/**
+ * Le plafond mensuel d'un canal.
+ *
+ * ⚠️ L'EMAIL EN A UN, ET IL DISAIT AUTREFOIS LE CONTRAIRE — « il ne se paie pas
+ *    a l'unite », ce qui est vrai et ne suffisait pas. Ce que borne ce
+ *    plafond-la n'est pas la facture mais L'ABUS : ce qu'une boucle de
+ *    reservations peut faire partir depuis l'adresse du commerce avant que
+ *    quiconque s'en apercoive, et qui abimerait sa reputation d'expediteur pour
+ *    longtemps. Il est simplement beaucoup plus large (voir COURRIEL_PLAFOND_MOIS).
+ */
 function plafondDe(canal) {
-  return canal === 'sms' ? SMS_PLAFOND_MOIS : Infinity;
+  if (canal === 'sms') return SMS_PLAFOND_MOIS;
+  if (canal === 'email') return COURRIEL_PLAFOND_MOIS;
+  return Infinity;
 }
 
 // --- Le compteur -----------------------------------------------------------
@@ -166,6 +185,73 @@ function journaliser(mention, { canal, destinataire, sujet, texte }) {
   console.log('');
 }
 
+// --- Le canal COURRIEL -----------------------------------------------------
+
+/**
+ * L'envoi reel, par l'API du fournisseur.
+ *
+ * AUCUNE DEPENDANCE AJOUTEE, exactement comme pour le SMS : un envoi tient en
+ * une requete `fetch` avec un jeton en « Bearer ». C'est ce qui a exclu SMTP,
+ * qui aurait demande une bibliotheque entiere — negociation, STARTTLS, encodage
+ * MIME — pour le meme resultat.
+ *
+ * ⚠️ LE CORPS EST DU JSON, ET C'EST CE QUI PERMET LA PIECE JOINTE. Le fichier
+ *    .ics voyage dans le meme objet, encode en base64 : aucun message MIME a
+ *    composer a la main, aucune frontiere multipart a inventer. C'est la raison
+ *    pour laquelle ce format d'API a ete retenu plutot qu'un autre.
+ *
+ * ⚠️ LE COURRIEL PART EN TEXTE BRUT, PAS EN HTML. Un rendez-vous chez le
+ *    barbier tient en six lignes ; un gabarit HTML demanderait des tableaux
+ *    imbriques pour survivre a Outlook, doublerait la chance de tomber dans les
+ *    indesirables, et ne dirait rien de plus. Le texte brut s'affiche partout et
+ *    ne se demode pas — c'est la meme decision que le reste du site.
+ *
+ * N'est appelee que lorsque `COURRIEL_ACTIF` est vrai ET que la cle et
+ * l'expediteur sont poses : c'est verifie par `notifier()`, une seule fois.
+ */
+async function envoyerCourrielReel({ destinataire, sujet, texte, piecesJointes = [] }) {
+  const corps = {
+    from: COURRIEL_EXPEDITEUR,
+    to: [destinataire],
+    subject: sujet,
+    text: texte,
+  };
+
+  if (piecesJointes.length) {
+    corps.attachments = piecesJointes.map((piece) => ({
+      filename: piece.nom,
+      content: Buffer.from(piece.contenu, 'utf8').toString('base64'),
+      // Le type dit a l'application de courrier qu'il s'agit d'un evenement :
+      // sans lui, iOS et Gmail proposent de telecharger un fichier au lieu
+      // d'offrir « Ajouter au calendrier ».
+      content_type: piece.type || 'text/calendar; charset=utf-8; method=PUBLISH',
+    }));
+  }
+
+  // Le meme delai que pour le SMS, et pour la meme raison : sans lui, une
+  // requete qui n'aboutit pas retiendrait un envoi en fond jusqu'a ce que le
+  // systeme d'exploitation s'en lasse.
+  const minuterie = AbortSignal.timeout(10_000);
+
+  const reponse = await fetch(COURRIEL_API, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${COURRIEL_CLE}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(corps),
+    signal: minuterie,
+  });
+
+  if (!reponse.ok) {
+    // Le detail est lu pour le journal du serveur, jamais renvoye au visiteur :
+    // il peut contenir la cle ou l'adresse d'expedition.
+    let detail = '';
+    try { detail = JSON.stringify(await reponse.json()); } catch { /* corps illisible */ }
+    throw new Error(`Le fournisseur de courriel a répondu ${reponse.status} ${detail}`);
+  }
+}
+
 // --- Le canal SMS ----------------------------------------------------------
 
 /**
@@ -223,14 +309,21 @@ async function envoyerSmsReel({ destinataire, texte }) {
  *
  *   'canal-inconnu'        erreur de programme
  *   'sans-destinataire'    le client n'a pas laisse de numero / d'adresse
- *   'non-implemente'       l'email, aujourd'hui
  *   'eteint'               le canal existe mais n'est pas allume sur cette instance
  *   'demonstration'        DEMO_MODE : on journalise, on n'envoie pas
  *   'plafond'              le plafond du mois est atteint
  *   'panne'                le fournisseur a refuse ou n'a pas repondu
+ *
+ * ⚠️ `'non-implemente'` A DISPARU DE CETTE LISTE, et c'est la seule chose que
+ *    ce lot retire a l'appelant. C'etait la reponse de l'email tant qu'il
+ *    n'existait pas ; aucun appelant ne la distinguait de `'eteint'`, qui la
+ *    remplace exactement — le canal existe, il n'est pas allume ici.
+ *
+ * `piecesJointes` est une liste de `{ nom, contenu, type }`. Elle ne concerne
+ * que le courriel : le SMS l'ignore, et personne n'a a s'en soucier a l'appel.
  */
-export async function notifier({ canal, destinataire, sujet = '', texte = '' }) {
-  const trace = { canal, destinataire, sujet, texte };
+export async function notifier({ canal, destinataire, sujet = '', texte = '', piecesJointes = [] }) {
+  const trace = { canal, destinataire, sujet, texte, piecesJointes };
 
   if (!CANAUX.includes(canal)) {
     console.error(`Canal de notification inconnu : ${canal}`);
@@ -241,27 +334,31 @@ export async function notifier({ canal, destinataire, sujet = '', texte = '' }) 
   // rendez-vous saisi par le salon. Ce n'est pas une anomalie.
   if (!destinataire || !texte) return { envoye: false, raison: 'sans-destinataire' };
 
-  // --- L'email : point d'insertion ----------------------------------------
+  // --- CE QUI EST ALLUME, ET COMMENT ON L'ENVOIE ---------------------------
   //
-  // Tout ce qui precede et tout ce qui suit fonctionne deja pour lui — le
-  // compteur, le journal, le contrat de retour. Il ne manque que l'envoi.
-  if (canal === 'email') {
-    journaliser('[EMAIL NON IMPLÉMENTÉ]', trace);
-    return { envoye: false, raison: 'non-implemente' };
-  }
+  // >>> LES DEUX CANAUX PARTAGENT DESORMAIS TOUT CE QUI SUIT. <<< Le compteur,
+  //     la demonstration, le plafond, la reprise de l'unite en cas de panne :
+  //     c'etait ecrit pour le SMS seul, et l'email s'arretait avant, sur son
+  //     `return 'non-implemente'`. Les rebrancher separement aurait donne deux
+  //     chemins a tenir d'accord — c'est exactement ce que cette porte unique
+  //     existe pour eviter.
+  const allume = canal === 'sms'
+    ? Boolean(SMS_ACTIF && SMS_COMPTE && SMS_JETON && SMS_EXPEDITEUR)
+    : Boolean(COURRIEL_ACTIF && COURRIEL_CLE && COURRIEL_EXPEDITEUR);
 
-  // --- Le SMS --------------------------------------------------------------
-
-  if (!SMS_ACTIF || !SMS_COMPTE || !SMS_JETON || !SMS_EXPEDITEUR) {
-    journaliser('[SMS INACTIF]', trace);
+  if (!allume) {
+    journaliser(canal === 'sms' ? '[SMS INACTIF]' : '[COURRIEL INACTIF]', trace);
     return { envoye: false, raison: 'eteint' };
   }
 
-  // La demonstration ne fait sonner le telephone de personne. Le controle est
-  // ici, apres celui du canal : meme sur une instance ou tout serait
-  // correctement configure, DEMO_MODE suffit a tout retenir.
+  // La demonstration ne fait sonner le telephone de personne et n'ecrit dans la
+  // boite de personne. Le controle est ici, apres celui du canal : meme sur une
+  // instance ou tout serait correctement configure, DEMO_MODE suffit a tout
+  // retenir.
   if (DEMO_MODE) {
-    journaliser('[SMS RETENU — DÉMONSTRATION]', trace);
+    journaliser(canal === 'sms'
+      ? '[SMS RETENU — DÉMONSTRATION]'
+      : '[COURRIEL RETENU — DÉMONSTRATION]', trace);
     return { envoye: false, raison: 'demonstration' };
   }
 
@@ -269,7 +366,7 @@ export async function notifier({ canal, destinataire, sujet = '', texte = '' }) 
 
   let reservation;
   try {
-    reservation = await reserverUneUnite('sms', mois);
+    reservation = await reserverUneUnite(canal, mois);
   } catch (erreur) {
     // Le compteur est injoignable. ON N'ENVOIE PAS : sans compteur, il n'y a
     // plus de plafond, et c'est precisement la situation qu'il existe pour
@@ -279,19 +376,26 @@ export async function notifier({ canal, destinataire, sujet = '', texte = '' }) 
   }
 
   if (!reservation.accorde) {
+    const variable = canal === 'sms' ? 'SMS_PLAFOND_MOIS' : 'COURRIEL_PLAFOND_MOIS';
     console.error('');
-    console.error(`  PLAFOND SMS ATTEINT pour ${mois} : ${reservation.plafond} envois.`);
-    console.error('  Le message n\'est pas parti. Relever SMS_PLAFOND_MOIS pour en envoyer davantage.');
+    console.error(`  PLAFOND ${canal.toUpperCase()} ATTEINT pour ${mois} : ${reservation.plafond} envois.`);
+    console.error(`  Le message n'est pas parti. Relever ${variable} pour en envoyer davantage.`);
     console.error('');
     return { envoye: false, raison: 'plafond' };
   }
 
   try {
-    await envoyerSmsReel(trace);
+    if (canal === 'sms') await envoyerSmsReel(trace);
+    else await envoyerCourrielReel(trace);
     return { envoye: true, raison: '' };
   } catch (erreur) {
-    console.error(`Envoi SMS impossible : ${erreur.message}`);
-    await rendreUneUnite('sms', mois);
+    // >>> LE FOURNISSEUR EST INJOIGNABLE, ET RIEN NE DOIT S'ARRETER POUR
+    //     AUTANT. <<< On journalise, on rend l'unite reservee — sans quoi une
+    //     panne consommerait le plafond du mois sans qu'un seul message ne
+    //     parte — et on rend la main. L'appelant, lui, a deja repondu au
+    //     client : voir `notifierEnFond()`.
+    console.error(`Envoi ${canal} impossible : ${erreur.message}`);
+    await rendreUneUnite(canal, mois);
     return { envoye: false, raison: 'panne' };
   }
 }

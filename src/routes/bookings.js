@@ -46,6 +46,7 @@ import {
   reservationsDe,
 } from '../lib/availability.js';
 import { etatDuMoment } from '../lib/etat.js';
+import { prevenirLeClient } from '../lib/courriels.js';
 
 export const bookingsRouter = express.Router();
 
@@ -579,6 +580,17 @@ bookingsRouter.post('/bookings', async (req, res, next) => {
     }
 
     res.status(201).json(toApiBooking(cree, { avecJeton: true }));
+
+    // >>> LA CONFIRMATION ECRITE, ET C'EST TOUT L'INTERET DU CANAL. <<< Sans
+    //     elle, le client repart avec une reference de six caracteres qu'il a
+    //     peut-etre notee, et rien d'autre.
+    //
+    // ⚠️ APRES `res`, ET SANS `await`. `prevenirLeClient()` ne rend rien et ne
+    //    leve pas : la reponse au client est deja partie, et une reservation
+    //    aboutie ne doit ni attendre un courriel ni echouer parce qu'il n'est
+    //    pas parti. Le champ etant facultatif, l'appel sort de lui-meme quand
+    //    il n'y a pas d'adresse.
+    prevenirLeClient('confirmation', { rendezVous: cree });
   } catch (erreur) {
     next(erreur);
   }
@@ -635,6 +647,11 @@ bookingsRouter.delete('/bookings/:id', async (req, res, next) => {
       data: { annuleLe: new Date() },
     });
     res.json({ ok: true, id: rendezVous.id });
+
+    // Le client vient d'annuler lui-meme : le courriel n'apprend rien de neuf,
+    // il DONNE UNE TRACE. C'est ce qu'on relit quand on doute d'avoir bien
+    // annule — et le doute, ici, se resout autrement par un appel au salon.
+    prevenirLeClient('annulation', { rendezVous });
   } catch (erreur) {
     next(erreur);
   }
@@ -1230,20 +1247,6 @@ bookingsRouter.patch('/admin/bookings/:id', requireAdmin, async (req, res, next)
         : 'Cette personne a déjà un rendez-vous sur ce créneau.');
     }
 
-    // >>> LE POINT D'APPEL DE LA NOTIFICATION, ET IL EST VIDE EXPRES. <<<
-    //
-    // Le client ne sait pas encore que son rendez-vous a bouge. Tant que les
-    // canaux sont eteints (src/lib/notifications.js : le SMS est ecrit et teste,
-    // il ne s'allume que si quatre variables sont posees), c'est au commercant
-    // de decrocher — l'ecran lui rappelle le numero, et c'est pour cela que la
-    // reponse le porte.
-    //
-    // Le jour ou le canal s'allumera, c'est ICI que se branchera
-    // `notifierEnFond(…)` sur `maj.customerPhone` : en fond et jamais bloquant,
-    // un deplacement reussi ne doit pas echouer parce qu'un SMS n'est pas parti.
-    // Ne pas l'implementer avant que le canal soit decide — c'est un arbitrage
-    // commercial (cout Twilio, ou choix d'un expediteur de courriel), pas une
-    // tache de developpement.
     const reponse = toApiBooking(maj);
 
     // Ce qui a change, pour que l'ecran nomme l'avant et l'apres sans avoir eu a
@@ -1259,6 +1262,25 @@ bookingsRouter.patch('/admin/bookings/:id', requireAdmin, async (req, res, next)
     if (avertissement) reponse.warning = avertissement;
 
     res.json(reponse);
+
+    // >>> LE POINT D'APPEL DE LA NOTIFICATION, ET IL N'EST PLUS VIDE. <<<
+    //
+    // Le client ne savait pas que son rendez-vous avait bouge : tant qu'aucun
+    // canal n'etait allume, c'etait au commercant de decrocher, et l'ecran lui
+    // rappelait le numero pour cela. Le courriel prend desormais le relais
+    // QUAND une adresse a ete laissee — le rappel de l'ecran reste, parce que
+    // le champ est facultatif et que beaucoup de rendez-vous n'en portent pas.
+    //
+    // ⚠️ SEULEMENT SI LE CRENEAU A BOUGE. Rendre un rendez-vous a quelqu'un
+    //    d'autre sans le decaler ne change rien pour le client : lui ecrire
+    //    « votre rendez-vous a été déplacé » alors qu'il est a la meme heure
+    //    ferait ouvrir un courriel pour rien, et douter du suivant.
+    if (deplace) {
+      prevenirLeClient('deplacement', {
+        rendezVous: maj,
+        avant: { date: rendezVous.date, start: rendezVous.startMin },
+      });
+    }
   } catch (erreur) {
     next(erreur);
   }

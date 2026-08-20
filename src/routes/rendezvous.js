@@ -41,6 +41,7 @@ import { OCCUPENT } from '../lib/annulation.js';
 import { normaliserReference } from '../lib/reference.js';
 import { isRateLimited, recordFailure, resetFailures } from '../lib/rateLimit.js';
 import { isValidIso, weekdayOf, todayIso } from '../lib/time.js';
+import { prevenirLeClient } from '../lib/courriels.js';
 import {
   loadSettings,
   loadOpeningHours,
@@ -360,6 +361,13 @@ rendezVousRouter.post('/rendez-vous/annuler', garde(async (req, res, rendezVous)
   });
 
   res.json({ ok: true, rendezVous: await habiller(annule) });
+
+  // Le client vient d'annuler lui-meme : le courriel n'apprend rien de neuf, il
+  // DONNE UNE TRACE. C'est ce qu'on relit quand on doute d'avoir bien annule.
+  //
+  // ⚠️ APRES `res`, ET SANS `await`, comme les deux autres : la reponse est
+  //    deja partie, et rien de ce qui suit ne peut plus la faire echouer.
+  prevenirLeClient('annulation', { rendezVous: annule });
 }));
 
 /**
@@ -498,5 +506,15 @@ rendezVousRouter.post('/rendez-vous/deplacer', garde(async (req, res, rendezVous
     ok: true,
     rendezVous: await habiller(deplace),
     ...(parJeton ? { jeton: deplace.cancelToken } : {}),
+  });
+
+  // >>> L'AVANT EST LU SUR LA LIGNE D'ORIGINE, PAS SUR LA NOUVELLE. <<< Le
+  //     courriel dit « Avant : lundi 24 à 15:00 / Quand : mardi 25 à 09:30 » ;
+  //     sans la premiere ligne, le client se demande s'il vient de prendre un
+  //     SECOND rendez-vous. `rendezVous` porte encore l'ancien creneau, la mise
+  //     a jour a rendu une ligne neuve.
+  prevenirLeClient('deplacement', {
+    rendezVous: deplace,
+    avant: { date: rendezVous.date, start: rendezVous.startMin },
   });
 }));

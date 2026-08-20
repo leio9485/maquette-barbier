@@ -42,6 +42,12 @@ const ICI = path.dirname(fileURLToPath(import.meta.url));
 // propre instance, sur son propre port et sa propre base, et LA TUE EN PLEIN
 // MILIEU pour verifier qu'une session lui survit. La tuer suppose qu'elle soit
 // a elle.
+// `courriels.mjs` non plus ne parle au serveur du terminal d'a cote, et pour la
+// meme raison que `demonstration.mjs` : ce qu'elle verifie n'existe qu'avec
+// COURRIEL_ACTIF et une cle, trois variables qui ne doivent jamais figurer dans
+// le .env d'une machine de developpement — sinon la moindre reservation de test
+// ecrirait a quelqu'un. Elle lance en plus un FAUX FOURNISSEUR, sur son propre
+// port, qui note ce qu'il recoit et sait tomber en panne sur commande.
 // `demonstration.mjs` ne parle PAS au serveur du terminal d'a cote : elle lance
 // sa propre instance, avec DEMO_MODE et sa propre base. Elle est donc insensible
 // a l'ordre — on la met tot, parce qu'un echec de la remise a zero est ce qu'on
@@ -64,7 +70,7 @@ const ICI = path.dirname(fileURLToPath(import.meta.url));
 // efface ses rendez-vous. Elles sont tot dans la liste parce qu'elles sont
 // courtes, et parce qu'un 404 casse est ce qu'on veut apprendre avant d'avoir
 // lu deux minutes de sortie.
-const SUITES = ['portees.mjs', 'demonstration.mjs', 'sessions.mjs', 'erreurs.mjs', 'debit.mjs', 'api.mjs', 'settings.mjs', 'legal.mjs', 'auth.mjs', 'categories.mjs', 'staff.mjs', 'deplacement.mjs', 'comptes.mjs', 'blocages.mjs', 'chiffres.mjs', 'export.mjs', 'espace.mjs', 'seo.mjs', 'francais.mjs', 'tunnel.mjs', 'annulation.mjs', 'ics.mjs'];
+const SUITES = ['portees.mjs', 'demonstration.mjs', 'courriels.mjs', 'sessions.mjs', 'erreurs.mjs', 'debit.mjs', 'api.mjs', 'settings.mjs', 'legal.mjs', 'auth.mjs', 'categories.mjs', 'staff.mjs', 'deplacement.mjs', 'comptes.mjs', 'blocages.mjs', 'chiffres.mjs', 'export.mjs', 'espace.mjs', 'seo.mjs', 'francais.mjs', 'tunnel.mjs', 'annulation.mjs', 'ics.mjs'];
 
 /**
  * Lance une suite dans son propre processus, sortie affichee telle quelle.

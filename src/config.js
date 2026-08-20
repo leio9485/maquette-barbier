@@ -184,6 +184,54 @@ function plafondConfigure(brut, defaut) {
 
 export const SMS_PLAFOND_MOIS = plafondConfigure(process.env.SMS_PLAFOND_MOIS, 200);
 
+/**
+ * LE COURRIEL DE CONFIRMATION, DE DEPLACEMENT ET D'ANNULATION.
+ *
+ * >>> CE QUE CE CANAL CHANGE POUR LE PRODUIT. <<< Sans lui, un client reserve,
+ * note (ou pas) une reference de six caracteres, et repart sans aucune trace
+ * ecrite. La promesse « moins d'oublis » n'etait alors tenue que par l'option
+ * SMS, c'est-a-dire vendue a part. Le courriel la fait entrer dans le socle et
+ * laisse le SMS comme option payante — c'est ce qui justifie le haut de la
+ * fourchette de prix.
+ *
+ * MEME MECANIQUE QUE LE SMS, ET DELIBEREMENT : il ne s'allume que si
+ * `COURRIEL_ACTIF` vaut exactement "true" ET que les deux autres variables sont
+ * posees. Absentes, le site fonctionne a l'identique — le message est
+ * journalise, rien ne part.
+ *
+ * ⚠️ UNE API HTTP, PAS DU SMTP, et pour la meme raison que Twilio n'a pas
+ *    apporte son paquet : SMTP demanderait une bibliotheque (negociation,
+ *    STARTTLS, encodage MIME), la ou un envoi tient ici en une requete `fetch`.
+ *    Le projet compte quatre dependances, chacune justifiee ; une cinquieme
+ *    aurait demande mieux que « c'est plus pratique ».
+ *
+ *    Le format retenu est celui de Resend (`POST https://api.resend.com/emails`,
+ *    jeton en « Bearer », corps JSON) — choisi parce que les PIECES JOINTES y
+ *    tiennent dans le meme JSON, ce qui permet d'envoyer le fichier .ics sans
+ *    composer un message MIME a la main. `COURRIEL_API` permet d'en viser un
+ *    autre s'il accepte le meme corps.
+ */
+export const COURRIEL_ACTIF = process.env.COURRIEL_ACTIF === 'true';
+
+export const COURRIEL_CLE = process.env.COURRIEL_CLE || '';
+/** « L'Établi <rendez-vous@letabli-bavay.fr> » — le domaine doit etre verifie. */
+export const COURRIEL_EXPEDITEUR = process.env.COURRIEL_EXPEDITEUR || '';
+export const COURRIEL_API = process.env.COURRIEL_API || 'https://api.resend.com/emails';
+
+/**
+ * Plafond mensuel de courriels.
+ *
+ * ⚠️ IL N'EST PAS LA POUR LA FACTURE, MAIS CONTRE L'ABUS. Un courriel ne se
+ *    paie pas a l'unite comme un SMS ; ce qu'on borne ici, c'est ce qu'une
+ *    boucle de reservations peut faire partir depuis l'adresse du commerce
+ *    avant que quiconque s'en apercoive — et ce qui abimerait sa reputation
+ *    d'expediteur pour longtemps.
+ *
+ * Large, donc : 3 000 laisse passer largement dix fois le trafic d'un barbier
+ * de quartier, et arrete une boucle.
+ */
+export const COURRIEL_PLAFOND_MOIS = plafondConfigure(process.env.COURRIEL_PLAFOND_MOIS, 3000);
+
 // ---------------------------------------------------------------------------
 // LES PLAFONDS DE RESERVATION
 //

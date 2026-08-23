@@ -33,6 +33,7 @@ import path from 'node:path';
 import { creerVerificateur, prochainJourOuvert, BASE } from './helpers.mjs';
 import { ROOT_DIR } from '../src/config.js';
 import { prisma } from '../src/db.js';
+import { icsDuRendezVous } from '../src/lib/ics.js';
 
 const { verifie, bilan } = creerVerificateur();
 
@@ -47,13 +48,31 @@ async function chargerFabrique(config) {
   const source = await readFile(
     path.join(ROOT_DIR, 'src', 'page', 'js', '07-mon-agenda.js'), 'utf8');
 
-  const usine = new Function('CONFIG', 'location', `${source}\nreturn fabriquerIcs;`);
+  let usine;
+  try {
+    usine = new Function('CONFIG', 'location', `${source}\nreturn fabriquerIcs;`);
+  } catch (erreur) {
+    // Le message par defaut serait « Unexpected token 'export' » et une pile
+    // qui designe CE fichier-ci. Celui-la nomme le fautif.
+    throw new Error('src/page/js/07-mon-agenda.js ne se compile plus par '
+      + `new Function() : ${erreur.message}. Cause probable : un import ou un `
+      + 'export ajoute en tete (new Function compile un script, pas un module), '
+      + 'ou une lecture du DOM posee au niveau racine du fichier. Le serveur '
+      + 'l\'evalue de la meme facon (src/lib/ics.js) et le courriel de '
+      + 'confirmation partira sans piece jointe.');
+  }
   return usine(config, { hostname: 'letabli-bavay.fr', origin: 'https://letabli-bavay.fr' });
 }
 
-/** Les lignes du fichier, depliees : la norme coupe a 75 octets. */
+/** Les lignes du fichier, depliees : la norme coupe a 75 octets.
+ *
+ * ⚠️ TOLERE `null`. Le seul appelant qui peut en recevoir un est la section 1,
+ *    et c'est exactement le cas qu'elle existe pour attraper : sans cette
+ *    garde, son echec — deja affiche, et nomme — etait suivi d'un
+ *    « Cannot read properties of null » qui renvoyait de nouveau lire ce
+ *    fichier-ci au lieu du fautif. */
 function lignes(ics) {
-  return ics.replace(/\r\n /g, '').split('\r\n');
+  return String(ics ?? '').replace(/\r\n /g, '').split('\r\n');
 }
 
 /** La valeur d'une propriete, ou null. */
@@ -68,12 +87,64 @@ try {
   // Les reglages reels du commerce : le fichier porte son nom, son adresse et
   // son telephone, et c'est la meme source que la page.
   const config = await fetch(`${BASE}/api/config`).then((r) => r.json());
-  const fabriquerIcs = await chargerFabrique(config);
 
   const JOUR = prochainJourOuvert();
 
-  // --- 1. Un rendez-vous ordinaire ----------------------------------------
-  console.log('1. Le fichier d\'un rendez-vous');
+  /** Le fichier produit par le serveur, compare a celui de la page en section 2. */
+  let duServeur = null;
+
+  // --- 1. L'USINE DU SERVEUR SE COMPILE-T-ELLE ? ---------------------------
+  //
+  // >>> CE N'EST PAS UN DOUBLON DE LA SECTION 2, C'EST UN DIAGNOSTIC. <<<
+  //
+  // `src/lib/ics.js` EVALUE le morceau de page ci-dessus avec `new Function()`
+  // pour joindre le meme fichier au courriel de confirmation. L'intention est
+  // juste et ne se remet pas en cause : deux implementations divergeraient sur
+  // `UID` et `SEQUENCE`, et le client se retrouverait avec deux evenements au
+  // lieu d'un. Le risque n'est pas la securite — la source est un fichier du
+  // depot, jamais une entree d'utilisateur — c'est le DIAGNOSTIC.
+  //
+  // `chargerUsine()` n'echoue pas bruyamment : elle journalise et rend `null`,
+  // parce qu'un fichier de page illisible ne doit pas faire echouer une
+  // reservation. tests/courriels.mjs voit alors la piece jointe manquer et dit
+  // « le .ics n'est pas joint » — ce qui envoie chercher dans le mauvais
+  // fichier. Cette section-ci nomme le bon.
+  //
+  // CE QUI LA FERA TOMBER, LE JOUR OU CA ARRIVERA : un `import` ou un `export`
+  // ajoute en tete de js/07-mon-agenda.js (`new Function` compile un script,
+  // pas un module), ou une lecture du DOM posee au niveau racine du fichier
+  // plutot que dans une fonction.
+  console.log('1. Le generateur evalue par le serveur');
+  {
+    const fichier = await icsDuRendezVous(config, {
+      date: JOUR, start: 570, duree: 25,
+      prestation: 'Coupe homme', avec: 'Rémi', reference: 'MQJYBK', version: 0,
+    });
+
+    verifie('>>> src/page/js/07-mon-agenda.js SE COMPILE ENCORE PAR new Function()'
+      + ' — sinon : un import/export ajoute en tete, ou une lecture du DOM hors'
+      + ' fonction (voir src/lib/ics.js) <<<',
+      typeof fichier === 'string' && fichier.startsWith('BEGIN:VCALENDAR'),
+      fichier === null ? 'null — l\'usine ne s\'est pas compilee' : String(fichier).slice(0, 40));
+
+    verifie('et son identifiant est bati sur la reference du rendez-vous',
+      (valeur(fichier, 'UID') ?? '').startsWith('MQJYBK@'), valeur(fichier, 'UID'));
+
+    // Garde pour la section 2 : les deux fichiers doivent porter le meme
+    // evenement, et c'est la raison d'etre de src/lib/ics.js.
+    duServeur = fichier;
+  }
+
+  // --- 2. Un rendez-vous ordinaire ----------------------------------------
+  //
+  // ⚠️ LA FABRIQUE EST CHARGEE ICI ET PAS PLUS HAUT. Un morceau qui ne se
+  //    compile plus fait lever `new Function()`, donc s'arreter la suite
+  //    entiere : chargee avant la section 1, elle emporterait le seul controle
+  //    qui NOMME le fichier fautif, et il ne resterait qu'une trace de pile
+  //    designant ce test-ci.
+  const fabriquerIcs = await chargerFabrique(config);
+
+  console.log('\n2. Le fichier d\'un rendez-vous');
 
   const reserve = fabriquerIcs({
     date: JOUR, start: 570, duree: 25,
@@ -98,6 +169,24 @@ try {
     verifie('la description porte la reference', description.includes('MQJYBK'), description);
     verifie('elle porte le barbier', description.includes('Rémi'), description);
     verifie('et le lien vers /annuler', description.includes('/annuler'), description);
+  }
+  {
+    // >>> ET C'EST LE MEME EVENEMENT QUE CELUI DU SERVEUR (section 1). <<< Meme
+    //     version, meme instant, meme titre : c'est toute la raison d'etre de
+    //     src/lib/ics.js, et la seule chose qui empeche le client de se
+    //     retrouver avec deux rendez-vous dans son agenda.
+    //
+    // ⚠️ LE DOMAINE DE L'`UID`, LUI, DIFFERE ICI, ET C'EST NORMAL. Il vient de
+    //    `PUBLIC_URL`, que la machine de developpement n'a pas : le serveur
+    //    retombe alors sur `localhost` (voir `fausseAdresse()`, src/lib/ics.js)
+    //    quand cette suite, elle, passe le vrai domaine a la main. En
+    //    production les deux lisent la meme variable — c'est precisement
+    //    pourquoi elle en est la seule source.
+    for (const propriete of ['SEQUENCE', 'DTSTART', 'DTEND', 'SUMMARY']) {
+      verifie(`le serveur et la page ecrivent le meme ${propriete}`,
+        valeur(duServeur, propriete) === valeur(reserve, propriete),
+        [valeur(reserve, propriete), valeur(duServeur, propriete)]);
+    }
   }
   {
     // >>> L'HEURE EST UN INSTANT, PAS UNE HEURE MURALE. <<< 570 minutes, c'est
@@ -132,11 +221,11 @@ try {
       valeur(reserve, 'TRIGGER') === '-P1D', valeur(reserve, 'TRIGGER'));
   }
 
-  // --- 2. Le meme rendez-vous, deplace -------------------------------------
+  // --- 3. Le meme rendez-vous, deplace -------------------------------------
   //
   // C'EST LE POINT QUI COMPTE LE PLUS. Un identifiant qui change fabrique un
   // second evenement dans l'agenda du client, et l'ancien horaire y reste.
-  console.log('\n2. Le meme rendez-vous, deplace');
+  console.log('\n3. Le meme rendez-vous, deplace');
 
   const deplace = fabriquerIcs({
     date: JOUR, start: 900, duree: 25,
@@ -177,12 +266,12 @@ try {
       valeur(sansVersion, 'SEQUENCE') === '0', valeur(sansVersion, 'SEQUENCE'));
   }
 
-  // --- 3. Ce que le serveur fournit pour ce numero -------------------------
+  // --- 4. Ce que le serveur fournit pour ce numero -------------------------
   //
   // Le numero de version ne s'invente pas dans le navigateur : il vient de la
   // reponse du serveur. Sans lui, tout ce qui precede serait une jolie
   // mecanique branchee sur rien.
-  console.log('\n3. Le numero de version vient du serveur');
+  console.log('\n4. Le numero de version vient du serveur');
   {
     const creneaux = await fetch(`${BASE}/api/slots?date=${JOUR}&serviceId=coupe-homme`)
       .then((r) => r.json());

@@ -96,6 +96,17 @@ de grille de cartes de prestations.
   d'un bord de l'écran à l'autre. Le bandeau la recalcule
   (`06-bandeau-etat.css`) parce qu'il n'a pas de conteneur centré.
 - **Presque aucun mouvement** : 150 ms sur les états interactifs, rien d'autre.
+- **44 px de cible tactile sous 768 px**, jeton `--cible-tactile`. Les liens du
+  site tenaient 30 à 34 px, avec partout le même commentaire : « WCAG 2.2
+  demande 24 px au minimum (critère 2.5.8) ». Le raisonnement était juste, le
+  seuil retenu était le **minimum légal** — celui en dessous duquel on est en
+  faute, pas celui auquel on vise juste. Sur un site dont le seul objet est de
+  faire réserver depuis un téléphone, viser le minimum légal n'a pas de sens.
+  ⚠️ **Elle se pose par le `min-height`, jamais par la taille du texte**, et le
+  `gap` qui l'entoure perd un cran pour que l'écart *vu* ne change pas. Une
+  exception, écrite dans WCAG 2.2 lui-même (« inline exception ») : un lien au
+  milieu d'une phrase garde la hauteur de sa ligne — l'agrandir n'agrandirait
+  pas une cible, il ouvrirait un trou dans un paragraphe.
 
 #### Ce qu'une direction sans ornement demande en échange
 
@@ -186,6 +197,33 @@ eu trois formes. Le catalogue entier recopié, d'abord — c'est-à-dire la sect
 avait avancé. Une liste déroulante ensuite, plus courte mais qui cachait tout.
 Le dépliant garde les deux : quatre lignes qui montrent l'offre, le détail à un
 clic.
+
+⚠️ **LA SECTION « PRESTATIONS » DE LA VITRINE S'EN SERT AUSSI, SOUS 768 px, ET
+C'EST LE MÊME COMPOSANT.** Mesuré à 394 px : la page faisait 9 479 px — onze
+écrans — dont **3 247 px pour les seuls tarifs**, soit près de quatre écrans de
+prix à traverser pour atteindre les avis ou le contact. Vingt-six lignes entre
+174 et 195 px. Sur un ordinateur, les mêmes lignes tiennent en colonnes serrées
+et le défaut ne se voit pas — c'est pour cela qu'il a tenu si longtemps.
+Repliée, la section fait **621 px** et la page 6 930.
+
+`htmlRayonDepliable()` est **une seule fabrique** pour les deux endroits, et le
+style `.rayon*` a déménagé de `13-tunnel.css` vers `09-prestations.css` — il
+enveloppe la liste tarifaire, `.rayon-liste` EST une `.tarif-liste`, et deux
+copies d'un même dépliant divergent au premier correctif (même raisonnement que
+le déménagement de `.creneau` dans `05-controles.css`). Une seule différence,
+portée par un argument nommé : la vitrine garde la phrase du rayon, **dans** le
+dépliant ; le tunnel ne la porte pas, parce que son étape 1 doit tenir en quatre
+lignes de même hauteur.
+
+⚠️ **Aucun rayon ne s'ouvre tout seul**, ici non plus (voir `3031fa5`).
+
+⚠️ **AU-DESSUS DE 768 px, RIEN NE CHANGE — vérifié au pixel près** (1 891 px de
+section, 6 660 de page, avant comme après). Et **le HTML servi reste la liste
+déployée à toutes les largeurs** : un visiteur sans JavaScript voit ce qu'il
+voyait, et les moteurs lisent les treize tarifs sans rien exécuter. Le choix du
+dessin se fait donc en JavaScript, comme celui des colonnes de l'agenda —
+aucune règle de style ne fabrique un `<summary>` ni ne calcule
+« 4 prestations · dès 13 € ».
 
 **L'ordre de l'étape 2 est le sujet de l'étape 2** : le jour, puis la personne,
 puis l'heure. C'est le jour qui décide de la plupart des refus — un barbier
@@ -369,6 +407,19 @@ maintenant » pour repartir d'une vitrine propre.
 
 ### L'espace commerçant
 
+>>> **UN COMPTEUR DE JOURNÉE NE COMPTE QUE LES RENDEZ-VOUS QUI AURONT LIEU.**
+<<< L'en-tête annonçait « 19 rendez-vous » pour le 25 août : dix-neuf lignes en
+base, dont dix-huit actives et une annulée par le client. Le patron lit
+dix-neuf, compte dix-huit têtes dans sa journée, et cherche lequel il a oublié.
+Tout le reste du produit écarte pourtant les annulations (`OCCUPENT`,
+`src/lib/annulation.js`) ; ce compteur était le seul à les garder.
+
+⚠️ **Les lignes annulées restent affichées, barrées** : le commerçant doit voir
+qu'un créneau s'est libéré sans qu'il y soit pour rien. C'était le nombre qui
+était faux, pas l'affichage. L'annulation est dite **à part** — « 18
+rendez-vous · 1 annulé » — parce qu'un nombre unique devrait choisir entre
+annoncer une journée plus chargée qu'elle ne l'est et effacer le décommandement.
+
 **L'agenda est une liste, plus une grille.** Il dessinait une case cliquable
 toutes les demi-heures, de l'ouverture à la fermeture, par personne : un samedi
 de 8h30 à 17h faisait cinquante et une cases pour trois rendez-vous. On ouvrait
@@ -396,6 +447,31 @@ téléphone, trois colonnes côte à côte ne tiennent pas, mais trois **groupes
 empilés**, si — et sept journées de trois groupes empilés ne se lisent plus du
 tout. Sans équipe enregistrée, rien ne change ; avec une seule personne, c'est
 une colonne unique, c'est-à-dire la liste.
+
+⚠️ **DANS UNE COLONNE, LE LIBELLÉ DE PRESTATION TIENT SUR UNE LIGNE.** Mesuré à
+1440 px, une journée de 43 rendez-vous en trois colonnes de 381 px : les cartes
+faisaient 133 à 187 px et la journée 2 098 px. Ce qui coûtait cette hauteur
+n'était pas la colonne — elle vaut son prix — c'était « Rasage traditionnel au
+coupe-chou · 40 min » sur trois lignes. Après : **75 à 97 px la carte, 1 366 px
+la journée.**
+
+- **La coupe est faite par la feuille, jamais par le JavaScript.** Un `slice()`
+  mettrait le texte tronqué DANS le document : le lecteur d'écran n'entendrait
+  plus que « Rasage traditio… ». Avec `text-overflow: ellipsis`, le texte reste
+  entier — coupé à l'œil seulement, donc annoncé en entier — et un `title` le
+  donne à la souris, posé **uniquement là où la coupe a lieu**.
+- **La durée n'est jamais coupée**, et c'est pour cela que le libellé est en
+  deux morceaux (`.agenda-presta` et `.agenda-quand`). Une coupe posée sur la
+  ligne entière emporterait sa fin, c'est-à-dire ce qu'on lit en parcourant un
+  planning : « Coupe ho… » au lieu de « Coupe ho… · 25 min ». Mesuré, et
+  corrigé le même jour.
+- **L'heure de fin sort de la colonne**, par l'argument déjà écrit pour le
+  téléphone : une colonne de 381 px est plus étroite qu'un écran de 394, et
+  « 09:45 → 10:10 » y coûte 133 px pour une information que la durée donne.
+- **Le nom du client n'est pas touché.** C'est la première chose qu'on cherche
+  dans un agenda ; s'il faut deux lignes à quelqu'un, c'est à lui qu'on les
+  donne. Les groupes empilés du petit écran ne sont pas coupés non plus : le
+  libellé y tient sur deux lignes, et couper là où ça rentre ne gagne rien.
 
 **Deux repères de lecture dans la journée : la pause, et « maintenant ».** La
 liste passait de 11:45 à 14:00 sans rien indiquer — on lisait un trou de deux
@@ -621,6 +697,20 @@ vend. Elle est aujourd'hui dans `14-connexion.css`, sur le même aplat encre que
 l'en-tête de la vitrine — le commerçant passe de l'un à l'autre, les deux
 doivent se ressembler.
 
+⚠️ **SOUS 768 px, « VOIR LE SITE » ET « SE DÉCONNECTER » DESCENDENT EN PIED.**
+La barre est collée en permanence : 109 px sur 852 à 394 px, soit 13 % de
+l'écran, et pris **deux fois** puisque l'en-tête de journée se colle en dessous.
+Ces deux liens sont des actions de **fin** de session ; les onglets
+« Chiffres / Agenda / Réglages », eux, sont la navigation de travail et restent
+sous le pouce. La barre revient à une rangée : **61 px**.
+
+⚠️ **Le bloc est DÉPLACÉ, pas recopié** (`placerLesActionsDeSession()`,
+`js/espace/demarrage.js`, sur un `matchMedia` — même mécanique que
+`ECRAN_LARGE`). Un second exemplaire caché en CSS ferait deux fois
+l'identifiant `seDeconnecter` dans le document et deux cibles pour une action.
+Et **pas par un `order`** : il laisserait l'ordre de tabulation en désaccord
+avec l'ordre lu (WCAG 2.4.3), refus déjà écrit dans `14-connexion.css`.
+
 **Le sommaire des réglages dit où l'on est, et il est devenu un rail.** Il
 savait emmener — huit raccourcis, ça marche — mais pas situer : on descendait
 trois écrans dans les horaires, on relevait les yeux, et rien ne disait
@@ -839,6 +929,20 @@ passé**, depuis que « venu » est l'état par défaut (voir plus haut) : il po
 sur « ce qui a été pointé », et ce dénominateur se retourne dès qu'on ne coche
 que les absences — il afficherait **100 %** à quelqu'un qui a eu deux lapins sur
 quarante-deux rendez-vous.
+
+⚠️ **LE TAUX DE REMPLISSAGE PEUT DÉPASSER 100 %, ET IL DOIT LE DIRE.** Le
+produit permet délibérément de vendre plus de temps qu'il n'en ouvre : « Forcer
+ce créneau » pose deux rendez-vous sur la même heure, et supprimer une personne
+rend ses rendez-vous passés à personne sans les effacer. 142 % mesurés sur une
+base neuve, et c'est un chiffre juste. Un test affirmait le contraire ; il
+vérifie maintenant que le taux est le **rapport** des deux nombres que la même
+réponse porte, ce qui est plus fort qu'une borne.
+
+⚠️ **CE QUI EST BORNÉ, C'EST LA BARRE, PAS LE NOMBRE.** `width: 142%` sort de
+son rail et s'écrit par-dessus la colonne voisine. Un dessin plus long que sa
+piste n'apprend rien de plus que « pleine », et se lit comme un défaut de rendu.
+`barre()` plafonne donc le dessin, et quatre contrôles évaluent la fonction
+elle-même.
 
 **Un nom de client ne peut plus écrire une formule dans le tableur du
 commerçant.** Un rendez-vous au nom `=1+1` ressortait de l'export tel quel,
@@ -1179,6 +1283,23 @@ Sa hauteur est le jeton `--h-entete` (0 en dessous de 1000 px) parce que le
 décalage des ancres, `scroll-padding-top`, en est la somme avec `--h-bandeau`.
 Changer l'un sans l'autre remet les titres de section sous la barre.
 
+**Sous 768 px, le sommaire défile horizontalement plutôt que de passer à la
+ligne.** Il était en `flex-wrap: wrap` : les cinq liens ne tiennent pas dans
+346 px de gouttière à gouttière (267 px de texte, 96 px d'écarts), ils passaient
+donc à la ligne sous le nom du commerce, et l'en-tête faisait **151 px** —
+avec le bandeau, 23 % de l'écran avant le premier mot du titre. Il en fait
+**123**.
+
+⚠️ **Le menu replié derrière un bouton a été écarté**, et c'est la note qui
+était déjà écrite dans `parties/entete.html` : un état ouvert/fermé, un piège à
+focus, une fermeture à l'Échap et au clic extérieur, une icône générique — de la
+mécanique et un geste de plus pour cacher cinq mots courts.
+
+⚠️ **La barre de défilement est masquée, donc c'est le dernier lien COUPÉ par le
+bord de l'écran qui dit qu'elle défile.** D'où les marges négatives : la rangée
+va d'un bord à l'autre et son premier lien reste sur la gouttière. Sans elles,
+la coupure tomberait 24 px avant le bord et se lirait comme une fin de liste.
+
 ## Sauvegarder une instance client
 
 ```bash
@@ -1223,12 +1344,27 @@ La commande, la fréquence et la procédure de restauration complète sont dans
 npm test
 ```
 
-**1 209 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
+**1 228 tests.** Le serveur doit tourner et **`DEMO_MODE` doit être absent** du
 `.env`.
+
+⚠️ **LA SUITE ÉCHOUAIT À LA PREMIÈRE EXÉCUTION ET PASSAIT À LA SECONDE**, sur
+une base fraîchement semée — la pire façon de découvrir un test. Le lanceur
+retirait l'équipe mais pas les rendez-vous que la démonstration avait semés
+**pour elle** : sans équipe, ces mêmes rendez-vous tiennent une ressource
+unique, et la journée de test est pleine. Il restait deux créneaux libres là où
+`debit.mjs` en demande six. La section 5 de `blocages.mjs` annulant les
+rendez-vous du jour en bloc, la journée se libérait d'elle-même, et la seconde
+exécution passait.
+
+`libererLaSemaineDeTest()` relève, efface et **repose** les rendez-vous des sept
+jours de test, exactement comme `mettreEquipeDeCote()` fait de l'équipe : la
+base de développement n'est pas jetable, et un prospect à qui l'on montre le
+site après un `npm test` doit retrouver son agenda plein.
 
 ⚠️ **`npm run dev` ne convient pas pour lancer la suite.** `node --watch`
 redémarre le serveur dès qu'un fichier de `data/` change — or la suite écrit la
-base et `data/equipe-mise-de-cote.json`. La connexion est coupée en plein
+base, `data/equipe-mise-de-cote.json` et `data/rendez-vous-mis-de-cote.json`.
+La connexion est coupée en plein
 milieu et `npm test` échoue sur un `ECONNRESET` qui n'a rien à voir avec le
 code. Lancer `npm start`.
 
@@ -1275,34 +1411,48 @@ une réservation, et l'unité réservée au compteur lui est rendue.
 figée accumulait ses échecs d'une exécution à l'autre et bloquait le second
 `npm test` lancé dans le quart d'heure.
 
-Lighthouse mobile, refait le 20 août 2026 après les lots A à F (13.4.1, en
-local, `--only-categories=performance,accessibility,best-practices,seo`,
+⚠️ **`export.mjs` tire son nom de client au hasard, et pour une raison
+voisine.** Il cherchait « Maxime Vasseur » dans l'export entier — un prénom et
+un nom du Nord, tirés de **la même liste** que les clients de démonstration,
+dont le générateur avait posé un exemplaire le 30 juin. Le test lisait donc SA
+ligne, et vérifiait le téléphone de quelqu'un d'autre.
+
+⚠️ **Un dimanche, `api.mjs` s'arrêtait sur sa section 10.** Elle ferme « les
+jours qui précèdent » le prochain jour ouvert : lancée un dimanche, c'est
+dimanche et lundi, les deux jours où le commerce est déjà fermé — et la route
+refuse, à juste titre, puisqu'il n'y a rien à fermer. L'état voulu est pourtant
+atteint. Le contrôle portait sur le code de réponse ; il porte désormais sur ce
+qu'il vérifiait vraiment.
+
+Lighthouse mobile, refait le 23 août 2026 après les sept lots d'ergonomie
+mobile (13.4.1, en local,
+`--only-categories=performance,accessibility,best-practices,seo`,
 **médiane de trois passages** par page) :
 
 | | vitrine | `/annuler` | `/espace-salon` |
 |---|---:|---:|---:|
-| Performance | **99** | 100 | 100 |
+| Performance | **100** | 100 | 100 |
 | Accessibilité | **100** | 100 | 100 |
 | Bonnes pratiques | **100** | 100 | 96 |
 | SEO | **100** | 63 | 54 |
-| LCP | **1,8 s** | 1,4 s | 1,5 s |
+| LCP | **1,66 s** | 1,36 s | 1,51 s |
 | CLS | **0** | 0 | 0 |
 | TBT | **0 ms** | 0 ms | 0 ms |
 
-**Le seul chiffre qui a bougé depuis le 19 août est le LCP de la vitrine :
-2,1 s → 1,8 s**, et c'est le correctif du `preload` (lot D, point D1), qui
-réclamait un JPEG que le `<picture>` n'affiche jamais. Le rapport le dit de
-trois façons : l'élément LCP est bien le `<img>` d'accueil, résolu en
-`hero-800.webp` — **le fichier même que le `preload` demande** ; la case « LCP
-request discovery » est verte sur ses trois points (`fetchpriority=high`,
-requête trouvable dans le document initial, pas de `loading=lazy`) ; et
-« Improve image delivery » annonce **0 octet** d'économie possible. Les quatre
-notes, elles, sont identiques : les lots A à F n'en ont dégradé aucune.
+**La vitrine passe de 99 à 100, et son LCP de 1,8 s à 1,66 s.** Rien n'a été
+fait pour la performance : ce sont les lots 2 à 4 (l'en-tête sur une ligne, la
+liste tarifaire repliée) qui ont retiré du premier écran ce qu'il n'avait pas à
+y mettre. Aucune des douze notes n'a bougé dans l'autre sens.
 
-Ce qui coûte encore un point à la vitrine, décomposé par Lighthouse : sur les
-1,8 s de LCP, **32 ms de premier octet, 40 ms avant de lancer la requête,
-18 ms pour télécharger l'image — et 208 ms de rendu de l'élément**. Le
-téléchargement n'est plus le sujet ; il n'y a ni rendu bloquant à retirer (la
+L'élément LCP reste le `<img>` d'accueil, résolu en `hero-800.webp` — **le
+fichier même que le `preload` demande**, `?v=` compris — et la case « LCP
+request discovery » est verte sur ses trois points (`fetchpriority=high`,
+requête trouvable dans le document initial, pas de `loading=lazy`).
+
+La décomposition du LCP, sur un quatrième passage isolé (le plus lent des
+quatre, 1,81 s) : **26 ms de premier octet, 37 ms avant de lancer la requête,
+21 ms pour télécharger l'image — et 119 ms de rendu de l'élément**. Le
+téléchargement n'est pas le sujet ; il n'y a ni rendu bloquant à retirer (la
 page est un seul fichier) ni octet à gagner sur l'image. Le reste est le profil
 mobile bridé de l'outil.
 
@@ -1315,7 +1465,7 @@ Les SEO bas de `/annuler` et `/espace-salon` sont voulus : ces pages portent
 perd en plus le point de `meta-description`, qu'une page non indexée n'a aucune
 raison d'avoir. Bonnes pratiques 96 sur l'espace : le contrôle de session
 journalise un 401 sur `/api/admin/me` quand personne n'est connecté — la
-réponse correcte du serveur, vérifiée à nouveau dans le rapport du 20 août.
+réponse correcte du serveur, vérifiée à nouveau dans le rapport du 23 août.
 
 ⚠️ **LA PAGE « ADRESSE INTROUVABLE » NE SE MESURE PAS, ET IL NE FAUT PAS
 ESSAYER DE LA FAIRE MESURER.** Lighthouse refuse de noter un document qui
@@ -1330,11 +1480,23 @@ passage a donné **88**, avec un TBT de 460 ms ; les trois suivants, 97, 99 et
 Le TBT mesure l'exécution du JavaScript, et il suffit qu'une autre tâche occupe
 la machine — un serveur, une suite de tests, un autre Chrome — pour qu'il
 quadruple. Les trois passages du 20 août, machine au repos, ont donné 17, 0 et
-0 ms : c'est à quoi ressemble une mesure propre. **Mesurer trois fois et retenir
-la médiane**, sinon on part chasser une régression qui n'existe pas. C'est le
-même piège que la mesure sur instance froide décrite dans `RAPPORT.md` § 7.
+0 ms : c'est à quoi ressemble une mesure propre. Le 23 août, les trois passages
+de la vitrine ont donné 156, 0 et 0 ms de TBT — donc 98, 100 et 100 en
+performance, pour un LCP stable à 1,65 s d'un passage à l'autre. **Mesurer trois
+fois et retenir la médiane**, sinon on part chasser une régression qui n'existe
+pas. C'est le même piège que la mesure sur instance froide décrite dans
+`RAPPORT.md` § 7.
 
 ### La hauteur de la vitrine, et pourquoi elle ne descendra pas beaucoup plus
+
+>>> **CE QUI SUIT VAUT POUR 1440 × 900, ET C'EST LÀ QUE LA CONCLUSION TIENT.**
+Sur téléphone, la réponse est différente et elle a été trouvée : la page faisait
+**9 479 px à 394 px — onze écrans** — dont 3 247 px pour la seule section
+Prestations. Repliée par rayon (voir plus haut), elle en fait 621, et la page
+**6 930**. Ce n'est pas un blanc qu'on a resserré : ce sont vingt-six lignes de
+tarif qu'on a rangées derrière quatre lignes, à un tap du détail. Le rythme des
+sections, lui, n'a pas bougé d'un pixel — et à 1440 px, rien n'a changé du tout,
+au pixel près. <<<
 
 **6 791 px avant le lot F, 6 655 après** (1440 × 900). Un audit a demandé de la
 ramener « sous 9 écrans », en resserrant **uniquement les zones
@@ -1368,6 +1530,18 @@ en haut aux bonnes hauteurs, tunnel parcouru jusqu'aux créneaux.
 Image Docker, sans dépendance à un hébergeur en particulier. Cible visée :
 **Koyeb, région Francfort**. La démonstration, elle, tourne aujourd'hui sur
 **Render** (`render.yaml`), derrière le relais de l'hébergeur.
+
+>>> **POUR UNE INSTANCE CLIENT, LA LISTE ORDONNÉE EST DANS
+`src/page/LISEZ-MOI.md`, section « Mettre en service chez un client ».** <<<
+Huit points, chacun disant ce qui se passe s'il est oublié — parce qu'aucun de
+ces oublis ne fait tomber le site : il marche, et il marche mal d'une façon que
+personne ne remarque avant des semaines. Une instance client demande d'enlever
+**une** variable et d'en poser **cinq**, et elles étaient éparpillées entre
+`render.yaml`, `.env.example` et ce fichier. La procédure de restauration d'une
+sauvegarde suit dans le même fichier : c'est le jour d'un incident qu'on la
+cherche, et ce jour-là on ne lit pas un dépôt.
+
+Ce qui suit décrit la **démonstration**.
 
 Variables à poser sur l'instance de démonstration :
 

@@ -617,6 +617,11 @@ function ligneRdv(rdv, iso) {
   const prestation = CONFIG.services.find((s) => s.id === rdv.serviceId);
   const personne = CONFIG.staff.find((s) => s.id === rdv.staffId);
 
+  // La prestation et la duree sont DEUX elements, et non plus une seule chaine.
+  // C'est ce qui permet a la feuille de couper l'une sans emporter l'autre dans
+  // une colonne (voir le commentaire du `title`, plus bas). En dehors d'une
+  // colonne, ce sont deux `<span>` inline separes par un point median : le
+  // texte rendu est exactement celui d'avant, « Coupe homme · 25 min ».
   const detail = [prestation?.name, fmtDuree(rdv.duration)].filter(Boolean).join(' · ');
 
   // Un rendez-vous que le CLIENT a annule reste affiche, barre. Le faire
@@ -631,6 +636,38 @@ function ligneRdv(rdv, iso) {
     ? `<span class="agenda-absences" title="${esc(absences)} absences constatées">${esc(absences)} abs.</span>`
     : '';
 
+  // >>> EN COLONNE, LE LIBELLE TIENT SUR UNE LIGNE ET LE RESTE VA DANS `title`. <<<
+  //
+  // Mesure du 23 aout a 1440 px, une journee de 43 rendez-vous rangee en trois
+  // colonnes de 381 px : les cartes font 133 a 187 px et la journee 2 098. Ce
+  // qui coute cette hauteur est le seul libelle de prestation — « Rasage
+  // traditionnel au coupe-chou · 40 min » passe sur trois lignes dans une
+  // colonne. Les colonnes, elles, valent leur prix et ne bougent pas.
+  //
+  // ⚠️ LA COUPE EST FAITE PAR LA FEUILLE, PAS PAR LE JAVASCRIPT. Un
+  //    `slice(0, 24)` mettrait le texte tronque DANS le document : le lecteur
+  //    d'ecran n'entendrait plus que « Rasage traditio… », et la fiche comme
+  //    l'export liraient autre chose que l'agenda. Avec `text-overflow: ellipsis`
+  //    (15-agenda.css), le texte reste entier dans la page — coupe a l'oeil
+  //    seulement, donc annonce en entier.
+  //
+  // Le `title` est pour la souris, et il n'est pose QUE la ou le texte est
+  // coupe : une infobulle sur chacune des quarante-trois lignes d'une liste qui
+  // affiche deja tout serait du bruit.
+  //
+  // ⚠️ LE NOM DU CLIENT N'EST PAS TOUCHE. C'est la premiere chose que le
+  //    commercant cherche dans son agenda ; un nom coupe y est inutilisable.
+  //    S'il faut deux lignes a quelqu'un, c'est a lui qu'on les donne.
+  const quoi = `${detail}${annule ? ' · annulé par le client' : ''}`;
+  const titreQuoi = enColonnes() ? ` title="${esc(quoi)}"` : '';
+
+  // La part du libelle qui n'est JAMAIS coupee : la duree, et l'annulation s'il
+  // y en a une. La duree est ce qui sert a lire un planning — on peut ne pas
+  // reconnaitre « Rasage traditio… », on sait qu'il dure 40 min et que la place
+  // suivante est prise d'autant.
+  const quoiGarde = [prestation ? fmtDuree(rdv.duration) : detail,
+    annule ? 'annulé par le client' : ''].filter(Boolean).join(' · ');
+
   return `<li class="agenda-ligne"${annule ? ' data-annule' : ''}>`
     + `<button type="button" class="agenda-rdv" data-rdv="${esc(rdv.id)}" data-source="${esc(rdv.source || '')}"`
       + (personne ? ` style="--teinte:${esc(personne.color || '#24405C')}"` : '')
@@ -638,7 +675,10 @@ function ligneRdv(rdv, iso) {
       + `<span class="agenda-heure donnee">${fmtHeure(rdv.start)}<span class="agenda-fin"> → ${fin}</span></span>`
       + '<span class="agenda-corps">'
         + `<span class="agenda-nom">${esc(rdv.name)}${marque}</span>`
-        + `<span class="agenda-quoi">${esc(detail)}${annule ? ' · annulé par le client' : ''}</span>`
+        + `<span class="agenda-quoi"${titreQuoi}>`
+          + (prestation ? `<span class="agenda-presta">${esc(prestation.name)}</span> · ` : '')
+          + `<span class="agenda-quand">${esc(quoiGarde)}</span>`
+        + '</span>'
       + '</span>'
       + '<span class="agenda-cote donnee">'
         + (personne ? `<span class="agenda-qui">${esc(personne.name)}</span>` : '')

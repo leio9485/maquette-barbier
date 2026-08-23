@@ -527,6 +527,64 @@
   .agenda[data-colonnes="personnes"][data-vue="semaine"] .agenda-colonne .agenda-tel {
     display: none;
   }
+
+  /* >>> LE LIBELLÉ DE PRESTATION TIENT SUR UNE LIGNE DANS UNE COLONNE. <<<
+
+     Mesuré le 23 août à 1440 px, une journée de 43 rendez-vous rangée en trois
+     colonnes de 381 px : les cartes faisaient 133 à 187 px et la journée
+     2 098 px. « Rasage traditionnel au coupe-chou · 40 min » y passait sur
+     trois lignes — c'est-à-dire que la hauteur d'une carte était décidée par la
+     longueur du nom d'une prestation. Les colonnes valent leur prix (voir
+     plus haut) ; c'est ce libellé qui coûtait.
+
+     La DURÉE reste visible, et c'est elle qui sert à lire un planning : quand
+     le nom est coupé, on lit encore « … · 40 min ».
+
+     ⚠️ LA COUPE EST VISUELLE, LE TEXTE RESTE ENTIER DANS LA PAGE. `ellipsis`
+        n'enlève rien au document : un lecteur d'écran annonce le libellé
+        complet, et la souris l'obtient par le `title` que `ligneRdv()` pose —
+        uniquement en colonne, précisément parce qu'ailleurs rien n'est coupé.
+
+     ⚠️ SEULEMENT EN COLONNE, ET C'EST TOUT L'OBJET DE LA RÈGLE. Les groupes
+        empilés du petit écran font 346 px de large mais n'ont ni prénom ni
+        colonne voisine à leur droite : le libellé y tient sur deux lignes, ce
+        qui est lisible. Couper un texte là où il rentre ne gagne rien et perd
+        une information à l'œil.
+
+     ⚠️ ET LE NOM DU CLIENT N'EST PAS COUPÉ. Un nom tronqué dans un agenda est
+        inutilisable — c'est la première chose qu'on y cherche. S'il faut deux
+        lignes à quelqu'un, c'est à lui qu'on les donne. */
+  .agenda[data-colonnes="personnes"] .agenda-colonne .agenda-quoi {
+    display: flex;
+    gap: 0 0.4ch;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  /* SEUL LE NOM DE LA PRESTATION EST COUPÉ, et c'est pour cela que le libellé
+     est en deux morceaux dans `ligneRdv()`. Une coupe posée sur la ligne
+     entière emporterait la fin — c'est-à-dire précisément la durée, la seule
+     chose qu'on lise vraiment en parcourant un planning : « Coupe ho… » au lieu
+     de « Coupe ho… · 25 min ». Mesuré, et corrigé le même jour. */
+  .agenda[data-colonnes="personnes"] .agenda-colonne .agenda-presta {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .agenda[data-colonnes="personnes"] .agenda-colonne .agenda-quand { flex: none; }
+
+  /* >>> ET L'HEURE DE FIN SORT DE LA COLONNE. <<< C'est l'argument déjà écrit
+     plus haut pour le téléphone, mot pour mot : « sur téléphone, la colonne des
+     heures mangerait la moitié de la ligne pour une information qu'on déduit de
+     la durée écrite juste en dessous ». Une colonne de 381 px est plus étroite
+     qu'un téléphone de 394 : « 09:45 → 10:10 » y coûte 133 px sur 381, et la
+     durée est juste en dessous, désormais garantie de rester à l'écran. Ces
+     61 px reviennent au nom du client et au libellé, c'est-à-dire à ce qu'on
+     lit. */
+  .agenda[data-colonnes="personnes"] .agenda-colonne .agenda-fin { display: none; }
+
+  .agenda[data-colonnes="personnes"] .agenda-colonne .agenda-heure { min-width: 7ch; }
 }
 
 /* --- LE POINTAGE « VENU » / « PAS VENU » -----------------------------------

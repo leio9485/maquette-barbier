@@ -21,6 +21,9 @@
 //   - l'export CSV : BOM UTF-8, point-virgule, accents intacts.
 // ---------------------------------------------------------------------------
 
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+
 import {
   creerClient,
   clientConnecte,
@@ -29,6 +32,7 @@ import {
   prochainJourOuvert,
   BASE,
 } from './helpers.mjs';
+import { ROOT_DIR } from '../src/config.js';
 
 const { verifie, bilan } = creerVerificateur();
 
@@ -150,9 +154,32 @@ try {
   console.log('\n4. Le taux de remplissage');
   {
     const c = await chiffres();
-    verifie('il est un entier entre 0 et 100',
-      Number.isInteger(c.mois.remplissage) && c.mois.remplissage >= 0 && c.mois.remplissage <= 100,
-      c.mois.remplissage);
+
+    // >>> LE PLAFOND DE 100 N'EN ETAIT PAS UN, ET IL A ETE RETIRE. <<<
+    //
+    // Le controle disait « entre 0 et 100 ». Il supposait qu'on ne peut pas
+    // vendre plus de temps qu'on n'en ouvre — or le produit le permet, par deux
+    // chemins voulus : « Forcer ce creneau » pose deux rendez-vous sur la meme
+    // heure, et supprimer une personne rend ses rendez-vous passes a personne
+    // sans les effacer. Le lanceur emprunte le second a chaque execution : il
+    // met l'equipe de cote, et les rendez-vous que la demonstration avait semes
+    // pour trois barbiers se comptent alors sur une ressource unique. 142 %,
+    // mesure sur une base fraichement semee — un chiffre juste, refuse par un
+    // test qui affirmait le contraire.
+    //
+    // Ce qui est verifie a la place est plus fort : le taux est le RAPPORT des
+    // deux nombres que la meme reponse porte. Un NaN, un negatif ou un 1 700 ne
+    // passeraient pas davantage, et la borne ne cache plus un cas reel.
+    //
+    // ⚠️ CE QUI EST BORNE, C'EST LA BARRE, PAS LE NOMBRE — et c'est verifie
+    //    plus bas, sur `barre()` elle-meme : une barre de 142 % deborderait de
+    //    son rail et s'ecrirait par-dessus la colonne voisine.
+    verifie('il est un entier positif',
+      Number.isInteger(c.mois.remplissage) && c.mois.remplissage >= 0, c.mois.remplissage);
+
+    verifie('et il vaut bien le rapport des minutes prises aux minutes ouvertes',
+      c.mois.remplissage === Math.round((c.mois.minutesPrises / c.mois.minutesOuvertes) * 100),
+      [c.mois.remplissage, c.mois.minutesPrises, c.mois.minutesOuvertes]);
     verifie('le temps ouvert du mois est superieur a zero',
       c.mois.minutesOuvertes > 0, c.mois.minutesOuvertes);
     verifie('un mois vide ne casse rien : le mois precedent tient debout',
@@ -354,8 +381,11 @@ try {
       creux.every((h) => h.remplissage === Math.round((h.minutesPrises / h.minutesOuvertes) * 100)),
       creux.map((h) => [h.remplissage, h.minutesPrises, h.minutesOuvertes]));
 
-    verifie('un taux est un pourcentage, entre 0 et 100',
-      creux.every((h) => h.remplissage >= 0 && h.remplissage <= 100),
+    // Positif, et rien de plus : le rapport lui-meme est verifie juste au-dessus.
+    // Le plafond de 100 a saute pour la raison ecrite a la section 4 — une heure
+    // doublee, ou dont la personne a ete supprimee, depasse legitimement son
+    // temps ouvert.
+    verifie('un taux est positif', creux.every((h) => h.remplissage >= 0),
       creux.map((h) => h.remplissage));
 
     // >>> ET LE TRI SUIT LE TITRE. <<< Il portait sur le NOMBRE de rendez-vous :
@@ -366,6 +396,33 @@ try {
       creux.map((h) => h.remplissage));
 
     verifie('il en montre au plus cinq', creux.length <= 5, creux.length);
+  }
+
+  // --- La barre, elle, est bornee -------------------------------------------
+  //
+  // >>> C'EST ICI QU'ON PLAFONNE A 100, ET NULLE PART AILLEURS. <<< Le nombre
+  // dit la verite, y compris 142 % sur une heure doublee ; la barre ne le peut
+  // pas — `width: 142%` sort de son rail et s'ecrit par-dessus la colonne
+  // voisine. Un dessin plus long que sa piste n'apprend rien de plus que
+  // « pleine », et se lit comme un defaut de rendu.
+  //
+  // ⚠️ LA BARRE VIT DANS LE NAVIGATEUR, aucune route ne la rend. On evalue donc
+  //    le vrai morceau de page, comme tests/ics.mjs pour le fichier d'agenda :
+  //    js/10-chiffres.js ne declare que des fonctions.
+  console.log('\nLa barre du classement');
+  {
+    const source = await readFile(
+      path.join(ROOT_DIR, 'src', 'page', 'js', '10-chiffres.js'), 'utf8');
+    const barre = new Function(`${source}\nreturn barre;`)();
+
+    const largeur = (html) => Number(/width:(\d+)%/.exec(html)?.[1]);
+
+    verifie('une valeur ordinaire donne sa part exacte', largeur(barre(30, 100)) === 30, barre(30, 100));
+    verifie('la valeur maximale remplit le rail', largeur(barre(100, 100)) === 100, barre(100, 100));
+    verifie('>>> UN TAUX DE 142 % NE DEBORDE PAS DU RAIL <<<',
+      largeur(barre(142, 100)) === 100, barre(142, 100));
+    verifie('une echelle nulle ne dessine rien plutot qu\'un NaN',
+      largeur(barre(3, 0)) === 0, barre(3, 0));
   }
 } finally {
   for (const id of aNettoyer) {

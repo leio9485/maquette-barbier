@@ -65,7 +65,19 @@ function bloc(titre, lignes, { note = '' } = {}) {
  * laisser lisible ferait annoncer deux fois la meme information.
  */
 function barre(valeur, maximum) {
-  const part = maximum > 0 ? Math.round((valeur / maximum) * 100) : 0;
+  // >>> LA BARRE EST BORNEE, LE NOMBRE NE L'EST PAS. <<<
+  //
+  // Un taux de remplissage PEUT depasser 100 %, et ce n'est pas une anomalie de
+  // calcul : « Forcer ce creneau » pose deliberement deux rendez-vous sur la
+  // meme heure, et supprimer une personne rend ses rendez-vous passes a
+  // personne sans les effacer — dans les deux cas, le temps vendu depasse le
+  // temps ouvert. Le chiffre ecrit a cote doit le dire : c'est l'information.
+  //
+  // La barre, elle, ne le peut pas : `width: 142%` deborde de son rail et va
+  // s'ecrire par-dessus la colonne voisine. Une barre plus longue que sa piste
+  // n'apprend rien de plus que « pleine », et elle se lit comme un defaut de
+  // rendu. On borne donc le DESSIN, jamais la valeur.
+  const part = maximum > 0 ? Math.min(100, Math.round((valeur / maximum) * 100)) : 0;
   return `<span class="chiffres-barre" aria-hidden="true"><span style="width:${part}%"></span></span>`;
 }
 

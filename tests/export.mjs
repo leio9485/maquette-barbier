@@ -40,6 +40,21 @@ const PRESTATION = 'coupe-homme';
 /** Les rendez-vous crees ici, effaces a la fin quoi qu'il arrive. */
 const aNettoyer = [];
 
+/**
+ * UN NOM QUE LE GENERATEUR DE DEMONSTRATION NE PEUT PAS AVOIR ECRIT.
+ *
+ * >>> LE TEST CHERCHAIT « Maxime Vasseur » DANS L'EXPORT ENTIER. <<< C'est un
+ * prenom et un nom du Nord, tires de la meme liste que celle des rendez-vous de
+ * demonstration — et le generateur en avait pose un le 30 juin. `ligneAvec()`
+ * rendait donc SA ligne, pas celle qu'on venait d'ecrire, et le controle du
+ * telephone echouait sur un numero qui n'etait pas le sien.
+ *
+ * Le suffixe est tire au hasard a chaque execution, comme les references de
+ * tests/annulation.mjs : deux executions dans la meme journee ne se marchent
+ * pas dessus non plus.
+ */
+const ORDINAIRE = `Maxime Vasseur ${Math.floor(Math.random() * 9000) + 1000}`;
+
 /** Le fichier d'un export, en octets ET en texte : le BOM ne se lit qu'en octets. */
 async function telecharger(chemin) {
   const cookie = [...salon.cookies].map(([nom, valeur]) => `${nom}=${valeur}`).join('; ');
@@ -107,12 +122,12 @@ try {
     // >>> ET SURTOUT : CE QUI EST ORDINAIRE N'EST PAS TOUCHE. <<< Une
     // protection qui prefixerait tout rendrait chaque nom illisible dans le
     // tableur, et le commercant conclurait que l'export est casse.
-    await poser('Maxime Vasseur');
+    await poser(ORDINAIRE);
     const { texte } = await telecharger('rendez-vous');
-    const ligne = ligneAvec(texte, 'Maxime Vasseur');
+    const ligne = ligneAvec(texte, ORDINAIRE);
 
     verifie('un nom ordinaire n\'est pas prefixe',
-      ligne.includes('"Maxime Vasseur"') && !ligne.includes("\"'Maxime"), ligne.slice(0, 160));
+      ligne.includes(`"${ORDINAIRE}"`) && !ligne.includes("\"'Maxime"), ligne.slice(0, 160));
 
     verifie('un numero de telephone francais non plus',
       ligne.includes('"0611000000"'), ligne.slice(0, 160));

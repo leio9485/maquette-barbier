@@ -13,6 +13,16 @@
 //      verifie precisement que ca echoue. Voir `mettreEquipeDeCote()` dans
 //      tests/helpers.mjs pour le detail, et pour ce qui ne revient pas.
 //
+//   1 bis. IL MET LA SEMAINE DE TEST DE COTE, pour la meme raison portee a sa
+//      conclusion : l'equipe partie, les rendez-vous que la demonstration avait
+//      semes POUR ELLE tiennent une ressource unique, et la journee de test est
+//      pleine. Six creneaux libres sont necessaires a tests/debit.mjs, deux qui
+//      se suivent a tests/api.mjs, et une journee sans rendez-vous a
+//      tests/blocages.mjs. Sur une base fraichement semee, `npm test` echouait
+//      donc a la premiere execution et passait a la seconde — la section 5 de
+//      blocages.mjs ayant vide la journee entre-temps. Voir
+//      `libererLaSemaineDeTest()`.
+//
 //   2. Il s'arrete a la premiere suite en echec, comme le faisait `&&`, mais en
 //      disant laquelle plutot qu'en laissant lire un code de sortie.
 //
@@ -29,7 +39,10 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { clientConnecte, supprimerCompteDeTest, mettreEquipeDeCote, reposerEquipe } from './helpers.mjs';
+import {
+  clientConnecte, supprimerCompteDeTest, mettreEquipeDeCote, reposerEquipe,
+  libererLaSemaineDeTest, reposerLaSemaineDeTest,
+} from './helpers.mjs';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
 
@@ -94,6 +107,7 @@ let code = 0;
 
 try {
   await mettreEquipeDeCote(await clientConnecte());
+  await libererLaSemaineDeTest();
 
   for (const suite of SUITES) {
     code = await lancer(suite);
@@ -110,6 +124,14 @@ try {
   // suite se termine par `supprimerCompteDeTest()`, qui efface le compte
   // partage et donc la session ouverte au demarrage. Sans cette reconnexion, la
   // remise en place repondrait 401 — au moment precis ou elle compte.
+  try {
+    await reposerLaSemaineDeTest();
+  } catch (erreur) {
+    console.error('/!\\ Rendez-vous non reposes :', erreur.message);
+    console.error('    Ils restent dans data/rendez-vous-mis-de-cote.json et seront reposes au prochain `npm test`.');
+    code = code || 1;
+  }
+
   try {
     await reposerEquipe(await clientConnecte());
   } catch (erreur) {

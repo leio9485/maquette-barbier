@@ -277,3 +277,119 @@ export function prochainJourOuvert() {
   while (d.getDay() < 2 || d.getDay() > 4) d.setDate(d.getDate() + 1);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
+
+// ---------------------------------------------------------------------------
+// LA SEMAINE DE TEST, MISE DE COTE ELLE AUSSI
+//
+// >>> POURQUOI CETTE SECONDE MISE DE COTE EXISTE. <<<
+//
+// Le lanceur retire l'equipe le temps des tests (voir plus haut) — mais PAS les
+// rendez-vous que la demonstration a semes pour elle. Le generateur remplit la
+// journee a 42 % pour TROIS barbiers ; sans equipe, ces memes rendez-vous
+// tiennent une ressource unique, et la journee de test est pleine.
+//
+// CE QUE CA CASSAIT, SUR UNE BASE FRAICHEMENT SEMEE :
+//
+//   - tests/debit.mjs : « assez de creneaux libres pour eprouver le plafond »
+//     — il en faut six, il en restait deux ;
+//   - tests/blocages.mjs : poser un blocage sur une journee qui porte dix-huit
+//     rendez-vous est refuse, a juste titre, par la route elle-meme ;
+//   - tests/api.mjs : le bouchon d'un quart d'heure a besoin de deux creneaux
+//     libres qui se suivent.
+//
+// Le defaut ne se voyait pas a la DEUXIEME execution : la section 5 de
+// blocages.mjs annule en bloc les rendez-vous de la journee, et la libere donc
+// pour toutes les suivantes. C'est-a-dire que `npm test` echouait sur une
+// machine neuve et passait ensuite — la pire facon de decouvrir un test.
+//
+// La semaine entiere plutot que la seule journee : blocages.mjs pose une
+// periode de trois jours, et annulation.mjs deplace un rendez-vous vers le jour
+// ouvert suivant, qui peut etre a cinq jours de la.
+//
+// ⚠️ MEME REGLE QUE POUR L'EQUIPE : releves, effaces, REPOSES. La base de
+//    developpement n'est pas jetable, et un prospect a qui l'on montre le site
+//    apres un `npm test` doit retrouver son agenda plein.
+// ---------------------------------------------------------------------------
+
+const FICHIER_RENDEZ_VOUS = path.join(DATA_DIR, 'rendez-vous-mis-de-cote.json');
+
+/** Les sept dates a partir de la journee de test. */
+function semaineDeTest() {
+  const dates = [];
+  const d = new Date(`${prochainJourOuvert()}T12:00:00Z`);
+  for (let i = 0; i < 7; i++) {
+    dates.push(d.toISOString().slice(0, 10));
+    d.setUTCDate(d.getUTCDate() + 1);
+  }
+  return dates;
+}
+
+/** Les trois colonnes de dates d'une ligne, que JSON rend en chaines. */
+function revivifier(ligne) {
+  return {
+    ...ligne,
+    annuleLe: ligne.annuleLe ? new Date(ligne.annuleLe) : null,
+    createdAt: new Date(ligne.createdAt),
+    updatedAt: new Date(ligne.updatedAt),
+  };
+}
+
+/**
+ * Vide la semaine de test de ses rendez-vous, apres les avoir releves.
+ *
+ * Repose d'abord ceux qu'une execution interrompue aurait laisses en attente :
+ * sans cela, deux Ctrl-C de suite ecraseraient l'attente par une liste plus
+ * courte, et la difference serait perdue pour de bon.
+ *
+ * ⚠️ LES BLOCAGES NE SONT PAS TOUCHES (`kind: 'appt'` seulement). Une periode
+ *    bloquee posee a la main sur la base de developpement dit quelque chose ;
+ *    la lever au passage serait une surprise, et les suites qui en posent les
+ *    levent elles-memes.
+ */
+export async function libererLaSemaineDeTest() {
+  await reposerLaSemaineDeTest({ silencieux: true });
+
+  const dates = semaineDeTest();
+  const lignes = await prisma.booking.findMany({
+    where: { date: { in: dates }, kind: 'appt' },
+  });
+  if (!lignes.length) return 0;
+
+  await writeFile(FICHIER_RENDEZ_VOUS, JSON.stringify(lignes, null, 2), 'utf8');
+  await prisma.booking.deleteMany({ where: { id: { in: lignes.map((l) => l.id) } } });
+
+  console.log(`(${lignes.length} rendez-vous mis de cote du ${dates[0]} au ${dates[6]})`);
+  return lignes.length;
+}
+
+/**
+ * Repose les rendez-vous mis de cote, s'il y en a en attente.
+ *
+ * Ne suppose rien de ce qui s'est passe entre-temps : une ligne que les tests
+ * ont recreee avec le meme identifiant n'est pas ecrasee, et un fichier absent
+ * ne fait rien. C'est ce qui permet de l'appeler au demarrage comme a la fin.
+ */
+export async function reposerLaSemaineDeTest({ silencieux = false } = {}) {
+  let attente;
+  try {
+    attente = JSON.parse(await readFile(FICHIER_RENDEZ_VOUS, 'utf8'));
+  } catch {
+    return 0; // rien en attente : le cas courant
+  }
+
+  let reposes = 0;
+  for (const ligne of attente) {
+    const deja = await prisma.booking.findUnique({ where: { id: ligne.id } });
+    if (deja) continue;
+    try {
+      await prisma.booking.create({ data: revivifier(ligne) });
+      reposes++;
+    } catch (erreur) {
+      console.error(`/!\\ Rendez-vous non repose (${ligne.id}) : ${erreur.message}`);
+    }
+  }
+
+  await rm(FICHIER_RENDEZ_VOUS, { force: true });
+  if (!silencieux) console.log(`(${reposes} rendez-vous reposes)`);
+  return reposes;
+}

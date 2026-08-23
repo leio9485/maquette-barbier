@@ -492,7 +492,23 @@ try {
     // + 2 au moins, la plage n'est donc jamais vide et ne touche jamais JOUR.
     const ferme = await salon.appel('POST', '/api/admin/day-block',
       { date: iso, to: VEILLE, motif: 'Sonde du bandeau' });
-    verifie('les jours qui precedent sont fermes', ferme.status === 201, ferme.donnees);
+
+    // ⚠️ « DEJA FERME » EST UNE REUSSITE ICI, ET LE TEST L'A LONGTEMPS COMPTE
+    //    COMME UN ECHEC. Lancee un DIMANCHE, cette suite demande de fermer
+    //    [aujourd'hui, veille de JOUR] — c'est-a-dire dimanche et lundi, les
+    //    deux jours ou le commerce est deja ferme. La route refuse alors, a
+    //    juste titre : il n'y a rien a fermer. L'etat que cette section veut
+    //    — aucun creneau avant JOUR — est pourtant atteint, et par la base
+    //    elle-meme. Le controle portait sur le code de reponse ; il porte
+    //    desormais sur ce qu'il verifiait vraiment.
+    //
+    //    Un dimanche sur sept, `npm test` s'arretait donc ici, sur une suite
+    //    qui passait tous les autres jours.
+    const dejaFerme = ferme.status === 409
+      && /déjà fermé/.test(ferme.donnees?.error ?? '');
+
+    verifie('les jours qui precedent sont fermes',
+      ferme.status === 201 || dejaFerme, ferme.donnees);
     if (ferme.status === 201) fermetureDuBandeau = { date: iso, to: VEILLE };
 
     // UN BOUCHON JUSTE APRES LE PREMIER CRENEAU LIBRE, et il laisse exactement

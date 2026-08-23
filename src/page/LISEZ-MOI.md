@@ -148,6 +148,97 @@ jeton, jour, heure, prestation, barbier. Ni nom, ni téléphone, ni courriel. Ni
 cookie côté page, ni mesure d'audience. La page de confidentialité le décrit
 exactement ; **si ce qui est gardé change, ce texte change avec lui.**
 
+## Mettre en service chez un client
+
+**C'est la liste qui coûtera le plus cher le jour de la première vente.**
+Les variables existent toutes, et elles sont toutes documentées — mais
+éparpillées entre `render.yaml`, `.env.example` et ce fichier. Une instance
+client demande d'en retirer **une** et d'en poser **cinq**, et rien ne les
+rassemblait.
+
+Dans l'ordre. Chaque point dit ce qui se passe si on l'oublie, parce que
+**aucun de ces oublis ne fait tomber le site** : il marche, et il marche mal
+d'une façon que personne ne remarque avant des semaines.
+
+1. **Retirer `DEMO_MODE`.** *Absente*, pas `DEMO_MODE=false` : la variable
+   n'est vraie que pour la chaîne exacte `"true"`, donc `false` marcherait —
+   mais une ligne qui dit « demo » dans la console d'un client finit toujours
+   par inquiéter quelqu'un.
+   **Oublié :** l'écran de connexion publie un identifiant et un mot de passe,
+   donc l'agenda du barbier — noms et numéros de ses clients — est ouvert à
+   tous. Et le site est retiré des moteurs par un en-tête `X-Robots-Tag`, donc
+   invisible dans Google. La manœuvre complète et ses trois vérifications sont
+   dans la section suivante.
+
+2. **Passer au plan payant, avec un disque persistant.** L'offre gratuite de
+   Render n'en a pas : la base vit dans le conteneur.
+   ```yaml
+       plan: starter
+       disk:
+         name: donnees
+         mountPath: /app/data
+         sizeGB: 1
+   ```
+   Le point de montage doit être **`/app/data`** : c'est `DATA_DIR`
+   (`src/config.js`), et il porte la base *et* les photos déposées.
+   **Oublié :** la base repart vide à chaque redémarrage — tarifs, rendez-vous,
+   comptes et sessions ensemble.
+   ⚠️ **Ce n'est pas le même problème que le réveil à froid, et c'est le plus
+   grave des deux.** Le réveil fait attendre vingt secondes ; le disque absent
+   fait perdre. Un ping externe toutes les dix minutes règle le premier et ne
+   change rien au second.
+
+3. **Corriger `PUBLIC_URL` et le `name` du service ENSEMBLE.** Le `name` de
+   `render.yaml` devient l'adresse (`https://<name>.onrender.com`) ; le jour où
+   un vrai nom de domaine est branché, c'est `PUBLIC_URL` qui doit le suivre.
+   **Oublié :** la page se déclare à l'ancienne adresse — adresse canonique,
+   `og:url`, plan de site, lien d'annulation des courriels — et les moteurs
+   suivent l'adresse **annoncée**, pas celle qu'on visite. Le site est en ligne
+   et pointe ailleurs.
+
+4. **Poser `BACKUP_DIR`, ailleurs que sur le disque de la base**, et planifier
+   `npm run db:backup` (voir « Sauvegarder une instance client », plus bas).
+   **Oublié :** sans la variable, les archives atterrissent à côté de `data/` —
+   ce qui protège de la fausse manœuvre, et de rien d'autre : ni du disque qui
+   lâche, ni du conteneur qui repart vide, ni de l'hébergeur qu'on quitte.
+
+5. **Poser `COURRIEL_ACTIF`, `COURRIEL_CLE` et `COURRIEL_EXPEDITEUR`**, avec un
+   domaine **vérifié** chez le fournisseur — un expéditeur non vérifié part
+   dans les indésirables, ce qui revient au même que de ne rien envoyer.
+   **Oublié :** aucune confirmation ne part. Le client réserve, note (ou pas)
+   une référence de six caractères, et repart sans trace écrite : la promesse
+   « moins d'oublis » n'est alors tenue que par l'option SMS, c'est-à-dire
+   vendue à part.
+   ⚠️ `PUBLIC_URL` (point 3) est nécessaire au lien d'annulation du courriel :
+   sans elle, le message reste juste mais se replie sur « appelez-nous ».
+
+6. **Renseigner `HEBERGEUR_NOM`, `HEBERGEUR_PAYS` et `HEBERGEUR_URL`** selon
+   l'hébergement réellement retenu. `HEBERGEUR_UE=true` est un interrupteur à
+   part : il écrit « aucune donnée n'est transférée hors de l'Union
+   européenne », et cela ne se déduit d'aucun pays — un hébergeur allemand
+   derrière un relais mondial ne permet pas de l'écrire.
+   **Oublié :** les mentions légales du client décrivent l'hébergeur de la
+   démonstration. Sur la démonstration c'est une incohérence ; chez un client,
+   c'est une déclaration RGPD inexacte.
+
+Et deux choses à faire une fois, avant de donner l'adresse :
+
+7. **Remettre à zéro la note Google.** `defaults.js` porte **4,8 et 87 avis
+   inventés**, assumés pour la démonstration seule. Ils se corrigent depuis
+   Réglages → Avis, en saisissant les vrais chiffres de la fiche ou en les
+   remettant à zéro (zéro fait disparaître la case entière).
+   **Oublié :** afficher une note qu'on n'a pas est une pratique commerciale
+   trompeuse (article L111-7-2 du code de la consommation) — le client la
+   supporte, pas nous.
+
+8. **Créer le compte du commerçant** (`npm run admin:create -- <identifiant>`)
+   et lui faire changer son mot de passe à la première connexion. Les accès
+   suivants se créent depuis Réglages → Personnes autorisées, sans ligne de
+   commande.
+
+Le jour d'un incident, la procédure de restauration est en fin de ce fichier
+(« Restaurer ») : elle est écrite pour être suivie sans rien relire d'autre.
+
 ## Mettre un site en production : la manœuvre du `noindex`
 
 ⚠️ **C'est la seule opération de ce dépôt qui, oubliée, ne se voit pas et coûte
@@ -269,18 +360,45 @@ douze archives d'aujourd'hui et effacerait tout l'historique d'un coup.
 
 ### Restaurer
 
+C'est la seule procédure de ce dépôt qu'on lit **le jour d'un incident** — donc
+en vitesse, avec quelqu'un au téléphone. Elle tient en six commandes, dans
+l'ordre, sans rien à décider :
+
 ```bash
+# 0. Choisir l'archive, et REGARDER CE QU'ELLE CONTIENT avant de toucher à
+#    quoi que ce soit. Une archive vide ou tronquée se reconnaît ici, pas
+#    après avoir déplacé la base en place.
+ls -lh /sauvegardes/
+tar -tzf /sauvegardes/letabli-2026-08-20-0315.tar.gz | head
+
 # 1. Arrêter le site.
+
 # 2. Mettre de côté ce qui est en place — on ne remplace jamais sans filet.
 mv data data-avant-restauration
+
 # 3. Extraire : l'archive contient déjà le dossier « data/ ».
 tar -xzf /sauvegardes/letabli-2026-08-20-0315.tar.gz -C /app
+
 # 4. Appliquer les migrations manquantes, si l'archive date d'une version
 #    antérieure du site.
 npx prisma migrate deploy
-# 5. Redémarrer.
+
+# 5. Redémarrer, puis vérifier — deux réponses, et on sait que c'est reparti.
+curl -s localhost:3000/api/health
+curl -s localhost:3000/api/config | head -c 200
 ```
 
 L'archive rend la base **et** les photos : le site repart complet, sans étape
 de reconstruction. Rien n'est écrasé tant que l'étape 2 n'est pas faite —
 c'est elle qui rend l'opération réversible.
+
+⚠️ **`data-avant-restauration` ne se supprime pas le jour même.** C'est le seul
+exemplaire de ce qui s'est passé depuis la dernière sauvegarde ; on le garde
+jusqu'à ce que le commerçant ait confirmé que son agenda est celui qu'il
+attend.
+
+⚠️ **UNE RESTAURATION QU'ON N'A JAMAIS FAITE N'EST PAS UNE SAUVEGARDE.** Le
+jour de la mise en service, faire la manœuvre une fois pour de bon : lancer
+`npm run db:backup`, restaurer l'archive obtenue sur une copie du dossier, et
+ouvrir le site. Dix minutes ce jour-là ; sinon on découvre le jour de
+l'incident que `BACKUP_DIR` pointait sur un dossier qui n'existait plus.

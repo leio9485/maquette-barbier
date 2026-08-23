@@ -150,15 +150,72 @@ function htmlPrestations(config) {
   }).join('');
 }
 
+/**
+ * LA VITRINE EST-ELLE SUR UN ÉCRAN ÉTROIT ?
+ *
+ * ⚠️ LE CHOIX SE FAIT EN JAVASCRIPT, ET IL NE POUVAIT PAS SE FAIRE EN CSS.
+ *    Les deux formes n'ont pas le meme balisage : la liste deployee est une
+ *    suite de `<section>`, le repli est une suite de `<details>` avec leur
+ *    resume. Aucune regle de style ne fabrique un `<summary>` ni ne calcule
+ *    « 4 prestations · des 13 € » ; il faut redessiner. C'est le meme
+ *    raisonnement que `ECRAN_LARGE` dans js/09-agenda.js, et le meme seuil que
+ *    le reste du site (768 px).
+ */
+const VITRINE_ETROITE = window.matchMedia('(max-width: 767px)');
+
+/**
+ * La liste tarifaire de la vitrine, et le choix de prestation du tunnel.
+ *
+ * >>> SUR TELEPHONE, LA SECTION SE REPLIE PAR RAYON. <<<
+ *
+ * Mesure du 23 aout a 394 px : la page fait 9 558 px de haut — 11,2 ecrans —
+ * dont 3 260 px pour la seule section « Prestations », soit 3,8 ecrans. Vingt-
+ * six lignes de tarif entre 174 et 195 px chacune : quelqu'un qui veut
+ * atteindre les avis ou le contact traverse quatre ecrans de prix. Sur un
+ * ordinateur les memes lignes tiennent en colonnes serrees et le defaut ne se
+ * voit pas.
+ *
+ * Le tunnel savait deja faire, avec le meme contenu et les memes lignes : on
+ * emploie donc SA fonction, `htmlRayonDepliable()`, et non une seconde.
+ *
+ * ⚠️ AUCUN RAYON NE S'OUVRE TOUT SEUL. Le reflexe a deja ete corrige une fois
+ *    (commit 3031fa5, « Le rayon qui s'ouvrait tout seul, et les trois qu'il
+ *    poussait plus bas ») : un premier rayon ouvert d'office pousse les autres
+ *    hors de l'ecran et rend la liste plus longue que ce qu'elle remplace.
+ *
+ * ⚠️ AU-DESSUS DE 768 px, RIEN NE CHANGE : c'est le meme `htmlPrestations()`
+ *    qu'avant, celui que le serveur ecrit deja dans la page (src/lib/catalogue.js).
+ *    Le HTML SERVI, lui, reste toujours la liste deployee — un visiteur sans
+ *    JavaScript voit donc exactement ce qu'il voyait, a toutes les largeurs,
+ *    et les moteurs lisent les treize tarifs sans avoir a executer quoi que ce
+ *    soit.
+ */
 function peindrePrestations(config) {
   if (!config.services.length) return;
 
-  const html = htmlPrestations(config);
-
   const vitrine = $('#tarifs');
-  if (vitrine) vitrine.innerHTML = html;
+  if (vitrine) {
+    vitrine.innerHTML = VITRINE_ETROITE.matches
+      ? grouperParRayon(config)
+        .map((g) => htmlRayonDepliable(g, { avecDescription: true })).join('')
+      : htmlPrestations(config);
+  }
 
   peindreChoixPrestation(config);
+}
+
+/**
+ * Franchir 768 px change le DESSIN de la section, pas seulement sa largeur.
+ *
+ * Sans cette ligne, on garderait les rayons replies sur un ecran qu'on vient
+ * d'agrandir — quatre lignes au milieu d'une page qui a la place d'en montrer
+ * vingt-six — ou la liste entiere sur un telephone qu'on vient de tourner.
+ * C'est le pendant exact de l'ecouteur de `ECRAN_LARGE` dans l'agenda.
+ */
+function brancherPrestations() {
+  VITRINE_ETROITE.addEventListener('change', () => {
+    if (CONFIG) peindrePrestations(CONFIG);
+  });
 }
 
 /**
@@ -182,30 +239,52 @@ function peindrePrestations(config) {
  * meme `data-choix="prestation"` et meme ecouteur : cliquer une ligne mene a
  * l'etape 2, ici comme la-haut.
  */
+/**
+ * UN RAYON DEPLIABLE : son intitule, son resume, ses lignes.
+ *
+ * >>> UNE SEULE FABRIQUE POUR LES DEUX ENDROITS QUI S'EN SERVENT. <<< L'etape 1
+ * du tunnel, et la section « Prestations » de la vitrine sous 768 px. Le
+ * balisage, le resume et les lignes sont donc rigoureusement les memes, et le
+ * jour ou l'un change, l'autre change avec — deux copies d'un meme depliant
+ * divergent au premier correctif.
+ *
+ * `avecDescription` est la SEULE difference, et elle est ecrite ici plutot que
+ * dans deux fabriques : la vitrine porte la phrase du rayon (« Aux ciseaux ou a
+ * la tondeuse… »), le tunnel ne la porte pas. Le motif est dans
+ * 09-prestations.css, a cote du style : l'etape 1 doit tenir en quatre lignes
+ * de meme hauteur, la section de la vitrine ne doit rien perdre en se repliant.
+ */
+function htmlRayonDepliable(g, { avecDescription = false } = {}) {
+  const nom = g.cat && !g.seul ? g.cat.name : 'Toutes les prestations';
+
+  // Ce qu'il y a dedans, et a partir de quel prix. C'est l'information qui
+  // permet de choisir SANS ouvrir : « des 13 € » repond a la question qu'on
+  // se pose en parcourant une liste de rayons.
+  const combien = g.services.length > 1
+    ? `${g.services.length} prestations`
+    : '1 prestation';
+  const moins = Math.min(...g.services.map((s) => Number(s.price) || 0));
+  const resume = `${combien} · dès ${fmtPrix(moins)}`;
+
+  const phrase = avecDescription && g.cat?.desc
+    ? `<p class="rayon-desc">${esc(g.cat.desc)}</p>`
+    : '';
+
+  return '<details class="rayon">'
+    + '<summary class="rayon-tete">'
+      + `<span class="rayon-nom">${esc(nom)}</span>`
+      + `<span class="rayon-compte donnee">${esc(resume)}</span>`
+    + '</summary>'
+    + phrase
+    + `<ul class="tarif-liste rayon-liste">${g.services.map(ligneTarif).join('')}</ul>`
+    + '</details>';
+}
+
 function peindreChoixPrestation(config) {
   const cible = $('#tunnelRayons');
   if (!cible) return;
 
-  cible.innerHTML = grouperParRayon(config).map((g) => {
-    const nom = g.cat && !g.seul ? g.cat.name : 'Toutes les prestations';
-
-    // Ce qu'il y a dedans, et a partir de quel prix. C'est l'information qui
-    // permet de choisir SANS ouvrir : « des 13 € » repond a la question qu'on
-    // se pose en parcourant une liste de rayons.
-    const combien = g.services.length > 1
-      ? `${g.services.length} prestations`
-      : '1 prestation';
-    const moins = Math.min(...g.services.map((s) => Number(s.price) || 0));
-    const resume = `${combien} · dès ${fmtPrix(moins)}`;
-
-    return '<details class="rayon">'
-      + '<summary class="rayon-tete">'
-        + `<span class="rayon-nom">${esc(nom)}</span>`
-        + `<span class="rayon-compte donnee">${esc(resume)}</span>`
-      + '</summary>'
-      + `<ul class="tarif-liste rayon-liste">${g.services.map(ligneTarif).join('')}</ul>`
-      + '</details>';
-  }).join('');
+  cible.innerHTML = grouperParRayon(config).map((g) => htmlRayonDepliable(g)).join('');
 }
 
 // --- LES INDICATEURS DE CONFIANCE -------------------------------------------

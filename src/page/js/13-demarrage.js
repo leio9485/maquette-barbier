@@ -22,6 +22,9 @@ async function demarrer() {
   brancherNavigation();
   brancherBandeau();
   brancherTunnel();
+  // La liste tarifaire se replie par rayon sous 768 px et se redeploie au-dela :
+  // franchir le seuil demande de la redessiner (js/04-contenu-statique.js).
+  brancherPrestations();
 
   try {
     CONFIG = await lireConfig();

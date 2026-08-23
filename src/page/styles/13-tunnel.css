@@ -80,105 +80,18 @@
 
 /* --- ÉTAPE 1 : LES RAYONS DÉPLIABLES ---------------------------------------
 
-   Un rayon par ligne, replié, avec ce qu'il contient et son premier prix :
-   « COUPE — 4 prestations · dès 13 € ». On ouvre celui qu'on cherche, on
-   choisit dedans.
+   >>> LE COMPOSANT A DÉMÉNAGÉ DANS styles/09-prestations.css. <<<
 
-   Avant, l'étape affichait les treize prestations d'un bloc — la section
-   « Prestations » recopiée, celle qu'on venait de faire défiler. Puis une
-   liste déroulante, qui réglait la longueur mais cachait tout : on ne voyait
-   plus ce que proposait le commerce sans ouvrir le menu.
+   Il n'appartient plus à cette étape seule : la section « Prestations » de la
+   vitrine s'y replie aussi sous 768 px, avec le même balisage et le même
+   résumé. Deux implémentations d'un même dépliant divergeraient au premier
+   correctif — c'est le raisonnement qui a déjà fait déménager `.creneau` dans
+   05-controles.css.
 
-   Le dépliant garde les deux : quatre lignes qui montrent l'offre entière, et
-   le détail à un clic.
-
-   ⚠️ `<details>` / `<summary>`, PAS UNE MÉCANIQUE ÉCRITE À LA MAIN. L'ouverture
-      et la fermeture sont natives, le clavier fonctionne (Entrée, Espace), le
-      lecteur d'écran annonce « replié / déplié », et il n'y a aucun état à
-      tenir en JavaScript. Un accordéon écrit à la main coûte cinquante lignes
-      et rate l'un des trois.
+   Il est rangé avec la liste tarifaire parce qu'il l'enveloppe : `.rayon-liste`
+   est une `.tarif-liste`, et les lignes qu'il contient sont celles de la
+   vitrine depuis le premier jour.
 */
-/* ⚠️ `overflow-anchor: none` : SANS LUI, OUVRIR UN RAYON LE FAIT DISPARAITRE.
-
-   L'ancrage de defilement du navigateur choisit un element de reference et
-   conserve SA position quand le contenu grandit au-dessus de lui. Ici, deplier
-   « COUPE » ajoute quatre lignes au-dessus de « BARBE » : le navigateur fait
-   alors defiler la page d'autant pour que « BARBE » ne bouge pas — et le rayon
-   qu'on vient d'ouvrir sort par le haut. Il ne reste a l'ecran que les rayons
-   qu'on n'a PAS choisis, et il faut remonter pour trouver ce qu'on cherchait.
-
-   Sur telephone, ou le pouce est deja en bas de l'ecran, c'est franchement
-   penible. Le comportement est utile ailleurs (il evite qu'une image qui se
-   charge fasse sauter le texte) ; ici il travaille exactement a l'envers. */
-.rayons {
-  margin-top: var(--e4);
-  overflow-anchor: none;
-}
-
-.rayon { border-bottom: 1px solid var(--filet); }
-
-.rayon:first-child { border-top: 1px solid var(--filet); }
-
-/* Le marqueur du navigateur est retiré — un triangle sur Chrome, une flèche sur
-   Safari — et remplacé par un signe écrit, « + » quand c'est fermé, « − » quand
-   c'est ouvert. Deux caractères présents dans toutes les polices depuis
-   toujours : aucun pack d'icônes, rien qui puisse dater. */
-.rayon-tete {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--e1) var(--e2);
-  min-height: 56px;
-  padding: var(--e2) 0;
-  cursor: pointer;
-  list-style: none;
-  transition: background-color var(--transition);
-}
-
-.rayon-tete::-webkit-details-marker { display: none; }
-
-.rayon-tete:hover { background: rgba(22, 25, 27, 0.04); }
-
-.rayon-tete::before {
-  content: '+';
-  flex: none;
-  width: 2ch;
-  font-family: var(--f-donnee);
-  font-size: var(--t-intro);
-  line-height: 1.2;
-  color: var(--acier);
-}
-
-.rayon[open] > .rayon-tete::before { content: '−'; }
-
-.rayon-nom {
-  flex: 1;
-  min-width: 0;
-  font-family: var(--f-titre);
-  font-size: var(--t-intro);
-  font-weight: var(--g-titre);
-  line-height: var(--lh-sous);
-  letter-spacing: var(--ls-section);
-  text-transform: uppercase;
-}
-
-/* Ce que contient le rayon et son premier prix. C'est l'information qui permet
-   de choisir SANS ouvrir : « dès 13 € » répond à la question qu'on se pose en
-   parcourant une liste de rayons. */
-.rayon-compte {
-  flex: none;
-  font-size: var(--t-petit);
-  color: var(--acier);
-}
-
-/* Les lignes tarifaires reprennent le style de la vitrine (09-prestations.css).
-   Un retrait à gauche les range sous leur rayon, à l'aplomb de son nom. */
-.rayon-liste {
-  margin: 0 0 var(--e2);
-  padding-left: calc(2ch + var(--e2));
-}
-
-.rayon-liste .tarif-ligne:last-child { border-bottom: 0; }
 
 /* --- ÉTAPE 2 : AVEC QUI ? --------------------------------------------------
 

@@ -246,3 +246,131 @@
   .tarif-prix { order: -1; font-size: var(--t-intro); }
   .tarif-action { order: 2; margin-top: var(--e1); margin-left: auto; }
 }
+
+/* --- LES RAYONS DÉPLIABLES -------------------------------------------------
+
+   >>> DEUX ENDROITS EMPLOIENT CE DÉPLIANT, ET C'EST LE MÊME. <<< L'étape 1 du
+   tunnel depuis toujours, et la section « Prestations » sur téléphone depuis
+   le lot 4. Il vivait dans 13-tunnel.css ; il est ici parce qu'il enveloppe la
+   liste tarifaire — `.rayon-liste` EST une `.tarif-liste` — et parce que deux
+   copies d'un même dépliant divergeraient au premier correctif. Même
+   raisonnement que le déménagement de `.creneau` dans 05-controles.css.
+
+   Un rayon par ligne, replié, avec ce qu'il contient et son premier prix :
+   « COUPE — 4 prestations · dès 13 € ». On ouvre celui qu'on cherche, on
+   choisit dedans.
+
+   Dans le tunnel, l'étape affichait avant les treize prestations d'un bloc —
+   la section « Prestations » recopiée, celle qu'on venait de faire défiler.
+   Puis une liste déroulante, qui réglait la longueur mais cachait tout : on ne
+   voyait plus ce que proposait le commerce sans ouvrir le menu. Le dépliant
+   garde les deux : quatre lignes qui montrent l'offre entière, et le détail à
+   un clic.
+
+   ⚠️ `<details>` / `<summary>`, PAS UNE MÉCANIQUE ÉCRITE À LA MAIN. L'ouverture
+      et la fermeture sont natives, le clavier fonctionne (Entrée, Espace), le
+      lecteur d'écran annonce « replié / déplié », et il n'y a aucun état à
+      tenir en JavaScript. Un accordéon écrit à la main coûte cinquante lignes
+      et rate l'un des trois.
+*/
+/* ⚠️ `overflow-anchor: none` : SANS LUI, OUVRIR UN RAYON LE FAIT DISPARAITRE.
+
+   L'ancrage de defilement du navigateur choisit un element de reference et
+   conserve SA position quand le contenu grandit au-dessus de lui. Ici, deplier
+   « COUPE » ajoute quatre lignes au-dessus de « BARBE » : le navigateur fait
+   alors defiler la page d'autant pour que « BARBE » ne bouge pas — et le rayon
+   qu'on vient d'ouvrir sort par le haut. Il ne reste a l'ecran que les rayons
+   qu'on n'a PAS choisis, et il faut remonter pour trouver ce qu'on cherchait.
+
+   Sur telephone, ou le pouce est deja en bas de l'ecran, c'est franchement
+   penible. Le comportement est utile ailleurs (il evite qu'une image qui se
+   charge fasse sauter le texte) ; ici il travaille exactement a l'envers. */
+.rayons,
+/* Et la section « Prestations » de la vitrine, qui replie les mêmes rayons sur
+   téléphone : le défaut y est identique, et il s'y voit davantage — quatre
+   rayons dans une page de neuf écrans. Sur écran large la section n'a aucun
+   `<details>`, la règle n'y coûte rien. */
+.tarifs {
+  overflow-anchor: none;
+}
+
+.rayons { margin-top: var(--e4); }
+
+.rayon { border-bottom: 1px solid var(--filet); }
+
+.rayon:first-child { border-top: 1px solid var(--filet); }
+
+/* Le marqueur du navigateur est retiré — un triangle sur Chrome, une flèche sur
+   Safari — et remplacé par un signe écrit, « + » quand c'est fermé, « − » quand
+   c'est ouvert. Deux caractères présents dans toutes les polices depuis
+   toujours : aucun pack d'icônes, rien qui puisse dater. */
+.rayon-tete {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--e1) var(--e2);
+  min-height: 56px;
+  padding: var(--e2) 0;
+  cursor: pointer;
+  list-style: none;
+  transition: background-color var(--transition);
+}
+
+.rayon-tete::-webkit-details-marker { display: none; }
+
+.rayon-tete:hover { background: rgba(22, 25, 27, 0.04); }
+
+.rayon-tete::before {
+  content: '+';
+  flex: none;
+  width: 2ch;
+  font-family: var(--f-donnee);
+  font-size: var(--t-intro);
+  line-height: 1.2;
+  color: var(--acier);
+}
+
+.rayon[open] > .rayon-tete::before { content: '−'; }
+
+.rayon-nom {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--f-titre);
+  font-size: var(--t-intro);
+  font-weight: var(--g-titre);
+  line-height: var(--lh-sous);
+  letter-spacing: var(--ls-section);
+  text-transform: uppercase;
+}
+
+/* Ce que contient le rayon et son premier prix. C'est l'information qui permet
+   de choisir SANS ouvrir : « dès 13 € » répond à la question qu'on se pose en
+   parcourant une liste de rayons. */
+.rayon-compte {
+  flex: none;
+  font-size: var(--t-petit);
+  color: var(--acier);
+}
+
+/* Les lignes tarifaires sont celles du haut de ce fichier, sans un réglage de
+   plus. Un retrait à gauche les range sous leur rayon, à l'aplomb de son nom. */
+.rayon-liste {
+  margin: 0 0 var(--e2);
+  padding-left: calc(2ch + var(--e2));
+}
+
+.rayon-liste .tarif-ligne:last-child { border-bottom: 0; }
+
+/* La phrase du rayon — « Aux ciseaux ou à la tondeuse… » — n'existe que dans la
+   variante de la vitrine : c'est du texte que la section porte déjà sur écran
+   large, et le repli ne doit rien retirer. Le tunnel, lui, ne la rend pas, et
+   c'est sa règle depuis le début : l'étape 1 doit tenir en quatre lignes de
+   même hauteur, elle montre l'offre, elle ne la raconte pas. Elle est DANS le
+   dépliant, donc lue par qui ouvre le rayon — pas au-dessus, où elle
+   rallongerait la liste repliée qu'on vient de raccourcir. */
+.rayon-desc {
+  margin: 0 0 var(--e2);
+  padding-left: calc(2ch + var(--e2));
+  color: var(--acier);
+  font-size: var(--t-petit);
+}

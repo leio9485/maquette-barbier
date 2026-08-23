@@ -236,6 +236,17 @@
   padding: 4px 0;
 }
 
+/* Et 44 px sous 768 px — 33,8 mesurés à 394 px. Motif du seuil :
+   `--cible-tactile` (02-jetons.css). */
+@media (max-width: 767px) {
+  .avis-pied a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-tactile);
+    padding: 0;
+  }
+}
+
 @media (min-width: 900px) {
   /* Trois colonnes à partir de 900 px. Les citations sont courtes : en une
      seule colonne, la section ferait défiler un écran entier pour trois

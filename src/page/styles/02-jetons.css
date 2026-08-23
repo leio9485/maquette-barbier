@@ -192,6 +192,30 @@
      depuis un telephone, souvent d'une seule main. */
   --hauteur-controle: 48px;
 
+  /* LA CIBLE TACTILE MINIMALE D'UN LIEN, SOUS 768 px.
+     >>> 44 px, ET NON LES 24 px DE LA NORME. <<<
+
+     Les liens du site tenaient 30 a 34 px, avec partout le meme commentaire :
+     « WCAG 2.2 demande 24 px au minimum (critere 2.5.8) ». Le raisonnement
+     etait juste, le seuil retenu etait le minimum legal — celui en dessous
+     duquel on est en faute, pas celui auquel on vise juste. Sur un site dont
+     le seul objet est de faire reserver depuis un telephone, viser le minimum
+     legal n'a pas de sens : 44 px est la valeur qu'un pouce atteint sans
+     viser, et c'est celle que les deux systemes recommandent depuis toujours
+     (44 chez Apple, 48 chez Google — on prend la plus petite des deux, qui
+     suffit).
+
+     ⚠️ ELLE SE POSE PAR LE `min-height`, JAMAIS PAR LA TAILLE DU TEXTE. La
+        typographie ne bouge pas d'un pixel : c'est la boite qui grandit autour
+        d'un texte inchange, et le `gap` de la barre qui l'entoure se reduit
+        d'autant pour que l'ecart a l'oeil reste le meme.
+
+     ⚠️ SOUS 768 px SEULEMENT. Au-dela, on vise a la souris : la meme cible y
+        ecarterait les liens de douze pixels de plus pour un gain nul, et le
+        pied de page comme le sommaire y perdraient leur tenue. 24 px reste
+        alors le plancher, et il est deja tenu partout. */
+  --cible-tactile: 44px;
+
   /* ANGLES DROITS. 2 px sur les champs de saisie, et c'est tout ce que la
      charte autorise. Ne pas introduire de troisieme valeur. */
   --rayon-champ: 2px;

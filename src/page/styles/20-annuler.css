@@ -171,6 +171,22 @@
   padding: 4px 0;
 }
 
+/* Et 44 px sous 768 px, comme partout ailleurs (`--cible-tactile`,
+   02-jetons.css). Cette page-ci n'etait pas dans le releve — elle n'a pas de
+   section a auditer — mais c'est le meme lien `tel:` que dans le bloc
+   « Contact », rendu par la meme regle voisine, et c'est la page qu'on ouvre
+   au telephone en cherchant a decommander. La laisser a 22 px aurait fait de
+   la seule exception le seul endroit ou l'on rate le numero. */
+@media (max-width: 767px) {
+  .annuler-secours a,
+  .annuler-pied a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-tactile);
+    padding: 0;
+  }
+}
+
 /* La porte de sortie quand la reference est perdue. En retrait, mais presente :
    c'est la seule reponse honnete a « je n'ai plus rien ». */
 .annuler-secours {

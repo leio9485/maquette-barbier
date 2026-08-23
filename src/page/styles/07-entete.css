@@ -123,7 +123,41 @@
      ne passe plus à la ligne — le mot casse, la hauteur double, et on n'aurait
      rien gagné. */
   .entete-nav a { white-space: nowrap; }
-}
+
+  /* LA CIBLE PASSE DE 32 A 44 px (voir `--cible-tactile`, 02-jetons.css). Les
+     8 px de rembourrage donnaient 32 px, c'est-a-dire le minimum legal plus
+     huit — sur les cinq liens qui menent a tout le reste de la page, au pouce,
+     sur la seule barre de navigation du site.
+
+     ⚠️ L'ECART EST REPRIS SUR LE `gap`, exactement comme le dit la note
+        d'origine ci-dessus : la cible grandit de 12 px, l'ecart horizontal
+        perd un cran (24 -> 16). Sans cela les cinq liens s'ecarteraient de
+        12 px de plus chacun et la rangee, qui defile deja, s'allongerait pour
+        rien. Le texte, lui, ne bouge pas d'un pixel. */
+  .entete-nav { gap: 0 var(--e2); }
+
+  /* L'ecart de la colonne perd un cran lui aussi, et pour la meme raison : le
+     texte des liens est desormais centre dans 44 px au lieu d'etre pose dans
+     32, il descend donc de 6 px tout seul. Sans ce reglage, l'espace VU entre
+     « Barbier · Bavay » et « Prestations » passerait de 16 a 22 px, et
+     l'en-tete grandirait de douze pixels pour ne rien montrer de plus. */
+  .entete-corps { gap: var(--e1); }
+
+  .entete-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-tactile);
+    padding: 0;
+  }
+
+  /* Le rappel « Votre rendez-vous » porte le lien qui mene a /annuler : c'est
+     ce qu'on touche pour deplacer ou annuler, et il tenait 22 px. */
+  .rappel-lien {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-tactile);
+    padding: 0;
+  }
 }
 
 .entete-nav a {

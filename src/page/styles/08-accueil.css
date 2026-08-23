@@ -269,6 +269,19 @@
   padding: 5px 0;
 }
 
+/* Et 44 px sous 768 px : c'était la plus petite cible de toute la vitrine —
+   29,6 px mesurés à 394 px — sur le numéro affiché dans la bande de repères,
+   c'est-à-dire le geste que fait le visiteur qui préfère appeler. Motif du
+   seuil : `--cible-tactile` (02-jetons.css). */
+@media (max-width: 767px) {
+  .reperes-liste dd a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-tactile);
+    padding: 0;
+  }
+}
+
 @media (min-width: 768px) {
   /* Trois colonnes, séparées par le même filet tourné d'un quart de tour —
      exactement ce que fait le rail quand la place le permet. */

@@ -76,6 +76,20 @@
   padding: 7px 0;
 }
 
+/* 44 px sous 768 px — « Fiche Google » tenait 30,3, mesuré à 394 px. Motif du
+   seuil : `--cible-tactile` (02-jetons.css). L'écart horizontal perd un cran,
+   comme dans la barre de l'en-tête, pour que la rangée ne s'étale pas. */
+@media (max-width: 767px) {
+  .contact-liens { gap: 0 var(--e2); }
+
+  .contact-liens a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-tactile);
+    padding: 0;
+  }
+}
+
 @media (min-width: 768px) {
   .contact-grille {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

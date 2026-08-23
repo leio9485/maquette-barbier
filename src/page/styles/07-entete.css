@@ -73,6 +73,59 @@
   margin: calc(var(--e1) * -1) 0;
 }
 
+/* --- LE SOMMAIRE SUR TÉLÉPHONE : UNE LIGNE QUI DÉFILE ----------------------
+
+   >>> IL EN PRENAIT DEUX, ET L'EN-TÊTE FAISAIT 151 px. <<<
+
+   Mesuré à 394 px : bandeau d'état 44 px collé, puis en-tête 151 px, soit
+   195 px sur 852 — 23 % de l'écran avant le premier mot du titre. La cause
+   tient en un mot : `flex-wrap: wrap`. Les cinq liens ne tiennent pas dans
+   346 px de gouttière à gouttière (267 px de texte plus 96 px d'écarts), ils
+   passent donc à la ligne sous le nom du commerce, et le sommaire coûte deux
+   rangées au lieu d'une. L'en-tête défile — il n'est collé qu'à partir de
+   1000 px — mais c'est en haut de page qu'il coûte, c'est-à-dire au moment
+   précis où le visiteur décide s'il reste.
+
+   LA BARRE DÉFILE PLUTÔT QUE DE PASSER À LA LIGNE. Les cinq liens restent
+   présents, dans l'ordre, atteignables d'un geste du pouce. Rien à ouvrir,
+   rien à fermer.
+
+   ⚠️ LE MENU REPLIÉ DERRIÈRE UN BOUTON A ÉTÉ ÉCARTÉ, et c'est la même
+      décision que dans parties/entete.html. Il aurait fallu un état
+      ouvert/fermé, un piège à focus, une fermeture à l'Échap et au clic
+      extérieur, une icône générique — de la mécanique et un geste de plus
+      pour cacher cinq mots courts qui tiennent presque à l'écran.
+
+   ⚠️ LA BARRE DE DÉFILEMENT EST MASQUÉE, ET C'EST CE QUI DEMANDE UNE AUTRE
+      AFFORDANCE. Elle est masquée parce qu'une barre grise en travers de
+      l'aplat encre, sous cinq mots de 13 px, se lit comme un défaut de rendu.
+      Ce qui dit alors que la rangée défile, c'est le dernier lien COUPÉ par le
+      bord de l'écran — d'où les marges négatives : la rangée va d'un bord à
+      l'autre, et son contenu démarre quand même à la gouttière, comme tout le
+      reste de la page. Sans elles, la coupure tomberait 24 px avant le bord et
+      se lirait comme une fin de liste. */
+@media (max-width: 767px) {
+  .entete-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    /* La rangée va d'un bord de l'écran à l'autre, son premier lien reste sur
+       la gouttière : le retrait rendu par la marge est repris en rembourrage. */
+    margin-left: calc(var(--marge) * -1);
+    margin-right: calc(var(--marge) * -1);
+    padding-left: var(--marge);
+    padding-right: var(--marge);
+    scrollbar-width: none;
+  }
+
+  .entete-nav::-webkit-scrollbar { display: none; }
+
+  /* Sans lui, « Prestations » se couperait en deux lignes dans une rangée qui
+     ne passe plus à la ligne — le mot casse, la hauteur double, et on n'aurait
+     rien gagné. */
+  .entete-nav a { white-space: nowrap; }
+}
+}
+
 .entete-nav a {
   display: inline-block;
   /* 8 px au-dessus et en dessous d'une ligne de 13 px : la cible atteint 32 px

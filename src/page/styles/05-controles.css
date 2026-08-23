@@ -671,7 +671,17 @@ html.sans-defilement {
   cursor: pointer;
 }
 
-.lien-nu:hover { color: var(--acier-clair); }
+/* ⚠️ `--acier` ET NON `--acier-clair` EN DUR. Les deux se valaient tant que ce
+   lien ne vivait que sur aplat sombre — la barre de l'espace remappe
+   `--acier` sur `--acier-clair` (14-connexion.css), le rendu y est donc le
+   meme au pixel pres. Mais `.lien-nu` sert aussi sur craie : « Changer de
+   prestation » dans le tunnel, « Aujourd'hui » dans l'agenda, « Retirer » dans
+   les reglages — et depuis le lot 2, « Voir le site » et « Se deconnecter »
+   descendus en pied sur telephone. L'acier clair y tombe a 2,1:1 (voir
+   02-jetons.css : « illisible sur craie »), c'est-a-dire qu'au survol le lien
+   DISPARAISSAIT presque. Le jeton, lui, vaut la bonne valeur sur chaque fond. */
+.lien-nu:hover { color: var(--acier); }
+
 
 /* --- LES MESSAGES ----------------------------------------------------------
 

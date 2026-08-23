@@ -166,6 +166,31 @@ html {
   padding: var(--e4) var(--marge) var(--e6);
 }
 
+/* --- LE PIED DE L'ESPACE, SUR TÉLÉPHONE ------------------------------------
+
+   Il ne contient rien tant que l'écran est large : « Voir le site » et
+   « Se déconnecter » restent alors dans la barre du haut. Sous 768 px,
+   `placerLesActionsDeSession()` (js/espace/demarrage.js) y déplace le bloc —
+   le même nœud, jamais une copie.
+
+   >>> CE QUE ÇA REND. <<< La barre est collée en permanence : 109 px sur 852 à
+   394 px, et l'en-tête de journée se colle en dessous, si bien que sa hauteur
+   est prise deux fois. Ces deux liens sont des actions de FIN de session ; la
+   navigation de travail — Chiffres, Agenda, Réglages — reste, elle, sous le
+   pouce.
+
+   ⚠️ VIDE, IL NE DOIT RIEN DESSINER. Sans `:empty`, son filet et son
+      rembourrage traceraient une ligne en bas de chaque écran d'ordinateur,
+      sous une boîte qui ne contient rien. */
+.espace-pied:empty { display: none; }
+
+.espace-pied {
+  max-width: var(--largeur-max);
+  margin: 0 auto;
+  padding: var(--e3) var(--marge) var(--e4);
+  border-top: 1px solid var(--filet);
+}
+
 /* --- LE BANDEAU DE DÉMONSTRATION -------------------------------------------
 
    Sur aplat bleu de travail : c'est le seul endroit de l'espace qui ne parle

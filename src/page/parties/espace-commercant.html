@@ -547,6 +547,28 @@
       </section>
 
     </main>
+
+    <!--# LE PIED DE L'ESPACE — VIDE, ET C'EST NORMAL.
+
+         Il ne reçoit rien tant que l'écran est large : « Voir le site » et
+         « Se déconnecter » vivent alors dans la barre du haut, où ils sont
+         depuis toujours. Sous 768 px, `placerLesActionsDeSession()`
+         (js/espace/demarrage.js) y DÉPLACE le bloc `.espace-barre-actions` —
+         le même, jamais une copie.
+
+         >>> POURQUOI LES DESCENDRE. <<< La barre du haut est collée en
+         permanence : mesurée à 109 px sur 852 à 394 px, soit 13 % de l'écran,
+         pris deux fois puisque l'en-tête de journée se colle en dessous. Ces
+         deux liens sont des actions de FIN de session, pas de travail — les
+         onglets « Chiffres / Agenda / Réglages », eux, restent sous le pouce.
+
+         ⚠️ ON DÉPLACE LE NŒUD, ON NE POSE PAS UN `order`. Un `order` laisserait
+            l'ordre de tabulation sur l'ordre du balisage, donc en désaccord
+            avec l'ordre lu (WCAG 2.4.3) : c'est le refus déjà écrit dans
+            14-connexion.css, et il tient toujours. Un second exemplaire caché
+            en CSS aurait, lui, dupliqué deux cibles pour les lecteurs d'écran
+            et deux fois l'identifiant `seDeconnecter`. #-->
+    <footer class="espace-pied" id="espacePied"></footer>
   </div>
 
   <!-- LA FICHE D'UNE LIGNE D'AGENDA ------------------------------------------

@@ -59,10 +59,55 @@ function mesurerLesBarresCollees() {
   mesurer('.reglages-sommaire', '--h-sommaire');
 }
 
+/**
+ * « Voir le site » et « Se deconnecter » : dans la barre, ou dans le pied.
+ *
+ * >>> LA BARRE COLLEE PRENAIT 109 px SUR UN ECRAN DE 852. <<< Deux rangees :
+ * le nom et les trois onglets, puis ces deux liens. Or ce sont des actions de
+ * FIN de session — on ne s'en sert pas en travaillant — et elles occupaient un
+ * treizieme de l'ecran en permanence, pris deux fois puisque l'en-tete de
+ * journee se colle sous la barre. Descendues en pied sous 768 px, la barre
+ * revient a une rangee et l'agenda recupere leur hauteur.
+ *
+ * ⚠️ ON DEPLACE LE MEME BLOC, ON NE LE RECOPIE PAS. Deux exemplaires feraient
+ *    deux fois l'identifiant `seDeconnecter` dans le document — donc un
+ *    `$('#seDeconnecter')` qui branche l'un et pas l'autre — et deux cibles
+ *    annoncees la ou il n'y a qu'une action.
+ *
+ * ⚠️ ET ON NE PASSE PAS PAR UN `order` CSS. Il laisserait l'ordre de
+ *    tabulation sur celui du balisage, en desaccord avec l'ordre lu
+ *    (WCAG 2.4.3) : c'est le refus deja ecrit dans 14-connexion.css. Deplacer
+ *    le noeud deplace les deux ensemble.
+ *
+ * ⚠️ LES ECOUTEURS SUIVENT LE NOEUD. `appendChild` deplace l'element sans le
+ *    recreer : le branchement de « Se deconnecter » reste attache.
+ */
+const ESPACE_ETROIT = window.matchMedia('(max-width: 767px)');
+
+function placerLesActionsDeSession() {
+  const actions = $('.espace-barre-actions');
+  const pied = $('#espacePied');
+  const barre = $('.espace-barre-corps');
+  if (!actions || !pied || !barre) return;
+
+  const destination = ESPACE_ETROIT.matches ? pied : barre;
+  // Rien a faire si le bloc est deja au bon endroit : un `appendChild` inutile
+  // sortirait le focus du lien qu'on est en train de viser au clavier.
+  if (actions.parentElement !== destination) destination.appendChild(actions);
+}
+
 async function demarrerEspace() {
   brancherNavigation();
   brancherConfirmation();
   brancherAgenda();
+
+  placerLesActionsDeSession();
+  ESPACE_ETROIT.addEventListener('change', () => {
+    placerLesActionsDeSession();
+    // La barre vient de perdre — ou de reprendre — une rangee : tout ce qui se
+    // cale sous elle doit etre remesure dans la foulee.
+    mesurerLesBarresCollees();
+  });
 
   // La largeur change : la barre du haut peut passer a la ligne, et tout ce qui
   // se cale dessous doit suivre.

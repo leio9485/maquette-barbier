@@ -262,11 +262,46 @@ function rdvTriesDe(iso) {
     .sort((a, b) => a.start - b.start || rang(a) - rang(b));
 }
 
-/** « 3 rendez-vous », « 1 rendez-vous », « — ». */
+/**
+ * « 3 rendez-vous », « 1 rendez-vous », « » quand il n'y en a aucun.
+ *
+ * >>> UN RENDEZ-VOUS ANNULE N'EST PLUS UN RENDEZ-VOUS. <<<
+ *
+ * Le compteur les comptait. Mesure du 23 aout sur
+ * /api/admin/bookings?date=2026-08-25 : dix-neuf lignes, dont dix-huit actives
+ * et une annulee par le client — et l'en-tete de journee annoncait « 19 ». Le
+ * patron lit dix-neuf, compte dix-huit tetes dans sa journee, et cherche lequel
+ * il a oublie.
+ *
+ * Le reste du produit faisait deja la difference : `OCCUPENT = { annuleLe: null }`
+ * (src/lib/annulation.js) est applique partout dans statistiques.js, et les
+ * chiffres du tableau de bord sont justes. Ce compteur-la etait le seul a
+ * l'ignorer.
+ *
+ * ⚠️ LES LIGNES ANNULEES RESTENT AFFICHEES, BARREES. Ce n'est pas le meme
+ *    sujet : le commercant doit voir qu'un creneau s'est libere sans qu'il y
+ *    soit pour rien (voir `ligneRdv()`). C'est le NOMBRE qui etait faux, pas
+ *    l'affichage.
+ */
 function compteDe(liste) {
-  const vrais = liste.filter((r) => r.type !== 'block').length;
+  const vrais = liste.filter((r) => r.type !== 'block' && !r.cancelledAt).length;
   if (!vrais) return '';
   return vrais > 1 ? `${vrais} rendez-vous` : '1 rendez-vous';
+}
+
+/**
+ * « 1 annulé », « 2 annulés », « » — la mention secondaire de la tete de journee.
+ *
+ * Elle est SECONDAIRE, et elle s'ecrit a part du nombre principal : « 18
+ * rendez-vous · 1 annulé » dit les deux choses sans qu'aucune ne mente. Un
+ * nombre unique devrait choisir, et les deux choix sont mauvais — dix-neuf
+ * annonce une journee plus chargee qu'elle ne l'est, dix-huit efface le
+ * decommandement que le commercant a justement besoin de voir.
+ */
+function annulesDe(liste) {
+  const annules = liste.filter((r) => r.type !== 'block' && r.cancelledAt).length;
+  if (!annules) return '';
+  return annules > 1 ? `${annules} annulés` : '1 annulé';
 }
 
 // --- LES REPERES DE LECTURE D'UNE JOURNEE -----------------------------------
@@ -387,13 +422,23 @@ function peindreJour(iso) {
   const ouvert = plagesDuJour(CONFIG?.hours[jourDeLaSemaine(iso)]).length > 0;
 
   const nom = dateLongue(iso);
-  const compte = compteDe(liste);
+
+  // Le nombre principal est celui des rendez-vous QUI AURONT LIEU ; les
+  // annulations suivent, en mention secondaire, separees par le point median
+  // qui separe deja les informations de meme rang dans tout le site. Sans
+  // rendez-vous actif, la journee dit ce qu'elle disait avant — « Rien de
+  // prévu » ou « Fermé » — et la mention s'y ajoute : « Fermé · 1 annulé » est
+  // exactement ce qu'il y a a lire ce jour-la.
+  const compte = [
+    compteDe(liste) || (ouvert ? 'Rien de prévu' : 'Fermé'),
+    annulesDe(liste),
+  ].filter(Boolean).join(' · ');
 
   const tete = `<div class="agenda-jour-tete"${iso === aujourdhui() ? ' data-aujourdhui' : ''}>`
     + `<p class="agenda-jour-nom">${esc(nom.charAt(0).toUpperCase() + nom.slice(1))}`
       + (iso === aujourdhui() ? ' <span class="agenda-marque">Aujourd\'hui</span>' : '')
     + '</p>'
-    + `<p class="agenda-jour-compte donnee">${esc(compte || (ouvert ? 'Rien de prévu' : 'Fermé'))}</p>`
+    + `<p class="agenda-jour-compte donnee">${esc(compte)}</p>`
     + '</div>';
 
   // Un jour ferme SANS rendez-vous ne montre rien de plus. Un jour ferme AVEC

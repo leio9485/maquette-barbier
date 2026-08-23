@@ -440,6 +440,74 @@ try {
       typeof annule?.cancelledAt === 'string', annule?.cancelledAt);
   }
 
+  // --- 8 bis. Le compteur de la tete de journee ----------------------------
+  //
+  // >>> IL COMPTAIT LES LIGNES AFFICHEES, PAS LES RENDEZ-VOUS. <<<
+  //
+  // Mesure du 23 aout sur /api/admin/bookings?date=2026-08-25 : dix-neuf
+  // lignes, dix-huit actives, une annulee par le client — et l'agenda annoncait
+  // « 19 rendez-vous ». Le patron lit dix-neuf, compte dix-huit tetes dans sa
+  // journee, et cherche lequel il a oublie. Tout le reste du produit ecarte
+  // pourtant les annulations (`OCCUPENT`, src/lib/annulation.js) ; ce compteur
+  // etait le seul a les garder.
+  //
+  // ⚠️ LE COMPTEUR VIT DANS LE NAVIGATEUR, et aucune route ne le rend. On
+  //    evalue donc le vrai morceau de page, exactement comme la section 10
+  //    ci-dessous et comme tests/ics.mjs : le fichier ne declare que des
+  //    fonctions, et la seule chose qui s'execute a l'evaluation est le
+  //    `matchMedia` de `ECRAN_LARGE` — d'ou le faux `window`.
+  console.log('\n8 bis. Le compteur de la tete de journee');
+  {
+    const source = await readFile(
+      path.join(ROOT_DIR, 'src', 'page', 'js', '09-agenda.js'), 'utf8');
+
+    const usine = new Function('window', `${source}\nreturn { compteDe, annulesDe };`);
+    const { compteDe, annulesDe } = usine({
+      matchMedia: () => ({ matches: false, addEventListener() {} }),
+    });
+
+    const actif = (n) => Array.from({ length: n }, () => ({ type: 'appt', cancelledAt: null }));
+    const annule = (n) => Array.from({ length: n },
+      () => ({ type: 'appt', cancelledAt: '2026-08-23T10:00:00.000Z' }));
+
+    verifie('une journee sans annulation compte ce qu\'elle affiche',
+      compteDe(actif(18)) === '18 rendez-vous', compteDe(actif(18)));
+
+    verifie('>>> UNE JOURNEE DE 18 RENDEZ-VOUS ET 1 ANNULATION EN COMPTE 18 <<<',
+      compteDe([...actif(18), ...annule(1)]) === '18 rendez-vous',
+      compteDe([...actif(18), ...annule(1)]));
+
+    verifie('l\'annulation est dite a part, en mention secondaire',
+      annulesDe([...actif(18), ...annule(1)]) === '1 annulé',
+      annulesDe([...actif(18), ...annule(1)]));
+
+    verifie('deux annulations s\'accordent', annulesDe(annule(2)) === '2 annulés',
+      annulesDe(annule(2)));
+
+    verifie('une journee entierement annulee ne compte aucun rendez-vous',
+      compteDe(annule(3)) === '', compteDe(annule(3)));
+
+    // Un blocage n'a jamais ete un rendez-vous, et il ne le devient pas ici.
+    verifie('une periode bloquee ne compte toujours pas',
+      compteDe([...actif(2), { type: 'block', cancelledAt: null }]) === '2 rendez-vous',
+      compteDe([...actif(2), { type: 'block', cancelledAt: null }]));
+
+    // ET SUR LA VRAIE JOURNEE, celle que l'agenda affiche : le compteur doit
+    // tomber sur ce que le filtre du serveur laisse passer.
+    const jour = await salon.appel('GET', `/api/admin/bookings?from=${JOUR}&to=${JOUR}`);
+    const lignes = jour.donnees?.bookings ?? [];
+    const attendus = lignes.filter((b) => b.type !== 'block' && !b.cancelledAt).length;
+
+    const attendu = attendus > 1 ? `${attendus} rendez-vous`
+      : (attendus === 1 ? '1 rendez-vous' : '');
+
+    verifie('sur la journee de test, le compteur suit les rendez-vous actifs',
+      compteDe(lignes) === attendu, [compteDe(lignes), attendu]);
+
+    verifie('et elle porte bien au moins une annulation',
+      lignes.some((b) => b.cancelledAt), lignes.length);
+  }
+
   // --- 9. La limitation des tentatives -------------------------------------
   //
   // EN DERNIER, ET CE N'EST PAS UN CAPRICE : le compteur porte sur l'adresse IP,

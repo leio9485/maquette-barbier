@@ -124,40 +124,12 @@
      rien gagné. */
   .entete-nav a { white-space: nowrap; }
 
-  /* LA CIBLE PASSE DE 32 A 44 px (voir `--cible-tactile`, 02-jetons.css). Les
-     8 px de rembourrage donnaient 32 px, c'est-a-dire le minimum legal plus
-     huit — sur les cinq liens qui menent a tout le reste de la page, au pouce,
-     sur la seule barre de navigation du site.
-
-     ⚠️ L'ECART EST REPRIS SUR LE `gap`, exactement comme le dit la note
-        d'origine ci-dessus : la cible grandit de 12 px, l'ecart horizontal
-        perd un cran (24 -> 16). Sans cela les cinq liens s'ecarteraient de
-        12 px de plus chacun et la rangee, qui defile deja, s'allongerait pour
-        rien. Le texte, lui, ne bouge pas d'un pixel. */
-  .entete-nav { gap: 0 var(--e2); }
-
   /* L'ecart de la colonne perd un cran lui aussi, et pour la meme raison : le
      texte des liens est desormais centre dans 44 px au lieu d'etre pose dans
      32, il descend donc de 6 px tout seul. Sans ce reglage, l'espace VU entre
      « Barbier · Bavay » et « Prestations » passerait de 16 a 22 px, et
      l'en-tete grandirait de douze pixels pour ne rien montrer de plus. */
   .entete-corps { gap: var(--e1); }
-
-  .entete-nav a {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--cible-tactile);
-    padding: 0;
-  }
-
-  /* Le rappel « Votre rendez-vous » porte le lien qui mene a /annuler : c'est
-     ce qu'on touche pour deplacer ou annuler, et il tenait 22 px. */
-  .rappel-lien {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--cible-tactile);
-    padding: 0;
-  }
 }
 
 .entete-nav a {
@@ -182,6 +154,53 @@
   color: var(--craie);
   text-decoration: underline;
   text-underline-offset: 0.2em;
+}
+
+/* --- LA CIBLE DE 44 px, SOUS 768 px ----------------------------------------
+
+   Le rembourrage de 8 px ci-dessus donne 32 px de haut : le minimum legal plus
+   huit, sur les cinq liens qui mènent à tout le reste de la page, au pouce, et
+   sur la seule barre de navigation du site. Le seuil et son motif sont sur
+   `--cible-tactile` (02-jetons.css).
+
+   >>> CETTE RÈGLE DOIT RESTER APRÈS `.entete-nav a`, ET C'EST TOUT LE SUJET
+   D'UN DÉFAUT QUI A ÉTÉ LIVRÉ. <<< Elle était écrite plus haut, dans le bloc du
+   sommaire qui défile. À spécificité égale — `.entete-nav a` des deux côtés, un
+   `@media` n'en ajoute aucune — c'est la dernière écrite qui gagne : la règle
+   de base reprenait `display: inline-block` et `padding: 8px 0`, et il ne
+   restait de celle-ci que le `min-height`. Un bloc de 44 px en `inline-block`
+   pose sa ligne de texte EN HAUT de son contenu : le texte tenait 7 px sous le
+   bord haut de la cible, avec 20 px de vide dessous, et le sommaire paraissait
+   collé au nom du commerce. `align-items: center` ne pouvait rien y faire — il
+   ne veut rien dire hors d'une boîte flex, et la boîte n'en était pas une.
+
+   ⚠️ L'ÉCART HORIZONTAL PERD UN CRAN (24 -> 16) : la cible grandit de 12 px,
+      et sans cela les cinq liens s'écarteraient d'autant chacun sur une rangée
+      qui défile déjà. Le texte, lui, ne bouge pas d'un pixel — c'est la boîte
+      qui grandit autour de lui, jamais la typographie. */
+@media (max-width: 767px) {
+  .entete-nav { gap: 0 var(--e2); }
+
+  /* >>> ET LE BAS DE LA BANDE SE RÉÉQUILIBRE. <<< La boîte de 44 px porte
+     maintenant son propre air — 13 px de part et d'autre du texte — et il
+     s'ajoutait au rembourrage du bas de l'en-tête, qui faisait double emploi :
+     13 px au-dessus de « L'ÉTABLI », 22 sous « PRESTATIONS », mesurés. Le
+     sommaire paraissait poussé vers le haut de son aplat.
+
+     La marge négative du bas passe donc d'un cran à deux (−8 → −16) : la boîte
+     rentre entièrement dans le rembourrage qu'elle remplace, et l'air visible
+     redevient le même en haut et en bas. L'en-tête y gagne 8 px au passage,
+     123 -> 115. C'est le prolongement exact de la note d'origine — « aucun
+     écart vertical : le padding des liens le fournit déjà » — le `min-height`
+     ayant simplement remplacé ce padding. */
+  .entete-nav { margin-bottom: calc(var(--e2) * -1); }
+
+  .entete-nav a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-tactile);
+    padding: 0;
+  }
 }
 
 @media (min-width: 768px) {
@@ -303,6 +322,18 @@
   text-underline-offset: 3px;
 }
 .rappel-lien:hover { text-decoration-thickness: 2px; }
+
+/* 44 px sous 768 px, et posé APRÈS la règle ci-dessus pour la raison écrite au
+   milieu de ce fichier : une surcharge de même spécificité qui passe avant sa
+   règle de base ne garde que ce que celle-ci ne déclare pas. */
+@media (max-width: 767px) {
+  .rappel-lien {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--cible-tactile);
+    padding: 0;
+  }
+}
 
 /* À l'impression, il n'apprend rien : ce qu'il annonce est déjà sur la page
    d'annulation, qui est celle qu'on imprime. */

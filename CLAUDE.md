@@ -1288,7 +1288,26 @@ ligne.** Il était en `flex-wrap: wrap` : les cinq liens ne tiennent pas dans
 346 px de gouttière à gouttière (267 px de texte, 96 px d'écarts), ils passaient
 donc à la ligne sous le nom du commerce, et l'en-tête faisait **151 px** —
 avec le bandeau, 23 % de l'écran avant le premier mot du titre. Il en fait
-**123**.
+**115**.
+
+⚠️ **UNE SURCHARGE POSÉE AVANT SA RÈGLE DE BASE NE GARDE QUE CE QUE CELLE-CI NE
+DÉCLARE PAS**, et ce défaut-là a été livré. Le bloc qui porte la cible de 44 px
+était écrit AVANT `.entete-nav a` : à spécificité égale — un `@media` n'en
+ajoute aucune — la règle de base reprenait `display: inline-block` et
+`padding: 8px 0`, et il ne restait de la surcharge que son `min-height`. Or un
+bloc de 44 px en `inline-block` pose sa ligne de texte EN HAUT : le sommaire
+tenait 7 px sous le bord haut de sa cible, avec 20 px de vide dessous.
+`align-items: center` ne pouvait rien y faire — il ne veut rien dire hors d'une
+boîte flex, et la boîte n'en était pas une. Les cinq surcharges de cible des
+autres feuilles étaient, elles, bien placées : vérifié en relisant les règles
+appliquées dans le navigateur, pas le fichier.
+
+⚠️ **LA BOÎTE DE 44 px PORTE SON PROPRE AIR — 13 px de part et d'autre du
+texte — ET IL FAISAIT DOUBLE EMPLOI AVEC LE REMBOURRAGE DU BAS.** 13 px au-
+dessus de « L'ÉTABLI », 22 sous « PRESTATIONS » : la bande paraissait poussée
+vers le haut. La marge négative du bas passe d'un cran à deux (−8 → −16), la
+boîte rentre entièrement dans le rembourrage qu'elle remplace, et l'air visible
+redevient le même en haut et en bas.
 
 ⚠️ **Le menu replié derrière un bouton a été écarté**, et c'est la note qui
 était déjà écrite dans `parties/entete.html` : un état ouvert/fermé, un piège à
@@ -1356,10 +1375,17 @@ unique, et la journée de test est pleine. Il restait deux créneaux libres là 
 rendez-vous du jour en bloc, la journée se libérait d'elle-même, et la seconde
 exécution passait.
 
-`libererLaSemaineDeTest()` relève, efface et **repose** les rendez-vous des sept
-jours de test, exactement comme `mettreEquipeDeCote()` fait de l'équipe : la
+`libererLaSemaineDeTest()` relève, efface et **repose** les rendez-vous de la
+fenêtre de test, exactement comme `mettreEquipeDeCote()` fait de l'équipe : la
 base de développement n'est pas jetable, et un prospect à qui l'on montre le
 site après un `npm test` doit retrouver son agenda plein.
+
+⚠️ **LA FENÊTRE COMMENCE AUJOURD'HUI, PAS À LA JOURNÉE DE TEST.** La section 10
+de `api.mjs` ferme « les jours qui précèdent » cette journée, et une journée qui
+porte des rendez-vous ne se ferme pas sans confirmation. Un dimanche, la veille
+est un lundi fermé et la question ne se pose pas ; un lundi, c'est un **mardi
+ouvert et rempli**, et la suite s'arrêtait là. Un jour sur deux selon le jour du
+lancement — le même piège que les heures écrites en dur.
 
 ⚠️ **`npm run dev` ne convient pas pour lancer la suite.** `node --watch`
 redémarre le serveur dès qu'un fichier de `data/` change — or la suite écrit la

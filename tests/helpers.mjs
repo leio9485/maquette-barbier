@@ -302,9 +302,8 @@ export function prochainJourOuvert() {
 // pour toutes les suivantes. C'est-a-dire que `npm test` echouait sur une
 // machine neuve et passait ensuite — la pire facon de decouvrir un test.
 //
-// La semaine entiere plutot que la seule journee : blocages.mjs pose une
-// periode de trois jours, et annulation.mjs deplace un rendez-vous vers le jour
-// ouvert suivant, qui peut etre a cinq jours de la.
+// La fenetre va d'AUJOURD'HUI a la journee de test plus six jours — le detail et
+// les deux raisons sont sur `semaineDeTest()` juste en dessous.
 //
 // ⚠️ MEME REGLE QUE POUR L'EQUIPE : releves, effaces, REPOSES. La base de
 //    developpement n'est pas jetable, et un prospect a qui l'on montre le site
@@ -313,11 +312,32 @@ export function prochainJourOuvert() {
 
 const FICHIER_RENDEZ_VOUS = path.join(DATA_DIR, 'rendez-vous-mis-de-cote.json');
 
-/** Les sept dates a partir de la journee de test. */
+/**
+ * La fenetre a liberer : d'AUJOURD'HUI a la journee de test plus six jours.
+ *
+ * ⚠️ ELLE COMMENCE AUJOURD'HUI, ET PAS A LA JOURNEE DE TEST. La section 10 de
+ *    tests/api.mjs ferme « les jours qui precedent » le prochain jour ouvert,
+ *    pour que le bandeau reponde sur cette journee-la et sur elle seule — et
+ *    une journee qui porte des rendez-vous ne se ferme pas sans confirmation,
+ *    a juste titre. Lancee un dimanche, la veille est un lundi ferme et la
+ *    question ne se pose pas ; lancee un lundi, c'est un MARDI OUVERT, rempli
+ *    par la demonstration, et la suite s'arretait la. Un jour de la semaine sur
+ *    deux, selon le jour ou l'on lance — exactement le genre de test qui casse
+ *    sans que personne n'ait rien touche.
+ *
+ * Sept jours a partir de la journee de test, parce que blocages.mjs pose une
+ * periode de trois jours et que annulation.mjs deplace vers le jour ouvert
+ * suivant, qui peut etre a cinq jours de la.
+ */
 function semaineDeTest() {
   const dates = [];
-  const d = new Date(`${prochainJourOuvert()}T12:00:00Z`);
-  for (let i = 0; i < 7; i++) {
+  const fin = new Date(`${prochainJourOuvert()}T12:00:00Z`);
+  fin.setUTCDate(fin.getUTCDate() + 6);
+
+  const d = new Date();
+  d.setUTCHours(12, 0, 0, 0);
+
+  while (d <= fin) {
     dates.push(d.toISOString().slice(0, 10));
     d.setUTCDate(d.getUTCDate() + 1);
   }
@@ -358,7 +378,7 @@ export async function libererLaSemaineDeTest() {
   await writeFile(FICHIER_RENDEZ_VOUS, JSON.stringify(lignes, null, 2), 'utf8');
   await prisma.booking.deleteMany({ where: { id: { in: lignes.map((l) => l.id) } } });
 
-  console.log(`(${lignes.length} rendez-vous mis de cote du ${dates[0]} au ${dates[6]})`);
+  console.log(`(${lignes.length} rendez-vous mis de cote du ${dates[0]} au ${dates.at(-1)})`);
   return lignes.length;
 }
 
